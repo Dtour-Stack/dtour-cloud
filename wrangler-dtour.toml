@@ -1,0 +1,38 @@
+# Dtour Cloud — Wrangler environment overlay
+#
+# Merge this into the main cloud-api/wrangler.toml as an [env.dtour] section,
+# or deploy as a standalone worker with `wrangler deploy -c wrangler-dtour.toml`.
+#
+# Required secrets (set via `wrangler secret put`):
+#   SOLANA_RPC_URL     — Helius/QuickNode RPC endpoint
+#   DATABASE_URL       — D1 or external DB
+#   STEWARD_JWT_SECRET — Steward auth secret
+#
+# Required vars:
+#   CLOUD_TENANT=dtour — activates the $DTOUR tier gate middleware
+
+name = "dtour-cloud-api"
+compatibility_date = "2025-01-01"
+main = "src/index.ts"
+
+[vars]
+CLOUD_TENANT = "dtour"
+NODE_ENV = "production"
+DTOUR_MINT = "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy"
+DTOUR_AFFILIATE_CODE = "AFF-0GOWANBA"
+
+# Tier thresholds (for reference — also hardcoded in middleware)
+# SCOUT: 1,000,000 $DTOUR
+# OPERATOR: 5,000,000 $DTOUR
+# VIP: 10,000,000 $DTOUR (~1% supply)
+
+[env.production]
+routes = [
+  { pattern = "detour.ninja/api/*", zone_name = "detour.ninja" }
+]
+
+[env.staging]
+routes = [
+  { pattern = "staging.detour.ninja/api/*", zone_name = "detour.ninja" }
+]
+vars = { NODE_ENV = "staging" }
