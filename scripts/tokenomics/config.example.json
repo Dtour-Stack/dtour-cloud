@@ -1,0 +1,61 @@
+{
+  "//": "TEMPLATE — copy to config.json (gitignored) and replace every EDIT_ value before --execute. NO SECRETS HERE: private keys come from env CREATOR_WALLET_SECRET (base58) only. RPC endpoint comes from env RPC_URL (or SOLANA_RPC_URL), not this file.",
+
+  "mint": "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy",
+  "//mint": "$DTOUR mint — FIXED, do NOT edit. Scripts refuse to run on any other mint.",
+
+  "tokenDecimals": 6,
+  "//tokenDecimals": "EDIT-VERIFY: pump.fun tokens are usually 6. Confirm via getMint before distributing.",
+
+  "wallets": {
+    "creator": "EDIT_CREATOR_WALLET_PUBKEY",
+    "//creator": "Receives collected creator fees. The tx SIGNER. Its secret is env CREATOR_WALLET_SECRET — never put a key here.",
+    "builder": "EDIT_BUILDER_POOL_PUBKEY",
+    "//builder": "Builder / dev pool.",
+    "treasury": "EDIT_TREASURY_PUBKEY",
+    "//treasury": "Ops treasury (also receives rounding dust).",
+    "buyback": "EDIT_BUYBACK_PUBKEY",
+    "//buyback": "Holds SOL earmarked for an optional buyback.",
+    "buybackTokenDest": "EDIT_OR_SAME_AS_buyback",
+    "//buybackTokenDest": "Where bought-back $DTOUR lands (treasury/buyback hold, or a burn address). A real burn is impossible — no mint authority — so 'burn' just means an unspendable address. Optional; only used by an optional buyback step."
+  },
+
+  "splitBps": {
+    "builder": 3000,
+    "holders": 4000,
+    "buyback": 2000,
+    "treasury": 1000,
+    "//": "EDIT. MUST sum to EXACTLY 10000 or every script exits(1). Example: 30% builder / 40% holders / 20% buyback / 10% treasury."
+  },
+
+  "collect": {
+    "priorityFeeSol": 0.000001,
+    "//priorityFeeSol": "EDIT: PumpPortal priorityFee for the collectCreatorFee claim tx.",
+    "creatorReserveSol": 0.02,
+    "//creatorReserveSol": "EDIT: SOL left in the creator wallet after a split (buffer for future fees + tx fees). The split never drains below this."
+  },
+
+  "distribution": {
+    "snapshotMethod": "getProgramAccounts",
+    "//snapshotMethod": "'getProgramAccounts' (COMPLETE — every holder) | 'getTokenLargestAccounts' (FAST but CAPPED at top 20 — under-distributes if >20 holders).",
+    "minBalanceTokens": 1000,
+    "//minBalanceTokens": "EDIT: ignore owners holding fewer than this many $DTOUR.",
+    "minPayoutSol": 0.001,
+    "//minPayoutSol": "EDIT: dust floor — skip payouts below this (not worth the fee).",
+    "excludeWallets": [
+      "EDIT_CREATOR_WALLET_PUBKEY",
+      "EDIT_BUILDER_POOL_PUBKEY",
+      "EDIT_TREASURY_PUBKEY",
+      "EDIT_BUYBACK_PUBKEY",
+      "EDIT_LP_TOKEN_ACCOUNT_OWNER_PDA"
+    ],
+    "//excludeWallets": "EDIT: token-account OWNERS removed from pro-rata. MUST include creator+builder+treasury+buyback (hard-enforced) AND the OWNER of the LP $DTOUR token account. CRITICAL: pro-rata matches on the token-account OWNER, which for a pump.fun bonding-curve / migrated AMM pool is a PROGRAM-DERIVED ADDRESS (PDA) — NOT the pool/market/mint/ATA address. Pasting the pool/market/ATA address here excludes nothing and the LP receives the largest payout. The dry-run flags any included recipient that is program-owned; use that owner PDA here."
+  },
+
+  "buyback": {
+    "venue": "jupiter",
+    "//venue": "'jupiter' | 'pumpportal'. Buyback is OPTIONAL and not implemented by the committed scripts; this block documents intent.",
+    "slippageBps": 200,
+    "priorityFeeSol": 0.000001
+  }
+}

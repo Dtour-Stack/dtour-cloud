@@ -24,3 +24,9 @@ convex/_generated/
 
 # OS
 .DS_Store
+
+# Tokenomics scripts: real operator config + payout/run manifests stay local.
+# The committed config.example.json template is a different filename, so it is
+# not matched by this rule.
+scripts/tokenomics/config.json
+scripts/tokenomics/*.manifest.json
