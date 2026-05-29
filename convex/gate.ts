@@ -1,14 +1,11 @@
 "use node";
 
-import { Connection, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 import { v } from "convex/values";
 import nacl from "tweetnacl";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
-
-const DTOUR_MINT = "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy";
-const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
 
 function nonceFromMessage(message: string): string | null {
   const line = message
@@ -18,9 +15,12 @@ function nonceFromMessage(message: string): string | null {
 }
 
 /**
- * Authoritative $DTOUR gate: validates the server-issued nonce, verifies the
- * SIWS signature, reads the wallet's on-chain $DTOUR balance, and (only if the
- * balance is > 0) records the login and returns a session token.
+ * Early-access gate: validates the server-issued nonce, verifies the SIWS
+ * signature, and issues a session token ONLY for allowlisted wallets. Every
+ * other wallet is directed to the email waitlist (handled client-side).
+ *
+ * (When early access ends, restore the $DTOUR on-chain balance check here so
+ * holders can sign in too — see git history of this file.)
  */
 export const verify = action({
   args: {
@@ -43,29 +43,20 @@ export const verify = action({
     );
     if (!verified) throw new Error("Signature verification failed");
 
-    // Whitelisted wallets always pass, regardless of $DTOUR balance.
+    // Early access: only allowlisted wallets may sign in.
     const whitelisted = await ctx.runQuery(internal.whitelist.isWhitelisted, {
       pubkey,
     });
-
-    let balance = 0;
     if (!whitelisted) {
-      const rpcUrl = process.env.SOLANA_RPC_URL || DEFAULT_RPC;
-      const connection = new Connection(rpcUrl, "confirmed");
-      const { value } = await connection.getParsedTokenAccountsByOwner(owner, {
-        mint: new PublicKey(DTOUR_MINT),
-      });
-      for (const { account } of value) {
-        const amount = account.data.parsed?.info?.tokenAmount?.uiAmount;
-        if (typeof amount === "number") balance += amount;
-      }
-      if (balance <= 0) throw new Error("This wallet holds no $DTOUR");
+      throw new Error(
+        "Early access is limited to approved wallets. Join the waitlist for early access.",
+      );
     }
 
     const { token, hasProfile } = await ctx.runMutation(
       internal.auth.recordLogin,
-      { pubkey, balance },
+      { pubkey, balance: 0 },
     );
-    return { token, balance, hasProfile };
+    return { token, balance: 0, hasProfile };
   },
 });

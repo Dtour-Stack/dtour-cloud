@@ -1,14 +1,11 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import bs58 from "bs58";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DTOUR_MINT } from "@/lib/dtour-token";
 import { DTOUR_SESSION_KEY } from "@/lib/session";
-
-type GateStatus = "idle" | "checking" | "no-tokens" | "holder" | "unknown";
 
 function buildSiwsMessage(pubkey: string, nonce: string): string {
   const issuedAt = new Date().toISOString();
@@ -16,7 +13,7 @@ function buildSiwsMessage(pubkey: string, nonce: string): string {
     `${window.location.host} wants you to sign in with your Solana account:`,
     pubkey,
     "",
-    "Access Dtour Cloud — proves you hold $DTOUR.",
+    "Sign in to Dtour Cloud (early access).",
     "",
     `URI: ${window.location.origin}`,
     "Version: 1",
@@ -25,46 +22,29 @@ function buildSiwsMessage(pubkey: string, nonce: string): string {
   ].join("\n");
 }
 
+/**
+ * Early-access gate. Connect a wallet → if it's allowlisted, sign in (SIWS).
+ * Every other wallet is asked for an email and added to the waitlist.
+ */
 export function DtourGate() {
   const { publicKey, signMessage, connected } = useWallet();
   const navigate = useNavigate();
   const getNonce = useMutation(anyApi.auth.getNonce);
   const verifyGate = useAction(anyApi.gate.verify);
-  const balanceOf = useAction(anyApi.tokens.balanceOf);
   const joinWaitlist = useMutation(anyApi.waitlist.join);
-  const [status, setStatus] = useState<GateStatus>("idle");
-  const [balance, setBalance] = useState<number | null>(null);
+
+  const pubkey = publicKey?.toBase58();
+  // undefined = loading, false = not allowlisted, true = allowlisted.
+  const allowed = useQuery(
+    anyApi.whitelist.check,
+    pubkey ? { pubkey } : "skip",
+  ) as boolean | undefined;
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
-
-  useEffect(() => {
-    if (!publicKey) {
-      setStatus("idle");
-      setBalance(null);
-      return;
-    }
-    let cancelled = false;
-    setStatus("checking");
-    setError(null);
-    balanceOf({ pubkey: publicKey.toBase58() })
-      .then((amount: number) => {
-        if (cancelled) return;
-        setBalance(amount);
-        setStatus(amount > 0 ? "holder" : "no-tokens");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        // RPC unreachable (e.g. public endpoint rate-limit / browser 403).
-        // Don't dead-end: let the server decide (whitelist + authoritative read).
-        setStatus("unknown");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [publicKey, balanceOf]);
 
   const handleEnter = useCallback(async () => {
     if (!publicKey || !signMessage) return;
@@ -78,7 +58,7 @@ export function DtourGate() {
         pubkey: publicKey.toBase58(),
         message,
         signature: bs58.encode(signature),
-      })) as { token: string; balance: number; hasProfile: boolean };
+      })) as { token: string; hasProfile: boolean };
       localStorage.setItem(DTOUR_SESSION_KEY, result.token);
       navigate(result.hasProfile ? "/dashboard" : "/onboarding", {
         replace: true,
@@ -94,48 +74,14 @@ export function DtourGate() {
     setJoining(true);
     setError(null);
     try {
-      await joinWaitlist({ email, pubkey: publicKey?.toBase58() });
+      await joinWaitlist({ email, pubkey });
       setJoined(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't join the waitlist");
     } finally {
       setJoining(false);
     }
-  }, [email, publicKey, joinWaitlist]);
-
-  // Waitlist sign-up — shown to wallets that don't hold $DTOUR (whitelisted
-  // wallets just use "Sign in anyway"; the server lets them through).
-  const waitlistBlock = joined ? (
-    <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-center">
-      <p className="text-sm text-emerald-200/90">
-        ✓ You're on the waitlist — we'll be in touch.
-      </p>
-    </div>
-  ) : (
-    <div className="space-y-2">
-      <p className="text-center text-xs text-white/50">
-        Want to try the cloud? Join the waitlist.
-      </p>
-      <div className="flex gap-2">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@email.com"
-          autoComplete="email"
-          className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={handleJoinWaitlist}
-          disabled={joining || !email.trim()}
-          className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15 disabled:opacity-50"
-        >
-          {joining ? "…" : "Join"}
-        </button>
-      </div>
-    </div>
-  );
+  }, [email, pubkey, joinWaitlist]);
 
   return (
     <div className="space-y-4">
@@ -143,77 +89,65 @@ export function DtourGate() {
         <WalletMultiButton />
       </div>
 
-      {status === "checking" && (
-        <p className="text-center text-sm text-white/50">
-          Checking $DTOUR balance…
-        </p>
+      {connected && allowed === undefined && (
+        <p className="text-center text-sm text-white/50">Checking access…</p>
       )}
 
-      {status === "holder" && (
-        <div className="space-y-3">
-          <p className="text-center text-sm text-emerald-300/90">
-            ✓ Holding {balance?.toLocaleString()} $DTOUR
-          </p>
-          <button
-            type="button"
-            onClick={handleEnter}
-            disabled={submitting}
-            className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 disabled:opacity-50"
-          >
-            {submitting ? "Verifying…" : "Sign in & Enter"}
-          </button>
-        </div>
+      {/* Allowlisted → sign in. */}
+      {connected && allowed === true && (
+        <button
+          type="button"
+          onClick={handleEnter}
+          disabled={submitting}
+          className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 disabled:opacity-50"
+        >
+          {submitting ? "Verifying…" : "Sign in & Enter"}
+        </button>
       )}
 
-      {status === "no-tokens" && (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-center">
-            <p className="text-sm text-amber-200/90">
-              This wallet holds no $DTOUR. Access requires holding the token.
+      {/* Not allowlisted → mandatory email → waitlist. */}
+      {connected &&
+        allowed === false &&
+        (joined ? (
+          <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-center">
+            <p className="text-sm text-emerald-200/90">
+              ✓ You're on the early-access list — we'll email you when your spot
+              opens.
             </p>
-            <a
-              href={`https://jup.ag/swap/SOL-${DTOUR_MINT}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block text-xs text-white/60 underline hover:text-white"
-            >
-              Get $DTOUR →
-            </a>
           </div>
-          {/* Allowlisted wallets pass without holding — the server decides. */}
-          <button
-            type="button"
-            onClick={handleEnter}
-            disabled={submitting}
-            className="w-full rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-white/80 backdrop-blur-sm transition hover:bg-white/10 disabled:opacity-50"
-          >
-            {submitting ? "Verifying…" : "Sign in anyway"}
-          </button>
-          <div className="border-t border-white/10 pt-3">{waitlistBlock}</div>
-        </div>
-      )}
-
-      {status === "unknown" && (
-        <div className="space-y-3">
-          <p className="text-center text-sm text-white/60">
-            Couldn't check your $DTOUR balance right now. If you hold $DTOUR or
-            are whitelisted, sign in to continue.
-          </p>
-          <button
-            type="button"
-            onClick={handleEnter}
-            disabled={submitting}
-            className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 disabled:opacity-50"
-          >
-            {submitting ? "Verifying…" : "Sign in"}
-          </button>
-          <div className="border-t border-white/10 pt-3">{waitlistBlock}</div>
-        </div>
-      )}
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
+              <p className="text-sm text-white/70">
+                Dtour Cloud is in early access. Drop your email to join the
+                waitlist.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                autoComplete="email"
+                className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleJoinWaitlist}
+                disabled={joining || !email.trim()}
+                className="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:shadow-lg disabled:opacity-50"
+              >
+                {joining ? "…" : "Join"}
+              </button>
+            </div>
+          </div>
+        ))}
 
       {!connected && (
         <p className="text-center text-xs text-white/40">
-          Connect a Solana wallet holding $DTOUR to access the cloud.
+          Early access — connect your wallet. Approved wallets sign in; everyone
+          else joins the waitlist.
         </p>
       )}
 
