@@ -1,0 +1,25 @@
+# Detour Cloud — single domain, path-routed. Caddy auto-provisions HTTPS for
+# {$DOMAIN} via Let's Encrypt (needs DNS pointing here + ports 80/443 open).
+# {$DOMAIN} is injected from deploy/.env via the caddy service environment.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Convex API + live-sync WebSocket. handle_path strips the /convex prefix,
+	# so the backend sees /api/.../sync (the client appends that to the origin).
+	handle_path /convex/* {
+		reverse_proxy backend:3210
+	}
+
+	# Convex HTTP actions (none today — wired for completeness/forward-compat).
+	handle_path /convex-http/* {
+		reverse_proxy backend:3211
+	}
+
+	# Frontend SPA — every other path falls back to index.html for client routing.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

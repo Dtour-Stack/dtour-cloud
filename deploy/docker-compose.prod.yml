@@ -1,0 +1,72 @@
+# Production stack for Detour Cloud on a single droplet:
+#   - backend:   Convex self-hosted (data persisted in a named volume)
+#   - caddy:     auto-HTTPS, serves the built frontend, path-routes /convex
+#   - dashboard: Convex admin UI, bound to localhost only (reach via SSH tunnel)
+#
+# Reads deploy/.env (copy from deploy/env.prod.example). Run from deploy/:
+#   docker compose -f docker-compose.prod.yml up -d
+name: dtour
+
+services:
+  backend:
+    image: ghcr.io/get-convex/convex-backend:latest
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    # Bound to localhost only — not public (Caddy serves the public side).
+    # Lets the host generate the admin key + push functions without TLS.
+    ports:
+      - "127.0.0.1:3210:3210"
+      - "127.0.0.1:3211:3211"
+    volumes:
+      - convex_data:/convex/data
+    environment:
+      - INSTANCE_NAME=${INSTANCE_NAME:-dtour}
+      - INSTANCE_SECRET=${INSTANCE_SECRET:?set INSTANCE_SECRET in deploy/.env}
+      - CONVEX_CLOUD_ORIGIN=${CONVEX_CLOUD_ORIGIN:?set in deploy/.env}
+      - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN:?set in deploy/.env}
+      - DO_NOT_REQUIRE_SSL=true
+      - DISABLE_BEACON=true
+      - REDACT_LOGS_TO_CLIENT=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210/version"]
+      interval: 10s
+      start_period: 15s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      - DOMAIN=${DOMAIN:?set DOMAIN in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Localhost only. Reach it with:
+    #   ssh -L 6791:localhost:6791 root@<droplet>   then open http://localhost:6791
+    ports:
+      - "127.0.0.1:6791:6791"
+    environment:
+      - NEXT_PUBLIC_DEPLOYMENT_URL=${CONVEX_CLOUD_ORIGIN}
+
+volumes:
+  convex_data:
+  caddy_data:
+  caddy_config:
