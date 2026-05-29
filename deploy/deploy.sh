@@ -26,7 +26,11 @@ docker run --rm -v "$ROOT":/app -w /app \
   -e VITE_CONVEX_URL="$VITE_CONVEX_URL" \
   -e VITE_SOLANA_RPC_URL="${VITE_SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}" \
   oven/bun:1 sh -c "bun install --frozen-lockfile && bun run build"
-rm -rf deploy/dist && cp -r dist deploy/dist
+# Update dist contents IN PLACE — recreating the directory changes its inode and
+# leaves the running Caddy container with a stale, empty bind-mount (→ 404s).
+mkdir -p deploy/dist
+find deploy/dist -mindepth 1 -delete
+cp -r dist/. deploy/dist/
 
 echo "==> 2/4  Bringing up backend + caddy + dashboard"
 $COMPOSE up -d
