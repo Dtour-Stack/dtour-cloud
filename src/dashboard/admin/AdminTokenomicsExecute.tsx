@@ -131,6 +131,11 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   // Active distribution epoch (minted once at confirm; persisted in state/ref).
   const [epoch, setEpoch] = useState<string | null>(null);
   const epochRef = useRef<string | null>(null);
+  // SYNCHRONOUS re-entrancy guard: `busy` is React state (async), so two
+  // same-tick clicks (e.g. a double-tap on Resume) both pass the `disabled={busy}`
+  // check before re-render and would relay two tx sets for the same owners. This
+  // ref flips before any await, so the second call returns immediately.
+  const inFlightRef = useRef(false);
 
   // Resume picker.
   const incompleteEpochs = useQuery(
@@ -328,6 +333,8 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   const runDistribute = useCallback(
     async (resumeEpoch?: string) => {
       if (!token || !signAllTransactions || !publicKey || !snap || !plan) return;
+      if (inFlightRef.current) return; // re-entrancy guard (see ref decl)
+      inFlightRef.current = true;
       setErr(null);
       setDistribute({ status: "running", message: "Preparing…" });
       setBusy(true);
@@ -503,6 +510,7 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
         fail(setDistribute, e);
       } finally {
         setBusy(false);
+        inFlightRef.current = false;
       }
     },
     [
