@@ -5,7 +5,7 @@ import { RequireSession } from "@/dashboard/RequireSession";
 import DtourLandingPage from "@/pages/dtour-landing-page";
 import DtourTokenPage from "@/pages/dtour-token-page";
 
-// Login + dashboard are lazy: their wallet/Convex/vault deps stay out of the
+// Login + dashboard are lazy: their wallet/Convex deps stay out of the
 // landing/token render path.
 const DtourLoginPage = lazy(() => import("@/pages/login/dtour-login-page"));
 const DtourOnboardingPage = lazy(
@@ -22,7 +22,6 @@ const DesignDashboardPage = lazy(
 );
 const ProfilePage = lazy(() => import("@/dashboard/profile/ProfilePage"));
 const AgentsPage = lazy(() => import("@/dashboard/agents/AgentsPage"));
-const VaultPage = lazy(() => import("@/dashboard/vault/Page"));
 
 export default function App() {
   return (
@@ -94,14 +93,6 @@ export default function App() {
             <RequireRole min="pro_user">
               <DesignDashboardPage />
             </RequireRole>
-          }
-        />
-        <Route
-          path="/vault"
-          element={
-            <RequireSession>
-              <VaultPage />
-            </RequireSession>
           }
         />
       </Routes>

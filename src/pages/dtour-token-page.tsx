@@ -1,7 +1,8 @@
 /**
- * $DTOUR Token — Public-facing Dtour-Stack token page.
+ * $DTOUR Token — public-facing token page.
  *
- * Tokenomics, revenue split, staking, builder rewards, flywheel.
+ * Settled utility only: access to Detour Cloud, plus a platform-markup waiver
+ * for large holders. No staking/yield/burn/revenue-split promises.
  * Same visual language as the landing page: dark glass, grid panels, Inter.
  */
 
@@ -26,8 +27,8 @@ export default function DtourTokenPage() {
       {/* ─── Nav ─── */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/brand/dtour/logo.svg" alt="Dtour" className="h-9 w-9 drop-shadow-lg" />
-          <span className="text-base font-semibold tracking-tight drop-shadow-lg">Dtour</span>
+          <img src="/brand/dtour/logo.svg" alt="Detour" className="h-9 w-9 drop-shadow-lg" />
+          <span className="text-base font-semibold tracking-tight drop-shadow-lg">Detour</span>
         </Link>
         <div className="flex items-center gap-4">
           <Link to="/" className="text-sm text-white/60 hover:text-white transition-colors hidden md:block">
@@ -45,7 +46,7 @@ export default function DtourTokenPage() {
       {/* ─── Hero ─── */}
       <section className="relative z-10 flex flex-col items-center px-6 pt-16 text-center md:pt-20">
         <div className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-purple-300 backdrop-blur-sm">
-          Dtour-Stack
+          Access token
         </div>
         <h1
           className="mt-6 text-5xl font-bold tracking-[-0.02em] md:text-7xl"
@@ -56,8 +57,8 @@ export default function DtourTokenPage() {
           </span>
         </h1>
         <p className="mt-4 max-w-md text-base text-white/60 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
-          The protocol token behind Detour Cloud. Platform revenue fuels
-          staker rewards, buybacks, burns, and builder incentives.
+          Your key to Detour Cloud. Hold $DTOUR to get in — hold enough and your
+          usage drops 20%.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <a
@@ -99,96 +100,42 @@ export default function DtourTokenPage() {
         </div>
       </section>
 
-      {/* ─── Revenue Split ─── */}
+      {/* ─── What $DTOUR does ─── */}
       <section className="relative z-10 mx-auto mt-20 max-w-3xl px-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
-            Protocol Revenue Split
+            What $DTOUR does
           </h2>
-          <p className="mt-2 text-sm text-white/45">Platform fees allocated on-chain, every cycle.</p>
+          <p className="mt-2 text-sm text-white/45">Two things, and they're real.</p>
         </div>
-        <div className="mt-10 grid grid-cols-5 gap-px overflow-hidden rounded-2xl border border-white/10">
-          {[
-            { label: "Stakers", pct: "40%", accent: "text-purple-300" },
-            { label: "Burn", pct: "25%", accent: "text-orange-300" },
-            { label: "Builders", pct: "15%", accent: "text-blue-300" },
-            { label: "Creators", pct: "10%", accent: "text-green-300" },
-            { label: "Treasury", pct: "10%", accent: "text-white/50" },
-          ].map((s) => (
-            <div key={s.label} className="bg-black/30 p-5 text-center backdrop-blur-md">
-              <div className={`text-2xl font-bold ${s.accent}`}>{s.pct}</div>
-              <div className="mt-1 text-[11px] text-white/50">{s.label}</div>
-            </div>
-          ))}
+        <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-2">
+          <div className="bg-black/30 p-6 backdrop-blur-md">
+            <h3 className="text-sm font-semibold text-white">Access to the cloud</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-white/45">
+              Holding $DTOUR is your key into Detour Cloud — deploy agents, run
+              workflows, and use the full ElizaOS stack on hosted infra.
+            </p>
+          </div>
+          <div className="bg-black/30 p-6 backdrop-blur-md">
+            <h3 className="text-sm font-semibold text-white">20% off at 0.5%</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-white/45">
+              Hold <span className="text-white/70">0.5% of supply (5M $DTOUR)</span> or
+              more and get a flat <span className="text-white/70">20% discount</span> on
+              everything you run. The holder rate.
+            </p>
+          </div>
         </div>
-      </section>
-
-      {/* ─── Flywheel ─── */}
-      <section className="relative z-10 mx-auto mt-20 max-w-md px-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
-            The Flywheel
-          </h2>
-        </div>
-        <div className="mt-10 overflow-hidden rounded-2xl border border-white/10">
-          {[
-            { n: "1", title: "Users pay for Detour Cloud", desc: "Agents, tools, workflows — standard cloud billing." },
-            { n: "2", title: "Revenue hits the treasury", desc: "Fees flow into the on-chain protocol contract." },
-            { n: "3", title: "Split executes", desc: "40% stakers · 25% burn · 15% builders · 10% creators · 10% treasury." },
-            { n: "4", title: "Buyback & burn", desc: "$DTOUR bought on market, burned permanently. Supply shrinks." },
-            { n: "5", title: "Stakers earn yield", desc: "Lock in vaults → earn from the 40% pool + bonus inference credits." },
-          ].map((s, i) => (
-            <div
-              key={s.n}
-              className={`flex items-start gap-4 bg-black/30 p-5 backdrop-blur-md ${i > 0 ? "border-t border-white/[0.06]" : ""}`}
-            >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-300">
-                {s.n}
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">{s.title}</h3>
-                <p className="mt-1 text-[13px] text-white/45">{s.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ─── Earn ─── */}
-      <section className="relative z-10 mx-auto mt-20 max-w-3xl px-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
-            Earn $DTOUR
-          </h2>
-          <p className="mt-2 text-sm text-white/45">Three paths into the protocol.</p>
-        </div>
-        <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-3">
-          {[
-            {
-              title: "Stake",
-              desc: "Lock $DTOUR in time-locked vaults. Earn yield from 40% of platform revenue + bonus inference credits.",
-            },
-            {
-              title: "Build",
-              desc: "Link your GitHub. Get PRs merged into Dtour-Stack repos. Earn from the 15% builder allocation.",
-            },
-            {
-              title: "Create",
-              desc: "Publish skills, workflows, and plugins. When users run your creations, earn from the 10% creator pool.",
-            },
-          ].map((f) => (
-            <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-colors hover:bg-black/40">
-              <h3 className="text-sm font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/45">{f.desc}</p>
-            </div>
-          ))}
-        </div>
+        <p className="mt-6 text-center text-[12px] leading-relaxed text-white/35">
+          That's it for now — no promised yields, no emissions, nothing we can't
+          back. $DTOUR's utility stays deliberately simple while we build, and
+          grows only as we can stand behind it.
+        </p>
       </section>
 
       {/* ─── CTA ─── */}
       <section className="relative z-10 mx-auto mt-20 max-w-md px-6 pb-24 text-center">
-        <h2 className="text-xl font-bold" style={{ textShadow: shadow }}>Join the Protocol</h2>
-        <p className="mt-2 text-sm text-white/45">Buy. Stake. Build. Use the cloud.</p>
+        <h2 className="text-xl font-bold" style={{ textShadow: shadow }}>Get in</h2>
+        <p className="mt-2 text-sm text-white/45">Hold $DTOUR. Use the cloud.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <a
             href={`https://pump.fun/coin/${DTOUR_MINT}`}
@@ -209,7 +156,7 @@ export default function DtourTokenPage() {
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 md:flex-row md:justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/brand/dtour/logo.svg" alt="" className="h-5 w-5 opacity-50" />
-            <span className="text-xs text-white/40">Dtour-Stack · detour.ninja</span>
+            <span className="text-xs text-white/40">Detour · detour.ninja</span>
           </div>
           <div className="flex items-center gap-2.5">
             <span className="text-[10px] uppercase tracking-widest text-white/30">Powered by</span>

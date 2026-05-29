@@ -1,13 +1,13 @@
 /**
  * Detour Cloud — Branding + config.
  *
- * 20% markup on ElizaOS Cloud billing. Token is for staking,
- * burns, builder rewards — not free access.
+ * $DTOUR gates access to the cloud; holders of >= 0.5% of supply get a
+ * 20% discount on usage.
  */
 
 import type { BrandingConfig } from "@elizaos/shared/config/branding";
 
-export const DTOUR_APP_DISPLAY_NAME = "Dtour";
+export const DTOUR_APP_DISPLAY_NAME = "Detour";
 
 export const DTOUR_BRANDING: BrandingConfig = {
   appName: DTOUR_APP_DISPLAY_NAME,
@@ -37,12 +37,8 @@ export const DTOUR_MARKUP = 1.2;
 
 export const DTOUR_AFFILIATE_CODE = "AFF-0GOWANBA";
 
-// ── Fee split (on-chain) ─────────────────────────────────────────────────────
+// ── Holder discount ──────────────────────────────────────────────────────────
 
-export const DTOUR_FEE_SPLIT = {
-  vault: 4000,    // 40% to stakers
-  burn: 2500,     // 25% buyback & burn
-  builder: 1500,  // 15% GitHub contributors
-  creator: 1000,  // 10% skill/workflow authors
-  treasury: 1000, // 10% development
-} as const;
+/** Hold >= 0.5% of supply → 20% off usage. */
+export const DTOUR_DISCOUNT_THRESHOLD = 0.005; // fraction of total supply
+export const DTOUR_HOLDER_DISCOUNT = 0.2; // 20% off

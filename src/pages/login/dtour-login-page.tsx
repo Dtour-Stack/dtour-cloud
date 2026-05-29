@@ -49,7 +49,7 @@ export default function DtourLoginPage() {
                   Detour Cloud
                 </h1>
                 <p className="text-sm text-white/60">
-                  Deploy agents. Stake. Build.
+                  Deploy agents. Build. Ship.
                 </p>
               </div>
 
@@ -65,13 +65,13 @@ export default function DtourLoginPage() {
                 />
               </div>
 
-              {/* Protocol callout */}
+              {/* Holder callout */}
               <div className="border-t border-white/10 pt-4 text-center">
                 <p className="text-xs text-white/50">
-                  Platform revenue → 40% stakers · 25% burn · 15% builders · 10% creators · 10% treasury
+                  $DTOUR is your access to the cloud
                 </p>
                 <p className="mt-1 text-[10px] text-white/30">
-                  Stake $DTOUR for bonus inference credits
+                  Hold 0.5% of supply or more for 20% off usage
                 </p>
               </div>
 
