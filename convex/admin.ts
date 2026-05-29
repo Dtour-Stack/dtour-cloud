@@ -82,13 +82,18 @@ export const members = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
     await requireRole(ctx, token, "admin");
-    const rows = await ctx.db.query("whitelist").collect();
+    const [rows, users] = await Promise.all([
+      ctx.db.query("whitelist").collect(),
+      ctx.db.query("users").collect(),
+    ]);
+    const planBy = new Map(users.map((u) => [u.pubkey, u.plan ?? null]));
     return rows
       .map((r) => ({
         pubkey: r.pubkey,
         role: r.role ?? null,
         note: r.note ?? null,
         addedAt: r.addedAt,
+        plan: planBy.get(r.pubkey) ?? null,
       }))
       .sort((a, b) => b.addedAt - a.addedAt);
   },
@@ -250,6 +255,31 @@ export const setPlan = internalMutation({
       // Grant before first login — recordLogin fills balance/lastLoginAt later.
       await ctx.db.insert("users", { pubkey, balance: 0, lastLoginAt: 0, plan: value });
     }
+    return { ok: true, plan: value ?? null };
+  },
+});
+
+/** Grant or clear a wallet's billing plan from the admin dashboard (admin+).
+ *  "lifetime" = unlimited usage, never billed; "none" clears it. */
+export const setUserPlan = mutation({
+  args: {
+    token: v.string(),
+    pubkey: v.string(),
+    plan: v.union(v.literal("lifetime"), v.literal("none")),
+  },
+  handler: async (ctx, { token, pubkey, plan }) => {
+    const caller = await requireRole(ctx, token, "admin");
+    const value = plan === "none" ? undefined : plan;
+    const row = await ctx.db
+      .query("users")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .unique();
+    if (row) {
+      await ctx.db.patch(row._id, { plan: value });
+    } else {
+      await ctx.db.insert("users", { pubkey, balance: 0, lastLoginAt: 0, plan: value });
+    }
+    await logEvent(ctx, "plan.set", { pubkey: caller.pubkey, data: { pubkey, plan } });
     return { ok: true, plan: value ?? null };
   },
 });
