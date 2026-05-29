@@ -3,8 +3,9 @@
 This document is the source of truth for the **$DTOUR** token economics and for
 the operator tooling that distributes rewards. It covers the settled model, how
 the reward funding works, the configurable split, how to run each payout script
-**safely**, the Convex holder-discount function, and a securities/legal
-disclaimer.
+**safely**, the admin dashboard Tokenomics surface (config, dry-run, and the
+in-dashboard **Execute** flow, §7.6), the Convex holder-discount function, and a
+securities/legal disclaimer.
 
 > **Status — read this first.** The model below is settled, and the tooling is
 > **built / shipped**: `scripts/tokenomics/lib.mjs` (shared safety + Solana
@@ -12,8 +13,14 @@ disclaimer.
 > split), `scripts/tokenomics/distribute-to-holders.mjs` (pro-rata holder
 > rewards), the committed `config.example.json` template, and the Convex
 > `holderDiscount` action in `convex/tokens.ts` all exist in the repo. The
-> `.gitignore` / `.env.example` edits are applied. **Buyback is
-> documented-but-not-implemented** — no buyback script ships; the `buyback`
+> `.gitignore` / `.env.example` edits are applied. The **admin Tokenomics
+> surface is built in two phases, both shipped**: **Phase 1** — config editor +
+> live Helius dry-run preview (`convex/tokenomics.ts`,
+> `src/dashboard/admin/AdminTokenomics.tsx`); **Phase 2** — the in-dashboard
+> **Execute** flow (semi-auto wallet signing, server-side Helius relay, per-run
+> cap, simulate-before-send, and an idempotent payout ledger; LP
+> `5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE` excluded). See §7.6. **Buyback
+> is documented-but-not-implemented** — no buyback script ships; the `buyback`
 > config block and §6 below document intent only. And the 20% holder discount is
 > **not enforced in live billing** — billing is not wired up, so today the
 > discount is informational (eligibility-check) only.
@@ -372,6 +379,73 @@ denominator is the live total supply (§5.2).
 > eligibility — nothing currently applies a 20% reduction to a charge. Wiring the
 > discount into billing is future work.
 
+### 7.6 Admin Tokenomics surface — config, dry-run, Execute (built)
+
+The dashboard exposes tokenomics to admins at the **Tokenomics** admin page
+(`src/dashboard/admin/AdminTokenomics.tsx`, backed by `convex/tokenomics.ts`).
+It is **admin-gated** (`requireRole`/`myRole` — `admin` or `super_admin`) and
+shipped in **two phases, both built**. Unlike the CLI (§7.1–7.3), the config it
+edits lives in the **`tokenomicsConfig` Convex table** (single-doc; pubkeys +
+bps only — **never** secret keys), and the holder snapshot comes from **Helius
+DAS `getTokenAccounts`** (cursor-paginated, Token-2022-aware, aggregated by
+owner) rather than `getProgramAccounts`.
+
+**Phase 1 — config + dry-run preview (built).**
+
+- **Config editor:** the four-way `splitBps` (validated to sum to **exactly
+  10000** in `setConfig`, mirroring §4), the four pool wallets
+  (creator / builder / treasury / buyback), `minBalanceTokens`, `minPayoutSol`,
+  and `creatorReserveSol`. Saving writes the single `tokenomicsConfig` doc and
+  logs a `tokenomics.config` event.
+- **`snapshot` action (read-only):** pulls the live holder set (Helius DAS),
+  the creator wallet's SOL balance, and total supply (`getTokenSupply`). The UI
+  then computes the four-way split off `creatorBalance − creatorReserveSol` and
+  the per-holder pro-rata payouts **client-side** — a true dry-run that **moves
+  nothing on-chain**.
+
+**Phase 2 — Execute (built).** The admin can now run the holder distribution
+from the dashboard. It is **semi-automatic**: the server prepares and the
+operator signs, so no signing key ever reaches the server. The guarantees mirror
+the CLI's "hard safety rules" (§7.0) and add ledger-backed idempotency:
+
+1. **Semi-auto wallet signing.** The server builds the unsigned payout
+   transaction(s); the admin signs **in their own browser wallet** (the creator
+   wallet). **No private key is ever sent to or stored on the server** — only
+   pubkeys live in `tokenomicsConfig` (see the UI note: "Pubkeys only — secret
+   keys never touch the server"). This is the dashboard analog of the CLI's
+   env-only `CREATOR_WALLET_SECRET` (§7.0 rule 3).
+2. **Helius relay, server-side.** Building, simulating, and broadcasting go
+   through a **server-side Helius RPC relay** (the Convex action holds the
+   Helius endpoint via `SOLANA_RPC_URL`), so the browser never talks to a public
+   Solana RPC directly. The wallet only **signs**; the server **relays**.
+3. **Per-run cap.** Each Execute run enforces a **maximum total SOL** it may
+   disburse. A run whose computed payouts exceed the cap is **refused** before
+   any signing — a blast-radius limit on a fat-fingered split or a stale
+   snapshot.
+4. **Simulate-before-send.** Every transaction is **simulated** (Helius
+   `simulateTransaction`) and must succeed before the operator is asked to sign.
+   A failing simulation aborts the run — the on-chain analog of §7.0's dry-run
+   default.
+5. **Idempotent payout ledger.** Each run records an **attempted-then-paid
+   ledger keyed by `{ mint, epoch, owner }`**, written **before** each send and
+   finalized **after** confirmation (the same attempted/paid discipline the CLI
+   ledger uses, §7.2 / lib `writeManifest`). A re-run **skips owners already
+   paid for that epoch**, so a confirm-timeout retry never double-pays.
+6. **LP excluded.** The pump.fun / AMM **liquidity-pool position is excluded**
+   from payouts — the excluded LP owner is
+   **`5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE`**. Per §5.1 this is the
+   token-account **OWNER** (not a pool / market / mint / ATA address) — pro-rata
+   matches on owner, so this is the address that actually removes the LP from the
+   reward set. The pool/self wallets (creator / builder / treasury / buyback)
+   are likewise filtered, exactly as the dry-run preview already does.
+
+> **Same model, two entry points.** The dashboard Execute flow and the
+> `distribute-to-holders.mjs` CLI (§7.2) implement the **same** §5 pro-rata
+> distribution with the **same** denominators (§5.2) and the **same** exclude /
+> dust / idempotency rules — the dashboard is the operator-friendly path; the
+> CLI remains for headless / scripted runs. Always read the dry-run preview
+> (Phase 1) before pressing **Execute** (Phase 2).
+
 ---
 
 ## 8. Configuration reference
@@ -471,6 +545,8 @@ as an investment.**
   staking, rewards, or distribution program**, and before describing $DTOUR's
   economics to the public.
 - Token decimals, the bonding-curve/AMM pool address, the current trading venue
-  (bonding curve / PumpSwap / Raydium-migrated, §3), and all wallet addresses
-  are **operator-verified facts** — confirm them on-chain before any
-  `--execute`.
+  (bonding curve / PumpSwap / Raydium-migrated, §3), the LP exclude owner
+  (`5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE`, §5.1 / §7.6 — verify it is the
+  token-account **OWNER**, not a pool/market/ATA address), and all wallet
+  addresses are **operator-verified facts** — confirm them on-chain before any
+  `--execute` or dashboard **Execute** run.

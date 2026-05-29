@@ -193,6 +193,40 @@ export default defineSchema({
     minBalanceTokens: v.number(), // ignore holders below this $DTOUR balance
     minPayoutSol: v.number(), // dust floor per holder payout
     creatorReserveSol: v.number(), // SOL kept in creator wallet (not split)
+    // Owners removed from pro-rata beyond the 4 pool wallets (e.g. the LP pool
+    // OWNER). Optional for backward-compat with rows saved before this field;
+    // read code defaults it. The 4 pools are ALWAYS excluded in code regardless.
+    excludeWallets: v.optional(v.array(v.string())),
+    // Hard SOL cap per Execute run (sum of all distribute payouts must be ≤ this).
+    // Optional for backward-compat; read code defaults it.
+    perRunCapSol: v.optional(v.number()),
     updatedAt: v.number(),
   }),
+
+  // Idempotency backbone for the holder-distribution Execute flow. Keyed by
+  // (epoch, owner): records the attempted tx (sig + blockhash) BEFORE relay and
+  // the confirmed result after, so a re-run NEVER double-pays. Mirrors the
+  // attempted/paid manifest in scripts/tokenomics/distribute-to-holders.mjs.
+  payoutLedger: defineTable({
+    epoch: v.string(), // deterministic per-distribution id `${MINT}:${ts}`
+    owner: v.string(), // recipient owner pubkey (pro-rata target)
+    // STRING not number — Convex numbers are float64; mirror the script's
+    // .toString() so u64 lamports never lose precision.
+    lamports: v.string(),
+    status: v.union(
+      v.literal("planned"), // plan frozen at confirm, before any relay
+      v.literal("attempted"), // sig recorded BEFORE relay (confirm-timeout safety)
+      v.literal("paid"), // landed + confirmed (or reconciled landed)
+      v.literal("failed"), // tx failed / blockhash expired → safe to retry
+    ),
+    signature: v.optional(v.string()), // shared across the batch tx
+    recentBlockhash: v.optional(v.string()),
+    lastValidBlockHeight: v.optional(v.number()), // for expiry "did not land"
+    attemptedAt: v.optional(v.number()),
+    confirmedAt: v.optional(v.number()),
+    reconciled: v.optional(v.boolean()), // promoted to paid by reconcileEpoch
+  })
+    .index("by_epoch_owner", ["epoch", "owner"]) // idempotent upsert / per-owner
+    .index("by_epoch", ["epoch"]) // ledgerForEpoch / plan freeze / resume
+    .index("by_signature", ["signature"]), // reconcile a batch by its shared sig
 });

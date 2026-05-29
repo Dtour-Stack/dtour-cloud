@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useMemo, useState } from "react";
 import { getDtourSessionToken } from "@/lib/session";
+import { buildExcludeSet } from "@/lib/tokenomics-exec";
 import {
   Button,
   Icon,
@@ -10,6 +11,11 @@ import {
   Skeleton,
   StatCard,
 } from "@/ui";
+import { AdminTokenomicsExecute } from "./AdminTokenomicsExecute";
+
+// The LP pool OWNER (Token-2022, ~256M / ~26% of supply) MUST be excluded or it
+// tops the pro-rata payout and drains the holder slice.
+const LP_OWNER = "5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE";
 
 type Cfg = {
   splitBps: { builder: number; holders: number; buyback: number; treasury: number };
@@ -17,6 +23,8 @@ type Cfg = {
   minBalanceTokens: number;
   minPayoutSol: number;
   creatorReserveSol: number;
+  excludeWallets: string[];
+  perRunCapSol: number;
   updatedAt?: number | null;
 };
 type Snap = {
@@ -94,8 +102,10 @@ export function AdminTokenomics() {
     if (!snap || !cfg) return null;
     const splitTotal = Math.max(0, snap.creatorBalanceSol - cfg.creatorReserveSol);
     const slice = (bps: number) => (splitTotal * bps) / 10000;
-    const pools = new Set(Object.values(cfg.wallets));
-    const eligible = snap.holders.filter((h) => !pools.has(h.owner));
+    // Exclude the 4 pool wallets (always, in code) UNION the config exclude list
+    // (the LP owner et al.) — same set the distribute plan uses.
+    const exclude = buildExcludeSet(cfg);
+    const eligible = snap.holders.filter((h) => !exclude.has(h.owner));
     const totalWeight = eligible.reduce((s, h) => s + h.amount, 0);
     const holdersSlice = slice(cfg.splitBps.holders);
     const payouts = eligible
@@ -178,7 +188,7 @@ export function AdminTokenomics() {
               />
             </div>
           ))}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">Min balance ($DTOUR)</label>
               <input type="number" value={cfg.minBalanceTokens} onChange={(e) => patch({ minBalanceTokens: Number(e.target.value) })} className={field} />
@@ -191,6 +201,42 @@ export function AdminTokenomics() {
               <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">Creator reserve (SOL)</label>
               <input type="number" step="0.01" value={cfg.creatorReserveSol} onChange={(e) => patch({ creatorReserveSol: Number(e.target.value) })} className={field} />
             </div>
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">Per-run cap (SOL)</label>
+              <input type="number" step="0.1" value={cfg.perRunCapSol} onChange={(e) => patch({ perRunCapSol: Number(e.target.value) })} className={field} />
+            </div>
+          </div>
+
+          {/* Exclude list — owners removed from pro-rata beyond the 4 pools. */}
+          <div>
+            <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">
+              Exclude wallets (one per line)
+            </label>
+            <textarea
+              value={(cfg.excludeWallets ?? []).join("\n")}
+              onChange={(e) =>
+                patch({
+                  excludeWallets: e.target.value
+                    .split(/\s+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                })
+              }
+              rows={Math.max(3, (cfg.excludeWallets ?? []).length + 1)}
+              placeholder="LP pool owner, market makers, …"
+              className={`${field} font-mono resize-y`}
+            />
+            <p className="mt-1.5 text-xs text-white/40">
+              The 4 pool wallets are always excluded automatically. Add the LP pool OWNER and
+              any other addresses to keep out of pro-rata.
+            </p>
+            {!(cfg.excludeWallets ?? []).includes(LP_OWNER) && (
+              <p className="mt-2 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 text-xs text-amber-200">
+                ⚠ The LP pool owner ({LP_OWNER.slice(0, 4)}…{LP_OWNER.slice(-4)}) is NOT in the
+                exclude list. It holds ~26% of supply and would top the payout, draining the
+                holder slice. Add it before executing.
+              </p>
+            )}
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
@@ -257,12 +303,16 @@ export function AdminTokenomics() {
               </table>
             </div>
             <p className="text-xs text-white/40">
-              <strong className="text-white/60">Execute (sign in wallet)</strong> is the next phase — this
-              preview is read-only. Use the <code>scripts/tokenomics/</code> CLI to execute today.
+              The preview above is read-only. The Execute panel below uses the SAME eligibility
+              (pools ∪ exclude list) and pro-rata math to move real SOL — sign with the creator
+              wallet.
             </p>
           </div>
         )}
       </Panel>
+
+      {/* Execute — semi-auto, signs with the connected creator wallet. */}
+      <AdminTokenomicsExecute cfg={cfg} snap={snap} />
 
       {err && <p className="text-sm text-red-400/90">{err}</p>}
     </div>

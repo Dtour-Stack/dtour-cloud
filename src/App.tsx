@@ -4,6 +4,7 @@ import { RequireRole } from "@/dashboard/RequireRole";
 import { RequireSession } from "@/dashboard/RequireSession";
 import DtourLandingPage from "@/pages/dtour-landing-page";
 import DtourTokenPage from "@/pages/dtour-token-page";
+import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 
 // Login + dashboard are lazy: their wallet/Convex deps stay out of the
 // landing/token render path.
@@ -63,11 +64,18 @@ export default function App() {
             </RequireSession>
           }
         />
+        {/* Admin routes mount the Solana wallet adapter so the Tokenomics
+            Execute panel can sign with the connected creator wallet. The
+            ConnectionProvider endpoint is the PUBLIC client SOLANA_RPC_URL
+            (non-key-bearing) — used only for wallet connect; all RPC goes
+            through the admin-gated Convex actions. */}
         <Route
           path="/admin"
           element={
             <RequireRole min="admin">
-              <AdminDashboardPage />
+              <SolanaWalletProvider>
+                <AdminDashboardPage />
+              </SolanaWalletProvider>
             </RequireRole>
           }
         />
@@ -75,7 +83,9 @@ export default function App() {
           path="/admin/:section"
           element={
             <RequireRole min="admin">
-              <AdminDashboardPage />
+              <SolanaWalletProvider>
+                <AdminDashboardPage />
+              </SolanaWalletProvider>
             </RequireRole>
           }
         />
