@@ -1,5 +1,5 @@
 /**
- * Dtour Cloud — Branding + config.
+ * Detour Cloud — Branding + config.
  *
  * 20% markup on ElizaOS Cloud billing. Token is for staking,
  * burns, builder rewards — not free access.

@@ -45,7 +45,7 @@ export function InboxPanel() {
         typeof Notification !== "undefined" &&
         Notification.permission === "granted"
       ) {
-        new Notification(m.subject ?? "Dtour Cloud", {
+        new Notification(m.subject ?? "Detour Cloud", {
           body: m.body,
           icon: "/brand/dtour/logo.svg",
         });

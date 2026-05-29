@@ -1,5 +1,5 @@
 /**
- * Dtour Vault Dashboard — $DTOUR staking, burn tracker, and builder rewards.
+ * Detour Vault Dashboard — $DTOUR staking, burn tracker, and builder rewards.
  *
  * This is a Dtour-tenant-only dashboard page. It renders:
  *   1. Staking overview — current stake, lock tier, rewards claimable
@@ -7,7 +7,7 @@
  *   3. Builder/Creator rewards — earned, claimable, payout history
  *
  * Data comes from on-chain Solana reads (vault PDA + mint supply) and the
- * Dtour API (builder/creator reward ledger).
+ * Detour API (builder/creator reward ledger).
  */
 
 import { useEffect, useState } from "react";
@@ -47,7 +47,7 @@ export default function VaultPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: wire to on-chain reads + Dtour API
+    // TODO: wire to on-chain reads + Detour API
     setLoading(false);
     setStats({
       totalStaked: 0,

@@ -27,9 +27,7 @@ services:
       - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN:?set in deploy/.env}
       - DO_NOT_REQUIRE_SSL=true
       - DISABLE_BEACON=true
-      # Surface function error messages to the client — the gate relies on them
-      # (e.g. "Early access is limited to approved wallets").
-      - REDACT_LOGS_TO_CLIENT=false
+      - REDACT_LOGS_TO_CLIENT=true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3210/version"]
       interval: 10s

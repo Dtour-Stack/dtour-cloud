@@ -13,7 +13,7 @@ function buildSiwsMessage(pubkey: string, nonce: string): string {
     `${window.location.host} wants you to sign in with your Solana account:`,
     pubkey,
     "",
-    "Sign in to Dtour Cloud (early access).",
+    "Sign in to Detour Cloud (early access).",
     "",
     `URI: ${window.location.origin}`,
     "Version: 1",
@@ -119,7 +119,7 @@ export function DtourGate() {
           <div className="space-y-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
               <p className="text-sm text-white/70">
-                Dtour Cloud is in early access. Drop your email to join the
+                Detour Cloud is in early access. Drop your email to join the
                 waitlist.
               </p>
             </div>

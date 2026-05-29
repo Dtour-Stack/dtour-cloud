@@ -1,7 +1,7 @@
 /**
- * Dtour Cloud — Login page override.
+ * Detour Cloud — Login page override.
  *
- * Replaces the Eliza Cloud login page with Dtour branding, tier info,
+ * Replaces the Eliza Cloud login page with Detour branding, tier info,
  * and $DTOUR-specific onboarding copy. Same auth flow (SIWS/SIWE via
  * Steward), just different skin.
  *
@@ -14,7 +14,7 @@ import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 import { DtourGate } from "./dtour-gate";
 
 /**
- * Dtour Cloud login — $DTOUR token gate. Connect a Solana wallet; if it holds
+ * Detour Cloud login — $DTOUR token gate. Connect a Solana wallet; if it holds
  * $DTOUR, sign in (SIWS) and the server verifies ownership + balance.
  */
 export default function DtourLoginPage() {
@@ -46,7 +46,7 @@ export default function DtourLoginPage() {
                   className="mx-auto h-16 w-16"
                 />
                 <h1 className="font-poppins text-2xl font-semibold text-white">
-                  Dtour Cloud
+                  Detour Cloud
                 </h1>
                 <p className="text-sm text-white/60">
                   Deploy agents. Stake. Build.
@@ -60,7 +60,7 @@ export default function DtourLoginPage() {
               <div className="flex justify-center">
                 <img
                   src="/brand/dtour/ninja-squirrel.png"
-                  alt="Dtour Ninja"
+                  alt="Detour Ninja"
                   className="h-28 w-28 object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.3)]"
                 />
               </div>

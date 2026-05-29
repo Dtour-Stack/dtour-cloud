@@ -56,7 +56,7 @@ export default function DtourTokenPage() {
           </span>
         </h1>
         <p className="mt-4 max-w-md text-base text-white/60 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
-          The protocol token behind Dtour Cloud. Platform revenue fuels
+          The protocol token behind Detour Cloud. Platform revenue fuels
           staker rewards, buybacks, burns, and builder incentives.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -132,7 +132,7 @@ export default function DtourTokenPage() {
         </div>
         <div className="mt-10 overflow-hidden rounded-2xl border border-white/10">
           {[
-            { n: "1", title: "Users pay for Dtour Cloud", desc: "Agents, tools, workflows — standard cloud billing." },
+            { n: "1", title: "Users pay for Detour Cloud", desc: "Agents, tools, workflows — standard cloud billing." },
             { n: "2", title: "Revenue hits the treasury", desc: "Fees flow into the on-chain protocol contract." },
             { n: "3", title: "Split executes", desc: "40% stakers · 25% burn · 15% builders · 10% creators · 10% treasury." },
             { n: "4", title: "Buyback & burn", desc: "$DTOUR bought on market, burned permanently. Supply shrinks." },
@@ -199,7 +199,7 @@ export default function DtourTokenPage() {
             Buy $DTOUR
           </a>
           <Link to="/login" className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10">
-            Open Dtour Cloud
+            Open Detour Cloud
           </Link>
         </div>
       </section>

@@ -1,5 +1,5 @@
 /**
- * Dtour Markup — 20% on top of ElizaOS Cloud billing. That's it.
+ * Detour Markup — 20% on top of ElizaOS Cloud billing. That's it.
  */
 
 import type { MiddlewareHandler } from "hono";

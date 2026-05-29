@@ -122,7 +122,7 @@ export function AppShell({
         <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
           <img src="/brand/dtour/logo.svg" alt="Dtour" className="h-7 w-7 shrink-0" />
           <span className={cn("truncate text-sm font-semibold tracking-tight", !navOpen && "md:hidden")}>
-            Dtour Cloud
+            Detour Cloud
           </span>
           <IconButton
             label={navOpen ? "Collapse navigation" : "Expand navigation"}

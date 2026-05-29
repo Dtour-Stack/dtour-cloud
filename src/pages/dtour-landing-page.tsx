@@ -1,5 +1,5 @@
 /**
- * Dtour Cloud — Landing page.
+ * Detour Cloud — Landing page.
  *
  * Focused on the product: what you can do, where you deploy,
  * the Swoosh native app, and Powered by ElizaOS attribution.
@@ -36,7 +36,7 @@ export default function DtourLandingPage() {
         <div className="flex items-center gap-3">
           <img src="/brand/dtour/logo.svg" alt="Dtour" className="h-9 w-9 drop-shadow-lg" />
           <span className="text-base font-semibold tracking-tight drop-shadow-lg">
-            Dtour Cloud
+            Detour Cloud
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -124,7 +124,7 @@ export default function DtourLandingPage() {
         </div>
         <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-4">
           {[
-            { label: "Dtour Cloud", sub: "Hosted ElizaCloud infra" },
+            { label: "Detour Cloud", sub: "Hosted ElizaCloud infra" },
             { label: "macOS", sub: "Swoosh menu-bar app" },
             { label: "iPhone", sub: "Swoosh iOS companion" },
             { label: "Self-Hosted", sub: "Your own VPS / server" },
