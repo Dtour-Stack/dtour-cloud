@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useState } from "react";
 import { getDtourSessionToken } from "@/lib/session";
@@ -6,6 +6,7 @@ import {
   Button,
   EmptyState,
   Icon,
+  IconButton,
   Panel,
   SectionHeading,
   Skeleton,
@@ -31,7 +32,17 @@ export function AdminWaitlist() {
     anyApi.waitlist.list,
     token ? { token } : "skip",
   ) as Entry[] | undefined;
+  const removeEntry = useMutation(anyApi.waitlist.remove);
   const [copied, setCopied] = useState(false);
+
+  async function remove(email: string) {
+    if (!token) return;
+    try {
+      await removeEntry({ token, email });
+    } catch {
+      /* ignore — list is reactive */
+    }
+  }
 
   async function copyEmails() {
     if (!entries?.length) return;
@@ -85,9 +96,12 @@ export function AdminWaitlist() {
                   </span>
                 )}
               </div>
-              <span className="shrink-0 text-xs text-white/40">
-                {fmtDate(e.at)}
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs text-white/40">{fmtDate(e.at)}</span>
+                <IconButton label={`Remove ${e.email}`} onClick={() => remove(e.email)}>
+                  <Icon.Trash size={15} />
+                </IconButton>
+              </div>
             </li>
           ))}
         </ul>

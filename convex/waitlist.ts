@@ -41,3 +41,18 @@ export const list = query({
       .map((r) => ({ email: r.email, pubkey: r.pubkey ?? null, at: r.at }));
   },
 });
+
+/** Admin: remove a waitlist entry (e.g. after inviting them). */
+export const remove = mutation({
+  args: { token: v.string(), email: v.string() },
+  handler: async (ctx, { token, email }) => {
+    const caller = await requireRole(ctx, token, "admin");
+    const row = await ctx.db
+      .query("waitlist")
+      .withIndex("by_email", (q) => q.eq("email", email.trim().toLowerCase()))
+      .unique();
+    if (row) await ctx.db.delete(row._id);
+    await logEvent(ctx, "waitlist.remove", { pubkey: caller.pubkey, data: { email } });
+    return { ok: true, removed: row !== null };
+  },
+});
