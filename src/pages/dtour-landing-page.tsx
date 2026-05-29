@@ -82,7 +82,7 @@ export default function DtourLandingPage() {
         {/* Powered by — real SVGs */}
         <div className="mt-10 flex items-center gap-3 opacity-60">
           <span className="text-[11px] uppercase tracking-widest text-white/50">Powered by</span>
-          <img src="/brand/dtour/elizaos-face.svg" alt="ElizaOS" className="h-5 w-5" />
+          <img src="/brand/dtour/elizaos-face.png" alt="ElizaOS" className="h-5 w-5 rounded-[4px]" />
           <img src="/brand/dtour/elizaos-text.svg" alt="ElizaOS" className="h-3.5" />
           <span className="text-white/30 mx-1">+</span>
           <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3.5" />
@@ -181,7 +181,7 @@ export default function DtourLandingPage() {
           </div>
           <div className="flex items-center gap-2.5">
             <span className="text-[10px] uppercase tracking-widest text-white/30">Powered by</span>
-            <img src="/brand/dtour/elizaos-face.svg" alt="" className="h-4 w-4 opacity-60" />
+            <img src="/brand/dtour/elizaos-face.png" alt="" className="h-4 w-4 rounded-[3px] opacity-60" />
             <img src="/brand/dtour/elizaos-text.svg" alt="ElizaOS" className="h-3 opacity-50" />
             <span className="text-white/20">·</span>
             <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3 opacity-50" />

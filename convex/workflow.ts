@@ -1,0 +1,334 @@
+import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  query,
+} from "./_generated/server";
+import { getConfig } from "./config_read";
+import { resolveRole } from "./rbac";
+
+type GNode = { id: string; type: string; values?: Record<string, unknown> };
+type GEdge = { source: { node: string; port: string }; target: { node: string; port: string } };
+type NodeState = { status: "idle" | "running" | "done" | "error"; output?: string; error?: string };
+
+/** Subscribe to a run's live per-node status. */
+export const getRun = query({
+  args: { token: v.string(), runId: v.id("workflowRuns") },
+  handler: async (ctx, { token, runId }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) return null;
+    const run = await ctx.db.get(runId);
+    if (!run || run.owner !== caller.pubkey) return null;
+    return { status: run.status, nodes: JSON.parse(run.nodes) as Record<string, NodeState> };
+  },
+});
+
+/** Recent runs for the user — id, status, a thumbnail, and status counts. */
+export const listRuns = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) return [];
+    const rows = await ctx.db
+      .query("workflowRuns")
+      .withIndex("by_owner", (q) => q.eq("owner", caller.pubkey))
+      .order("desc")
+      .take(20);
+    return rows.map((r) => {
+      const nodes = JSON.parse(r.nodes) as Record<string, NodeState>;
+      let thumb: string | null = null;
+      const counts: Record<string, number> = {};
+      for (const k of Object.keys(nodes)) {
+        const n = nodes[k];
+        counts[n.status] = (counts[n.status] ?? 0) + 1;
+        if (!thumb && n.output && /^(https?:|data:)/.test(n.output)) thumb = n.output;
+      }
+      return { id: r._id, status: r.status, createdAt: r.createdAt, thumb, counts };
+    });
+  },
+});
+
+export const ctxFor = internalQuery({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) return null;
+    return {
+      pubkey: caller.pubkey,
+      baseUrl: await getConfig(ctx, "elizacloud_base_url", "https://www.elizacloud.ai/api/v1"),
+    };
+  },
+});
+
+export const createRun = internalMutation({
+  args: { owner: v.string(), graph: v.string(), nodes: v.string() },
+  handler: async (ctx, { owner, graph, nodes }) => {
+    const now = Date.now();
+    return await ctx.db.insert("workflowRuns", {
+      owner,
+      graph,
+      status: "running",
+      nodes,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const patchRun = internalMutation({
+  args: { id: v.id("workflowRuns"), nodes: v.string(), status: v.optional(v.string()) },
+  handler: async (ctx, { id, nodes, status }) => {
+    await ctx.db.patch(id, { nodes, updatedAt: Date.now(), ...(status ? { status } : {}) });
+  },
+});
+
+function topoSort(nodes: GNode[], edges: GEdge[]): string[] {
+  const ids = nodes.map((n) => n.id);
+  const indeg: Record<string, number> = Object.fromEntries(ids.map((i) => [i, 0]));
+  const adj: Record<string, string[]> = Object.fromEntries(ids.map((i) => [i, []]));
+  for (const e of edges) {
+    if (e.source.node in adj && e.target.node in indeg) {
+      adj[e.source.node].push(e.target.node);
+      indeg[e.target.node]++;
+    }
+  }
+  const q = ids.filter((i) => indeg[i] === 0);
+  const order: string[] = [];
+  while (q.length) {
+    const i = q.shift() as string;
+    order.push(i);
+    for (const j of adj[i]) if (--indeg[j] === 0) q.push(j);
+  }
+  for (const i of ids) if (!order.includes(i)) order.push(i); // tolerate cycles
+  return order;
+}
+
+/** Execute a workflow graph node-by-node, patching the run doc as it goes so
+ *  the editor renders live status. Inference runs through ElizaCloud; without
+ *  an API key the Image Generate node reports a structured error (no fakery). */
+export const runWorkflow = action({
+  args: { token: v.string(), graph: v.string() },
+  handler: async (ctx, { token, graph }): Promise<{ runId: string }> => {
+    const info = await ctx.runQuery(internal.workflow.ctxFor, { token });
+    if (!info) throw new Error("Not authenticated");
+
+    const parsed = JSON.parse(graph) as { nodes: GNode[]; edges: GEdge[] };
+    const nodes = parsed.nodes ?? [];
+    const edges = parsed.edges ?? [];
+
+    const state: Record<string, NodeState> = {};
+    for (const n of nodes) state[n.id] = { status: "idle" };
+    const runId = await ctx.runMutation(internal.workflow.createRun, {
+      owner: info.pubkey,
+      graph,
+      nodes: JSON.stringify(state),
+    });
+
+    const outputs: Record<string, Record<string, string>> = {};
+    const inputVal = (nodeId: string, port: string): string | undefined => {
+      const e = edges.find((x) => x.target.node === nodeId && x.target.port === port);
+      if (!e) return undefined;
+      return outputs[e.source.node]?.[e.source.port];
+    };
+    const apiKey = process.env.ELIZAOS_CLOUD_API_KEY;
+    const flush = (status?: string) =>
+      ctx.runMutation(internal.workflow.patchRun, { id: runId, nodes: JSON.stringify(state), status });
+
+    for (const id of topoSort(nodes, edges)) {
+      const node = nodes.find((n) => n.id === id);
+      if (!node) continue;
+
+      // Blocked if any wired input's upstream produced no output (errored/skipped).
+      const incoming = edges.filter((e) => e.target.node === id);
+      if (incoming.some((e) => !(e.source.node in outputs))) {
+        state[id] = { status: "idle" };
+        await flush();
+        continue;
+      }
+
+      state[id] = { status: "running" };
+      await flush();
+
+      try {
+        const v0 = (node.values ?? {}) as Record<string, unknown>;
+        const need = () => {
+          if (!apiKey) throw new Error("Set ELIZAOS_CLOUD_API_KEY on Convex to run this node");
+          return apiKey;
+        };
+        const post = (path: string, body: unknown) =>
+          fetch(`${info.baseUrl}${path}`, {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${need()}` },
+            body: JSON.stringify(body),
+          });
+
+        switch (node.type) {
+          // ── Input ──
+          case "input.prompt": {
+            const t = String(v0.text ?? "");
+            outputs[id] = { prompt: t };
+            state[id] = { status: "done", output: t };
+            break;
+          }
+          case "input.model": {
+            const name = String(v0.name ?? "Auto");
+            outputs[id] = { model: name };
+            state[id] = { status: "done", output: name };
+            break;
+          }
+          case "input.image": {
+            const url = String(v0.url ?? "");
+            outputs[id] = { image: url };
+            state[id] = { status: "done", output: url || "(no source)" };
+            break;
+          }
+
+          // ── Prompt enhancer + text (chat/completions) ──
+          case "enhance.prompt": {
+            const prompt = inputVal(id, "prompt") ?? "";
+            if (!prompt.trim()) throw new Error("Connect a Prompt");
+            const style = String(v0.style ?? "Detailed");
+            const sys = `Rewrite the user's image/text prompt to be more ${style.toLowerCase()} and vivid. Reply with ONLY the rewritten prompt, no preamble.`;
+            const text = await chat(post, inputVal(id, "model"), sys, prompt, 0.7);
+            outputs[id] = { text };
+            state[id] = { status: "done", output: text };
+            break;
+          }
+          case "generate.text": {
+            const prompt = inputVal(id, "prompt") ?? "";
+            if (!prompt.trim()) throw new Error("Connect a Prompt");
+            const temp = Number(v0.temperature ?? 0.7);
+            const text = await chat(post, inputVal(id, "model"), "", prompt, temp);
+            outputs[id] = { text };
+            state[id] = { status: "done", output: text };
+            break;
+          }
+
+          // ── Media generation ──
+          case "generate.image": {
+            const prompt = inputVal(id, "prompt") ?? "";
+            if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
+            const model = inputVal(id, "model") || "google/gemini-2.5-flash-image";
+            const res = await post("/generate-image", {
+              model,
+              prompt,
+              width: Number(v0.width ?? 1024),
+              height: Number(v0.height ?? 1024),
+            });
+            outputs[id] = { image: await mediaUrl(res, "image/png") };
+            state[id] = { status: "done", output: outputs[id].image };
+            break;
+          }
+          case "generate.video": {
+            const prompt = inputVal(id, "prompt") ?? "";
+            if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
+            const res = await post("/generate-video", { prompt, seconds: Number(v0.seconds ?? 4) });
+            outputs[id] = { video: await mediaUrl(res, "video/mp4") };
+            state[id] = { status: "done", output: outputs[id].video };
+            break;
+          }
+          case "generate.speech": {
+            const text = inputVal(id, "text") ?? "";
+            if (!text.trim()) throw new Error("Connect text to speak");
+            const res = await post("/voice/tts", { text, voice: String(v0.voice ?? "Default") });
+            outputs[id] = { audio: await mediaUrl(res, "audio/mpeg") };
+            state[id] = { status: "done", output: outputs[id].audio };
+            break;
+          }
+          case "tools.search": {
+            const query = inputVal(id, "query") ?? "";
+            if (!query.trim()) throw new Error("Connect a query");
+            const res = await post("/search", { query, count: Number(v0.count ?? 5) });
+            if (!res.ok) throw new Error(`Search failed (${res.status})`);
+            const json = await res.json();
+            const text = typeof json.results === "string" ? json.results : JSON.stringify(json.results ?? json);
+            outputs[id] = { results: text };
+            state[id] = { status: "done", output: text.slice(0, 500) };
+            break;
+          }
+          case "refine.upscale": {
+            const img = inputVal(id, "image");
+            if (!img) throw new Error("Connect an image to upscale");
+            outputs[id] = { image: img };
+            state[id] = { status: "done", output: img };
+            break;
+          }
+          case "output.preview": {
+            const v = inputVal(id, "in") ?? "";
+            outputs[id] = {};
+            state[id] = { status: "done", output: v };
+            break;
+          }
+
+          // ── elizaOS agent nodes (design-only; deploy via the runtime) ──
+          default: {
+            if (node.type.startsWith("eliza.")) {
+              const def = ELIZA_OUTPUTS[node.type] ?? [];
+              const label = String(v0.name ?? v0.source ?? node.type.replace("eliza.", ""));
+              outputs[id] = Object.fromEntries(def.map((p) => [p, label]));
+              state[id] = { status: "done", output: label };
+            } else {
+              state[id] = { status: "done" };
+            }
+          }
+        }
+      } catch (e) {
+        state[id] = { status: "error", error: e instanceof Error ? e.message : "failed" };
+      }
+      await flush();
+    }
+
+    await flush("done");
+    return { runId };
+  },
+});
+
+// Output port names for elizaOS nodes (so downstream isn't marked blocked).
+const ELIZA_OUTPUTS: Record<string, string[]> = {
+  "eliza.character": ["agent"],
+  "eliza.plugin": ["plugin"],
+  "eliza.message": ["message"],
+  "eliza.provider": ["context"],
+  "eliza.action": ["message"],
+  "eliza.evaluator": ["message"],
+  "eliza.respond": [],
+};
+
+type Poster = (path: string, body: unknown) => Promise<Response>;
+
+/** Chat/completions text generation through ElizaCloud. */
+async function chat(
+  post: Poster,
+  model: string | undefined,
+  system: string,
+  prompt: string,
+  temperature: number,
+): Promise<string> {
+  const messages = [
+    ...(system ? [{ role: "system", content: system }] : []),
+    { role: "user", content: prompt },
+  ];
+  const res = await post("/chat/completions", {
+    model: model && model !== "Auto" ? model : "openai/gpt-oss-120b:free",
+    messages,
+    temperature,
+  });
+  if (!res.ok) throw new Error(`Text generation failed (${res.status})`);
+  const json = await res.json();
+  const text = json.choices?.[0]?.message?.content;
+  if (typeof text !== "string") throw new Error("No text returned");
+  return text;
+}
+
+/** Resolve a media response to a usable URL (remote url or data URL). */
+async function mediaUrl(res: Response, fallbackType: string): Promise<string> {
+  if (!res.ok) throw new Error(`Generation failed (${res.status})`);
+  const json = await res.json();
+  const d = json.data?.[0] ?? json;
+  if (d?.url) return d.url as string;
+  if (d?.b64_json) return `data:${fallbackType};base64,${d.b64_json}`;
+  if (typeof json.url === "string") return json.url;
+  throw new Error("No media returned");
+}

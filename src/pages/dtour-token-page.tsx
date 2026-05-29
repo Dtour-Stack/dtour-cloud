@@ -213,7 +213,7 @@ export default function DtourTokenPage() {
           </div>
           <div className="flex items-center gap-2.5">
             <span className="text-[10px] uppercase tracking-widest text-white/30">Powered by</span>
-            <img src="/brand/dtour/elizaos-face.svg" alt="" className="h-4 w-4 opacity-60" />
+            <img src="/brand/dtour/elizaos-face.png" alt="" className="h-4 w-4 rounded-[3px] opacity-60" />
             <img src="/brand/dtour/elizaos-text.svg" alt="ElizaOS" className="h-3 opacity-50" />
             <span className="text-white/20">·</span>
             <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3 opacity-50" />

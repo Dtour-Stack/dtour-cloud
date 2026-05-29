@@ -9,20 +9,17 @@
  * in App.tsx routing, or use the brand context to conditionally render.
  */
 
-import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-
-const StewardLoginSection = lazy(() => import("./steward-login-section"));
-
-function StewardLoginSectionFallback() {
-  return <div aria-busy="true" className="min-h-[260px] w-full" />;
-}
+import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
+import { DtourGate } from "./dtour-gate";
 
 /**
- * Dtour Cloud login — dark mesh gradient background with $DTOUR branding.
+ * Dtour Cloud login — $DTOUR token gate. Connect a Solana wallet; if it holds
+ * $DTOUR, sign in (SIWS) and the server verifies ownership + balance.
  */
 export default function DtourLoginPage() {
   return (
+    <SolanaWalletProvider>
     <div className="theme-cloud min-h-screen bg-black text-white">
       {/* Mesh gradient background */}
       <div
@@ -56,10 +53,8 @@ export default function DtourLoginPage() {
                 </p>
               </div>
 
-              {/* Wallet login (same flow as Eliza Cloud) */}
-              <Suspense fallback={<StewardLoginSectionFallback />}>
-                <StewardLoginSection />
-              </Suspense>
+              {/* $DTOUR token gate — connect wallet, prove holding, enter */}
+              <DtourGate />
 
               {/* Mascot */}
               <div className="flex justify-center">
@@ -102,5 +97,6 @@ export default function DtourLoginPage() {
         </div>
       </div>
     </div>
+    </SolanaWalletProvider>
   );
 }

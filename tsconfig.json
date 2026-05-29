@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "incremental": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@elizaos/core": ["./packages/core/src/index.node.ts"],
+      "@elizaos/core/testing": ["./packages/core/src/testing/index.ts"],
+      "@elizaos/core/*": ["./packages/core/src/*"],
+      "@elizaos/shared": ["./packages/shared/src/index.ts"],
+      "@elizaos/shared/*": ["./packages/shared/src/*"],
+      "@elizaos/ui": ["./packages/ui/src/index.ts"],
+      "@elizaos/ui/*": ["./packages/ui/src/*"],
+      "@elizaos/contracts": ["./packages/contracts/src/index.ts"],
+      "@elizaos/contracts/*": ["./packages/contracts/src/*"],
+      "@elizaos/security": ["./packages/security/src/index.ts"],
+      "@elizaos/security/*": ["./packages/security/src/*"],
+      "@elizaos/cloud-shared": ["./packages/cloud-shared/src/index.ts"],
+      "@elizaos/cloud-shared/*": ["./packages/cloud-shared/src/*"],
+      "@elizaos/cloud-sdk": ["./packages/cloud-sdk/src/index.ts"],
+      "@elizaos/cloud-sdk/*": ["./packages/cloud-sdk/src/*"],
+      "@elizaos/cloud-routing": ["./packages/cloud-routing/src/index.ts"],
+      "@elizaos/cloud-routing/*": ["./packages/cloud-routing/src/*"],
+      "@elizaos/plugin-sql": ["./plugins/plugin-sql/src/index.ts"],
+      "@elizaos/plugin-mcp": ["./plugins/plugin-mcp/src/index.ts"],
+      "@elizaos/plugin-x": ["./plugins/plugin-x/src/index.ts"],
+      "@elizaos/plugin-tailscale": ["./plugins/plugin-tailscale/src/index.ts"],
+      "@elizaos/plugin-elevenlabs": ["./plugins/plugin-elevenlabs/src/index.ts"],
+      "@elizaos/plugin-elizacloud": ["./plugins/plugin-elizacloud/src/index.ts"],
+      "@elizaos/plugin-local-inference": ["./plugins/plugin-local-inference/src/index.ts"],
+      "@elizaos/plugin-web-search": ["./plugins/plugin-web-search/src/index.ts"]
+    }
+  },
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/vendor/**"
+  ]
+}
