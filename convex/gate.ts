@@ -1,5 +1,3 @@
-"use node";
-
 import bs58 from "bs58";
 import { v } from "convex/values";
 import nacl from "tweetnacl";
