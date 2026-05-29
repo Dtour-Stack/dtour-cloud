@@ -95,8 +95,9 @@ export function AdminTeam() {
       <header className="fade-up">
         <h1 className="text-2xl font-semibold tracking-tight">Team &amp; Access</h1>
         <p className="mt-1 text-[13px] text-white/45">
-          Whitelist wallets and assign roles. Whitelisted wallets bypass the
-          $DTOUR requirement; everyone still completes onboarding.
+          Grant early access and assign roles. During early access, whitelisted
+          wallets can sign in; every other wallet joins the waitlist. Add a role
+          to also make a wallet an admin.
         </p>
       </header>
 

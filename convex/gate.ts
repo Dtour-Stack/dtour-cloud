@@ -1,6 +1,5 @@
 "use node";
 
-import { PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 import { v } from "convex/values";
 import nacl from "tweetnacl";
@@ -35,11 +34,12 @@ export const verify = action({
     const nonceOk = await ctx.runMutation(internal.auth.consumeNonce, { nonce });
     if (!nonceOk) throw new Error("Invalid or expired nonce");
 
-    const owner = new PublicKey(pubkey);
+    // Solana pubkeys are base58-encoded 32-byte ed25519 keys — decode directly
+    // rather than pulling in @solana/web3.js inside the node action.
     const verified = nacl.sign.detached.verify(
       new TextEncoder().encode(message),
       bs58.decode(signature),
-      owner.toBytes(),
+      bs58.decode(pubkey),
     );
     if (!verified) throw new Error("Signature verification failed");
 
