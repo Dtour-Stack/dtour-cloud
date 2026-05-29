@@ -200,22 +200,25 @@ export function AdminTeam() {
                   {m.note && <span className="text-xs text-white/40">{m.note}</span>}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => changePlan(m.pubkey, m.plan !== "lifetime")}
-                    title={
-                      m.plan === "lifetime"
-                        ? "Lifetime usage — click to revoke"
-                        : "Grant lifetime usage"
-                    }
-                    className={
-                      m.plan === "lifetime"
-                        ? "rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-medium text-emerald-300 transition hover:bg-emerald-400/25"
-                        : "rounded-full border border-white/15 px-2.5 py-1 text-xs font-medium text-white/55 transition hover:bg-white/10"
-                    }
-                  >
-                    {m.plan === "lifetime" ? "★ Lifetime" : "Lifetime"}
-                  </button>
+                  {isSuper && (
+                    <button
+                      type="button"
+                      onClick={() => changePlan(m.pubkey, m.plan !== "lifetime")}
+                      title={
+                        m.plan === "lifetime"
+                          ? "Lifetime usage — click to revoke"
+                          : "Grant lifetime usage"
+                      }
+                      className={
+                        m.plan === "lifetime"
+                          ? "rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-medium text-emerald-300 transition hover:bg-emerald-400/25"
+                          : "rounded-full border border-white/15 px-2.5 py-1 text-xs font-medium text-white/55 transition hover:bg-white/10"
+                      }
+                    >
+                      {m.plan === "lifetime" ? "★ Lifetime" : "Lifetime"}
+                    </button>
+                  )}
+                  {/* Lifetime is shown to super_admins only (set above). */}
                   {isSuper && (
                     <select
                       aria-label={`Role for ${truncate(m.pubkey)}`}

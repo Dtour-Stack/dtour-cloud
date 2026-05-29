@@ -268,7 +268,7 @@ export const setUserPlan = mutation({
     plan: v.union(v.literal("lifetime"), v.literal("none")),
   },
   handler: async (ctx, { token, pubkey, plan }) => {
-    const caller = await requireRole(ctx, token, "admin");
+    const caller = await requireRole(ctx, token, "super_admin");
     const value = plan === "none" ? undefined : plan;
     const row = await ctx.db
       .query("users")
