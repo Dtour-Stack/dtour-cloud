@@ -108,6 +108,7 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   const relayTx = useAction(anyApi.tokenomics.relayTx);
   const txStatuses = useAction(anyApi.tokenomics.txStatuses);
   const reconcileEpoch = useAction(anyApi.tokenomics.reconcileEpoch);
+  const cancelStalePlanned = useMutation(anyApi.tokenomics.cancelStalePlanned);
   const ledgerWritePlan = useMutation(anyApi.tokenomics.ledgerWritePlan);
   const ledgerMarkAttempt = useMutation(anyApi.tokenomics.ledgerMarkAttempt);
   const ledgerMarkResult = useMutation(anyApi.tokenomics.ledgerMarkResult);
@@ -355,6 +356,9 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
           }
           if (plan.kept.length === 0) throw new Error("No eligible payouts after dust floor.");
           activeEpoch = mintEpoch(DTOUR_MINT);
+          // Cancel any abandoned all-"planned" epoch (frozen but never relayed)
+          // BEFORE freezing this run, so it can't be Resumed into a double-pay.
+          await cancelStalePlanned({ token, exceptEpoch: activeEpoch });
           await ledgerWritePlan({
             token,
             epoch: activeEpoch,
@@ -363,6 +367,13 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
               lamports: p.lamports.toString(),
             })),
           });
+          // CONSUME THE BASIS: the collected SOL is now frozen into this epoch.
+          // Nulling collectedSol immediately disables the (fresh) Distribute
+          // button, so a second click can't mint a NEW epoch and re-pay everyone.
+          // Any continuation of THIS run goes through the Resume picker, which
+          // reads the frozen ledger and never double-pays. Safe to null mid-run:
+          // nothing below this point reads collectedSol.
+          setCollectedSol(null);
         }
         epochRef.current = activeEpoch;
         setEpoch(activeEpoch);
@@ -374,7 +385,10 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
         // 3. Read the frozen ledger; pay rows NOT in {paid, attempted}.
         const rows = await fetchLedger(token, activeEpoch);
         const toPay = rows.filter(
-          (r) => r.status !== "paid" && r.status !== "attempted",
+          (r) =>
+            r.status !== "paid" &&
+            r.status !== "attempted" &&
+            r.status !== "cancelled",
         );
         const unresolved = rows.filter((r) => r.status === "attempted");
         if (toPay.length === 0) {
@@ -500,6 +514,7 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
       overCap,
       totalSol,
       collectedSol,
+      cancelStalePlanned,
       ledgerWritePlan,
       token,
       reconcileEpoch,
@@ -651,6 +666,12 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
               {collectedSol == null && distribute.status === "idle" && (
                 <p className="mt-1 text-[11px] text-amber-200/70">
                   Run Collect first to freeze a new run, or use Resume below for a prior run.
+                </p>
+              )}
+              {collectedSol == null && distribute.status === "done" && (
+                <p className="mt-1 text-[11px] text-emerald-200/70">
+                  Run complete — this run's collected SOL is spent. Collect again to
+                  start a new distribution.
                 </p>
               )}
               {distribute.message && (

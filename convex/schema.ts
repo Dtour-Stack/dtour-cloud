@@ -218,6 +218,7 @@ export default defineSchema({
       v.literal("attempted"), // sig recorded BEFORE relay (confirm-timeout safety)
       v.literal("paid"), // landed + confirmed (or reconciled landed)
       v.literal("failed"), // tx failed / blockhash expired → safe to retry
+      v.literal("cancelled"), // never relayed; superseded by a newer run (terminal)
     ),
     signature: v.optional(v.string()), // shared across the batch tx
     recentBlockhash: v.optional(v.string()),

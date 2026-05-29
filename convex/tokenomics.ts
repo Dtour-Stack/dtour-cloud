@@ -315,7 +315,7 @@ export const txStatuses = action({
       err?: unknown;
       confirmationStatus?: string;
     } | null> = r?.value ?? [];
-    return signatures.map((signature, i) => {
+    const out = signatures.map((signature, i) => {
       const st = value[i];
       if (st) {
         if (st.err) return { signature, status: "absent" as const, err: st.err };
@@ -327,6 +327,32 @@ export const txStatuses = action({
       }
       return { signature, status: "unknown" as const, err: null };
     });
+
+    // getSignatureStatuses' cache drops landed txs after a window — even with
+    // searchTransactionHistory it can return null for a tx that DID land. That
+    // null would read as "unknown", and once the blockhash expires reconcileEpoch
+    // promotes unknown→failed→RE-PAY. getTransaction queries long-term storage
+    // and is authoritative, so we resolve every remaining "unknown" against it.
+    // FAIL-SAFE: an RPC throw/error here stays "unknown" (never "absent"), so a
+    // transient hiccup can never flip a landed tx to a retry.
+    for (let i = 0; i < out.length; i++) {
+      if (out[i].status !== "unknown") continue;
+      try {
+        const tx = await rpc("getTransaction", [
+          out[i].signature,
+          { commitment: "confirmed", maxSupportedTransactionVersion: 0 },
+        ]);
+        if (tx === null || tx === undefined) continue; // genuinely not found → stay unknown
+        const metaErr = tx?.meta?.err ?? null;
+        out[i] =
+          metaErr == null
+            ? { signature: out[i].signature, status: "landed" as const, err: null }
+            : { signature: out[i].signature, status: "absent" as const, err: metaErr };
+      } catch {
+        // RPC unavailable / errored → leave "unknown" (fail-safe; no re-pay).
+      }
+    }
+    return out;
   },
 });
 
@@ -469,6 +495,36 @@ export const ledgerMarkResult = mutation({
   },
 });
 
+/**
+ * Cancel every still-"planned" row in epochs OTHER than `exceptEpoch` — called at
+ * the start of a FRESH distribution. "planned" means the row was frozen but NEVER
+ * relayed (no money moved), so cancelling is always safe. Without this, an
+ * abandoned all-planned epoch (e.g. the wallet signature was rejected, then the
+ * operator re-Collected instead of Resuming) lingers in incompleteEpochs and a
+ * later Resume would pay those owners again. NEVER touches attempted/paid/failed
+ * — a genuinely in-flight epoch is unaffected and stays resumable.
+ */
+export const cancelStalePlanned = mutation({
+  args: { token: v.string(), exceptEpoch: v.string() },
+  handler: async (ctx, { token, exceptEpoch }): Promise<{ cancelled: number }> => {
+    const caller = await requireRole(ctx, token, "admin");
+    const all = await ctx.db.query("payoutLedger").collect();
+    const planned = all.filter(
+      (r) => r.status === "planned" && r.epoch !== exceptEpoch,
+    );
+    for (const row of planned) {
+      await ctx.db.patch(row._id, { status: "cancelled" as const });
+    }
+    if (planned.length > 0) {
+      await logEvent(ctx, "tokenomics.execute", {
+        pubkey: caller.pubkey,
+        data: { phase: "cancel-stale-planned", exceptEpoch, cancelled: planned.length },
+      });
+    }
+    return { cancelled: planned.length };
+  },
+});
+
 /** All ledger rows for an epoch — powers resume + the reactive progress UI. */
 export const ledgerForEpoch = query({
   args: { token: v.string(), epoch: v.string() },
@@ -513,6 +569,7 @@ export const incompleteEpochs = query({
       { total: number; paid: number; pending: number }
     >();
     for (const r of rows) {
+      if (r.status === "cancelled") continue; // terminal, never relayed → ignore
       const e = byEpoch.get(r.epoch) ?? { total: 0, paid: 0, pending: 0 };
       e.total++;
       if (r.status === "paid") e.paid++;

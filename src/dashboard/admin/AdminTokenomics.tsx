@@ -227,14 +227,15 @@ export function AdminTokenomics() {
               className={`${field} font-mono resize-y`}
             />
             <p className="mt-1.5 text-xs text-white/40">
-              The 4 pool wallets are always excluded automatically. Add the LP pool OWNER and
-              any other addresses to keep out of pro-rata.
+              The 4 pool wallets and the LP pool owner are always excluded automatically
+              (in code) — they can't be paid even if removed from this list. Add any other
+              addresses (market makers, …) to keep out of pro-rata.
             </p>
             {!(cfg.excludeWallets ?? []).includes(LP_OWNER) && (
-              <p className="mt-2 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 text-xs text-amber-200">
-                ⚠ The LP pool owner ({LP_OWNER.slice(0, 4)}…{LP_OWNER.slice(-4)}) is NOT in the
-                exclude list. It holds ~26% of supply and would top the payout, draining the
-                holder slice. Add it before executing.
+              <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45">
+                ℹ The LP pool owner ({LP_OWNER.slice(0, 4)}…{LP_OWNER.slice(-4)}, ~26% of
+                supply) is hard-excluded in code, so it's already kept out of the payout.
+                Listed here only for visibility — adding it is optional.
               </p>
             )}
           </div>

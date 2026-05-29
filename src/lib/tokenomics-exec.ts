@@ -57,13 +57,25 @@ export type Cfg = {
 };
 
 /**
+ * Owners that are NEVER eligible for pro-rata, hard-coded so they can't be paid
+ * even if dropped from the editable config list. The $DTOUR LP pool owner
+ * (Token-2022, ~256M / ~26% of supply) tops every payout and would drain the
+ * holder slice — it MUST always be excluded.
+ */
+export const ALWAYS_EXCLUDE_OWNERS = [
+  "5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE", // $DTOUR LP pool owner
+] as const;
+
+/**
  * The exclusion set used in BOTH the preview and the distribute plan: the 4 pool
- * wallets are ALWAYS unioned in CODE (so dropping one from the config list can't
- * accidentally pay it), PLUS cfg.excludeWallets (the LP owner et al.).
+ * wallets + the hard-coded ALWAYS_EXCLUDE_OWNERS are ALWAYS unioned in CODE (so
+ * dropping one from the config list can't accidentally pay it), PLUS
+ * cfg.excludeWallets (any additional operator-supplied owners).
  */
 export function buildExcludeSet(cfg: Cfg): Set<string> {
   return new Set<string>([
     ...Object.values(cfg.wallets),
+    ...ALWAYS_EXCLUDE_OWNERS,
     ...(cfg.excludeWallets ?? []),
   ]);
 }
