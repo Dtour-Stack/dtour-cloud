@@ -8,6 +8,7 @@ import { AdminConfig } from "./AdminConfig";
 import { AdminDebugLog } from "./AdminDebugLog";
 import { AdminFlags } from "./AdminFlags";
 import { AdminTeam } from "./AdminTeam";
+import { AdminTokenomics } from "./AdminTokenomics";
 import { AdminUsers } from "./AdminUsers";
 import { AdminWaitlist } from "./AdminWaitlist";
 
@@ -16,6 +17,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin/users", label: "Users", icon: <Icon.User /> },
   { to: "/admin/team", label: "Team & Access", icon: <Icon.Shield /> },
   { to: "/admin/waitlist", label: "Waitlist", icon: <Icon.Sparkles /> },
+  { to: "/admin/tokenomics", label: "Tokenomics", icon: <Icon.Coins /> },
   { to: "/admin/broadcast", label: "Broadcast", icon: <Icon.Megaphone /> },
   { to: "/admin/settings", label: "Settings", icon: <Icon.Settings /> },
   { to: "/admin/flags", label: "Feature Flags", icon: <Icon.Flag /> },
@@ -58,6 +60,8 @@ const SECTIONS: Record<string, ReactNode> = {
   ),
   // Team manages its own page container + header.
   team: <AdminTeam />,
+  // Tokenomics manages its own page container + header.
+  tokenomics: <AdminTokenomics />,
   waitlist: (
     <Section
       title="Waitlist"

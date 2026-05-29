@@ -175,4 +175,24 @@ export default defineSchema({
     graph: v.string(),
     createdAt: v.number(),
   }).index("by_owner", ["owner"]),
+
+  // Single-doc tokenomics config (admin-editable). Pubkeys + bps only — NO keys.
+  tokenomicsConfig: defineTable({
+    splitBps: v.object({
+      builder: v.number(),
+      holders: v.number(),
+      buyback: v.number(),
+      treasury: v.number(),
+    }),
+    wallets: v.object({
+      creator: v.string(),
+      builder: v.string(),
+      treasury: v.string(),
+      buyback: v.string(),
+    }),
+    minBalanceTokens: v.number(), // ignore holders below this $DTOUR balance
+    minPayoutSol: v.number(), // dust floor per holder payout
+    creatorReserveSol: v.number(), // SOL kept in creator wallet (not split)
+    updatedAt: v.number(),
+  }),
 });
