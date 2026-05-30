@@ -244,6 +244,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_pubkey", ["pubkey"]),
 
+  // $DTOUR → USD-credit top-ups. Idempotent by on-chain signature: a verified
+  // $DTOUR transfer to the credits treasury credits the payer's wallet at the
+  // $DTOUR/USD rate captured AT verification time (volatility risk taken here).
+  creditTopUps: defineTable({
+    signature: v.string(), // the on-chain $DTOUR transfer tx
+    pubkey: v.string(), // payer (credited)
+    dtourAmount: v.number(), // $DTOUR received by treasury (uiAmount)
+    priceUsd: v.number(), // $DTOUR/USD at verification
+    usdMicro: v.number(), // credits granted (integer micro-USD)
+    at: v.number(),
+  })
+    .index("by_signature", ["signature"])
+    .index("by_pubkey", ["pubkey"]),
+
   // Per-session coding-sandbox usage ledger — the accuracy record. Stores the
   // metered E2B cost AND the price charged (cost × markup × holder-discount).
   codingUsage: defineTable({

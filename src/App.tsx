@@ -112,7 +112,9 @@ export default function App() {
           path="/coding"
           element={
             <RequireRole min="pro_user">
-              <CodingDashboardPage />
+              <SolanaWalletProvider>
+                <CodingDashboardPage />
+              </SolanaWalletProvider>
             </RequireRole>
           }
         />
@@ -120,7 +122,9 @@ export default function App() {
           path="/coding/:section"
           element={
             <RequireRole min="pro_user">
-              <CodingDashboardPage />
+              <SolanaWalletProvider>
+                <CodingDashboardPage />
+              </SolanaWalletProvider>
             </RequireRole>
           }
         />

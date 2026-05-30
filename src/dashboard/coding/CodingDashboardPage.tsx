@@ -10,7 +10,8 @@ import { anyApi } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
-import { cn, Icon } from "@/ui";
+import { Button, cn, Icon } from "@/ui";
+import { TopUpModal } from "./TopUpModal";
 
 /**
  * Coding dashboard — an embedded web terminal (wterm). The primary backend is a
@@ -82,6 +83,7 @@ export default function CodingDashboardPage() {
       : pricing.example.nonHolderPerHourUsd
     : null;
   const lowBalance = backend === "runner" && credits != null && credits.balanceUsd < 0.05;
+  const [topUpOpen, setTopUpOpen] = useState(false);
 
   return (
     <AppShell title="Coding" context="coding" bare>
@@ -145,12 +147,23 @@ export default function CodingDashboardPage() {
                 )}
               </div>
             )}
+            {backend === "runner" && (
+              <Button size="sm" variant="secondary" onClick={() => setTopUpOpen(true)}>
+                <Icon.Plus size={13} /> Top up
+              </Button>
+            )}
           </div>
         </div>
         {lowBalance && (
-          <div className="border-b border-amber-400/20 bg-amber-400/[0.06] px-4 py-2 text-xs text-amber-200/90">
-            Low credits — top up to keep running Detour Cloud sandboxes. (Top-up flow
-            coming; an admin can grant credits meanwhile.)
+          <div className="flex items-center justify-between gap-3 border-b border-amber-400/20 bg-amber-400/[0.06] px-4 py-2 text-xs text-amber-200/90">
+            <span>Low credits — top up with $DTOUR to keep running Detour Cloud sandboxes.</span>
+            <button
+              type="button"
+              onClick={() => setTopUpOpen(true)}
+              className="shrink-0 rounded-full bg-amber-400/20 px-3 py-1 font-medium text-amber-100 transition hover:bg-amber-400/30"
+            >
+              Top up
+            </button>
           </div>
         )}
 
@@ -161,6 +174,9 @@ export default function CodingDashboardPage() {
           </div>
         </div>
       </div>
+      {topUpOpen && token && (
+        <TopUpModal token={token} onClose={() => setTopUpOpen(false)} onCredited={() => {}} />
+      )}
     </AppShell>
   );
 }
