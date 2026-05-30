@@ -1,7 +1,7 @@
 import bs58 from "bs58";
 import { v } from "convex/values";
 import nacl from "tweetnacl";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
 
 function nonceFromMessage(message: string): string | null {
@@ -51,10 +51,20 @@ export const verify = action({
       );
     }
 
+    // Read the real on-chain $DTOUR balance for DISPLAY (the access decision above
+    // is whitelist-only during early access — balance no longer gates entry, but
+    // the dashboard shows it). Never block login on an RPC hiccup → default 0.
+    let balance = 0;
+    try {
+      balance = await ctx.runAction(api.tokens.balanceOf, { pubkey });
+    } catch {
+      balance = 0;
+    }
+
     const { token, hasProfile } = await ctx.runMutation(
       internal.auth.recordLogin,
-      { pubkey, balance: 0 },
+      { pubkey, balance },
     );
-    return { token, balance: 0, hasProfile };
+    return { token, balance, hasProfile };
   },
 });

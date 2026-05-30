@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -44,6 +44,12 @@ export function AppShell({
   const navigate = useNavigate();
   const token = getDtourSessionToken();
   const me = useQuery(anyApi.users.me, token ? { token } : "skip") as Me;
+  // Early-access login pins the stored balance to 0; re-read the live on-chain
+  // $DTOUR balance once on mount so every section shows the REAL number.
+  const refreshBalance = useAction(anyApi.users.refreshBalance);
+  useEffect(() => {
+    if (token) void refreshBalance({ token }).catch(() => {});
+  }, [token, refreshBalance]);
   const unread = useQuery(
     anyApi.messages.unreadCount,
     token ? { token } : "skip",
