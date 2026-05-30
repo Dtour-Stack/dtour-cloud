@@ -37,7 +37,7 @@ export function AppShell({
   /** Sidebar items. Defaults to the user-dashboard nav. */
   nav?: NavItem[];
   /** Which context this shell renders — drives the context switcher. */
-  context?: "user" | "admin" | "design";
+  context?: "user" | "admin" | "design" | "coding";
   /** Custom sidebar body (replaces the default nav) — e.g. the chat recents rail. */
   sidebar?: (o: { collapsed: boolean; closeMobile: () => void }) => ReactNode;
 }) {
@@ -260,7 +260,7 @@ function ContextSwitcher({
   context,
   role,
 }: {
-  context: "user" | "admin" | "design";
+  context: "user" | "admin" | "design" | "coding";
   role?: Role;
 }) {
   const navigate = useNavigate();
@@ -285,7 +285,10 @@ function ContextSwitcher({
   const items = [
     { key: "user", label: "User Dashboard", to: "/dashboard", icon: <Icon.Home size={14} /> },
     ...(isPro(role)
-      ? [{ key: "design", label: "Design Studio", to: "/design", icon: <Icon.Palette size={14} /> }]
+      ? [
+          { key: "design", label: "Design Studio", to: "/design", icon: <Icon.Palette size={14} /> },
+          { key: "coding", label: "Coding", to: "/coding", icon: <Icon.Zap size={14} /> },
+        ]
       : []),
     ...(isAdmin(role)
       ? [{ key: "admin", label: "Admin", to: "/admin", icon: <Icon.Shield size={14} /> }]

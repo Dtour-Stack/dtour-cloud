@@ -21,6 +21,9 @@ const AdminDashboardPage = lazy(
 const DesignDashboardPage = lazy(
   () => import("@/dashboard/design/DesignDashboardPage"),
 );
+const CodingDashboardPage = lazy(
+  () => import("@/dashboard/coding/CodingDashboardPage"),
+);
 const ProfilePage = lazy(() => import("@/dashboard/profile/ProfilePage"));
 const AgentsPage = lazy(() => import("@/dashboard/agents/AgentsPage"));
 
@@ -102,6 +105,22 @@ export default function App() {
           element={
             <RequireRole min="pro_user">
               <DesignDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/coding"
+          element={
+            <RequireRole min="pro_user">
+              <CodingDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/coding/:section"
+          element={
+            <RequireRole min="pro_user">
+              <CodingDashboardPage />
             </RequireRole>
           }
         />
