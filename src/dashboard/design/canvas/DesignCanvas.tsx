@@ -10,6 +10,7 @@ import {
 } from "react";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
+import { CANVAS_TOUR, GuidedTour } from "../GuidedTour";
 import { createCanvas2DRenderer } from "./canvas2dRenderer";
 import { drawTextOverlay } from "./textOverlay";
 import type { Node, Renderer, Scene, View } from "./types";
@@ -355,6 +356,7 @@ export function DesignCanvas() {
         <ToolButton active={tool === "text"} label="Text (T)" onClick={() => setTool("text")}>
           <Icon.Type size={16} />
         </ToolButton>
+        <GuidedTour id="canvas" heading="Design Canvas" steps={CANVAS_TOUR} />
         <div className="mx-1 h-5 w-px bg-white/10" />
         <button
           type="button"

@@ -7,6 +7,9 @@ export type PortType = "image" | "text" | "model" | "number" | "audio" | "video"
 export interface PortDef {
   name: string;
   type: PortType;
+  /** Input ports only: accept MULTIPLE incoming edges (fan-in) instead of
+   *  replacing — e.g. linking several plugins to one Character connector. */
+  multi?: boolean;
 }
 
 export type WidgetKind = "text" | "textarea" | "number" | "slider" | "select";

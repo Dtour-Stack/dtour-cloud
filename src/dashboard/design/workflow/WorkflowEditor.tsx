@@ -9,6 +9,7 @@ import {
 } from "react";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
+import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
 import { defaultValues, getDef, NODE_DEFS, PORT_COLOR } from "./registry";
 import { type Graph, TEMPLATES } from "./templates";
 import type { Edge, NodeInstance, PortType, Viewport, WidgetDef } from "./types";
@@ -323,9 +324,28 @@ export function WorkflowEditor() {
   }
 
   function connect(sn: string, sp: string, tn: string, tp: string, type: PortType) {
+    // A `multi` input port fans in (keeps existing edges); a normal input is
+    // single-source (a new edge replaces the old one).
+    const tNode = nodes.find((n) => n.id === tn);
+    const isMulti = tNode
+      ? !!getDef(tNode.type).inputs.find((p) => p.name === tp)?.multi
+      : false;
     setEdges((es) => {
-      // inputs are single-source: drop any existing edge on the target port
-      const kept = es.filter((x) => !(x.target.node === tn && x.target.port === tp));
+      // Never duplicate the exact same source→target wire.
+      if (
+        es.some(
+          (x) =>
+            x.source.node === sn &&
+            x.source.port === sp &&
+            x.target.node === tn &&
+            x.target.port === tp,
+        )
+      ) {
+        return es;
+      }
+      const kept = isMulti
+        ? es
+        : es.filter((x) => !(x.target.node === tn && x.target.port === tp));
       return [
         ...kept,
         { id: `e_${ids.current.e++}`, source: { node: sn, port: sp }, target: { node: tn, port: tp }, type },
@@ -605,6 +625,7 @@ export function WorkflowEditor() {
         >
           <Icon.LayoutGrid size={14} /> Templates
         </button>
+        <GuidedTour id="workflow" heading="Workflows" steps={WORKFLOW_TOUR} />
         <div className="mx-1 h-5 w-px bg-white/10" />
         <button
           type="button"

@@ -129,7 +129,8 @@ export const NODE_DEFS: NodeDef[] = [
     type: "output.preview",
     title: "Output / Preview",
     category: "Output",
-    inputs: [{ name: "in", type: "any" }],
+    // Collect several upstream results into one preview.
+    inputs: [{ name: "in", type: "any", multi: true }],
     outputs: [],
     widgets: [],
   },
@@ -139,7 +140,8 @@ export const NODE_DEFS: NodeDef[] = [
     type: "eliza.character",
     title: "Character",
     category: "Agent",
-    inputs: [{ name: "plugins", type: "any" }],
+    // plugins is a fan-in connector: link as many Plugin nodes as you want.
+    inputs: [{ name: "plugins", type: "any", multi: true }],
     outputs: [{ name: "agent", type: "agent" }],
     widgets: [
       { key: "name", kind: "text", label: "Name", default: "Detour" },
