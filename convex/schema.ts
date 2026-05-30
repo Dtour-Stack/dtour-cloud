@@ -200,6 +200,9 @@ export default defineSchema({
     // Hard SOL cap per Execute run (sum of all distribute payouts must be ≤ this).
     // Optional for backward-compat; read code defaults it.
     perRunCapSol: v.optional(v.number()),
+    // Branding memo attached to each distribute batch tx ("" = none). Optional
+    // for backward-compat; read code defaults it.
+    memo: v.optional(v.string()),
     updatedAt: v.number(),
   }),
 
@@ -229,5 +232,6 @@ export default defineSchema({
   })
     .index("by_epoch_owner", ["epoch", "owner"]) // idempotent upsert / per-owner
     .index("by_epoch", ["epoch"]) // ledgerForEpoch / plan freeze / resume
-    .index("by_signature", ["signature"]), // reconcile a batch by its shared sig
+    .index("by_signature", ["signature"]) // reconcile a batch by its shared sig
+    .index("by_status", ["status"]), // bounded status scans (cancelStalePlanned / incompleteEpochs)
 });

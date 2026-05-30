@@ -1,6 +1,12 @@
 import { v } from "convex/values";
 import { api } from "./_generated/api";
-import { action, mutation, query } from "./_generated/server";
+import {
+  type MutationCtx,
+  type QueryCtx,
+  action,
+  mutation,
+  query,
+} from "./_generated/server";
 import { logEvent } from "./events";
 import { requireRole } from "./rbac";
 
@@ -26,22 +32,35 @@ const DEFAULT_CONFIG = {
   excludeWallets: ["5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE"],
   // Hard SOL cap per Execute run — distribute aborts if the total exceeds it.
   perRunCapSol: 5,
+  // Branding memo attached to each distribute batch tx (blank = no memo).
+  memo: "Detour Cloud · $DTOUR holder reward · detour.ninja",
 };
+
+/**
+ * Effective tokenomics config: the saved row merged over DEFAULT_CONFIG.
+ * Merge-only (NO auth) so getConfig (public, admin-gated) and ledgerWritePlan
+ * (the server-side cap check) read the EXACT same effective config and can never
+ * drift. Callers do their own requireRole.
+ */
+async function readConfig(ctx: QueryCtx | MutationCtx) {
+  const row = await ctx.db.query("tokenomicsConfig").first();
+  if (!row) return { ...DEFAULT_CONFIG, updatedAt: null };
+  const { _id, _creationTime, ...cfg } = row;
+  // Default the fields added after this row may have been saved.
+  return {
+    ...cfg,
+    excludeWallets: cfg.excludeWallets ?? DEFAULT_CONFIG.excludeWallets,
+    perRunCapSol: cfg.perRunCapSol ?? DEFAULT_CONFIG.perRunCapSol,
+    memo: cfg.memo ?? DEFAULT_CONFIG.memo,
+  };
+}
 
 /** Current tokenomics config (admin+). Returns defaults if unset. */
 export const getConfig = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
     await requireRole(ctx, token, "admin");
-    const row = await ctx.db.query("tokenomicsConfig").first();
-    if (!row) return { ...DEFAULT_CONFIG, updatedAt: null };
-    const { _id, _creationTime, ...cfg } = row;
-    // Default the fields added after this row may have been saved.
-    return {
-      ...cfg,
-      excludeWallets: cfg.excludeWallets ?? DEFAULT_CONFIG.excludeWallets,
-      perRunCapSol: cfg.perRunCapSol ?? DEFAULT_CONFIG.perRunCapSol,
-    };
+    return readConfig(ctx);
   },
 });
 
@@ -66,6 +85,7 @@ export const setConfig = mutation({
     creatorReserveSol: v.number(),
     excludeWallets: v.array(v.string()),
     perRunCapSol: v.number(),
+    memo: v.optional(v.string()),
   },
   handler: async (ctx, { token, ...cfg }) => {
     const caller = await requireRole(ctx, token, "admin");
@@ -89,6 +109,7 @@ export const setConfig = mutation({
     cfg.excludeWallets = [
       ...new Set(cfg.excludeWallets.map((w) => w.trim()).filter(Boolean)),
     ];
+    if (typeof cfg.memo === "string") cfg.memo = cfg.memo.trim();
     const existing = await ctx.db.query("tokenomicsConfig").first();
     const doc = { ...cfg, updatedAt: Date.now() };
     if (existing) await ctx.db.patch(existing._id, doc);
@@ -382,6 +403,67 @@ export const ledgerWritePlan = mutation({
   },
   handler: async (ctx, { token, epoch, rows }): Promise<{ written: number }> => {
     const caller = await requireRole(ctx, token, "admin");
+
+    // Server-side mirror of the client overCap guard (AdminTokenomicsExecute.tsx):
+    // there, totalSol = lamportsToSol(plan.totalLamports) where
+    // plan.totalLamports = sum of plan.kept[].lamports, and overCap = totalSol >
+    // cfg.perRunCapSol — and the rows passed here are exactly plan.kept.
+    //
+    // But summing only the incoming rows in isolation lets a direct/abnormal caller
+    // bypass the cap by reusing an epoch with a DISJOINT owner set: call 1 freezes
+    // {A,B}=4 SOL (≤5, inserted), call 2 freezes {C,D}=4 SOL (≤5 in isolation,
+    // inserted) — the idempotent skip below only fires per (epoch, owner), so the
+    // epoch's frozen total is now 8 SOL and distribute pays the whole ledger. This
+    // is the stated server-side backstop, so it must not assume the normal flow
+    // (which mints a fresh epoch and only writes it once).
+    //
+    // Enforce the real invariant: after this call, the epoch's non-cancelled frozen
+    // total must be ≤ cap. That total = (existing non-cancelled rows) + (incoming
+    // rows that will actually insert, i.e. owners not already in the ledger). This
+    // PRESERVES idempotency: an exact re-send of an already-frozen plan inserts
+    // nothing and adds 0 to the existing sum, so it never false-rejects. (cancelled
+    // rows are excluded — distribute and incompleteEpochs skip them, so they never
+    // pay and must not count toward the cap; the insert loop can't resurrect them.)
+    const cfg = await readConfig(ctx);
+    const capLamports = BigInt(Math.round(cfg.perRunCapSol * 1e9));
+    const epochRows = await ctx.db
+      .query("payoutLedger")
+      .withIndex("by_epoch", (q) => q.eq("epoch", epoch))
+      .collect();
+    const existingOwners = new Set<string>();
+    let totalLamports = 0n;
+    for (const r of epochRows) {
+      existingOwners.add(r.owner);
+      if (r.status !== "cancelled") totalLamports += BigInt(r.lamports);
+    }
+    // Add only the incoming rows that will newly insert (owner not yet frozen).
+    // Counting a duplicated incoming owner twice here is conservatively safe
+    // (over-rejects), so we don't dedupe the incoming side.
+    for (const row of rows) {
+      if (existingOwners.has(row.owner)) continue;
+      totalLamports += BigInt(row.lamports);
+    }
+    if (totalLamports > capLamports) {
+      throw new Error(
+        `Plan total ${totalLamports} lamports exceeds the per-run cap of ` +
+          `${cfg.perRunCapSol} SOL (${capLamports} lamports). Aborting before any write.`,
+      );
+    }
+
+    // Server-side mirror of the client dust floor (tokenomics-exec.ts applyDustFloor,
+    // which drops payouts below solToLamports(minPayoutSol) BEFORE handing rows here).
+    // Same BigInt(Math.round(sol*1e9)) formula, so every kept client row is ≥ this and
+    // never false-rejects; a sub-dust row means a buggy/tampered client → fail closed.
+    const dustFloorLamports = BigInt(Math.round(cfg.minPayoutSol * 1e9));
+    for (const row of rows) {
+      if (BigInt(row.lamports) < dustFloorLamports) {
+        throw new Error(
+          `Payout ${row.lamports} lamports for ${row.owner} is below the dust floor ` +
+            `of ${cfg.minPayoutSol} SOL (${dustFloorLamports} lamports). Aborting before any write.`,
+        );
+      }
+    }
+
     let written = 0;
     for (const row of rows) {
       const existing = await ctx.db
@@ -508,20 +590,24 @@ export const cancelStalePlanned = mutation({
   args: { token: v.string(), exceptEpoch: v.string() },
   handler: async (ctx, { token, exceptEpoch }): Promise<{ cancelled: number }> => {
     const caller = await requireRole(ctx, token, "admin");
-    const all = await ctx.db.query("payoutLedger").collect();
-    const planned = all.filter(
-      (r) => r.status === "planned" && r.epoch !== exceptEpoch,
-    );
-    for (const row of planned) {
+    // Bounded read: only "planned" rows (the only status we ever cancel) via
+    // by_status, instead of collecting the WHOLE table. attempted/paid/failed are
+    // never returned, so we can't accidentally touch an in-flight epoch.
+    const plannedRows = await ctx.db
+      .query("payoutLedger")
+      .withIndex("by_status", (q) => q.eq("status", "planned"))
+      .collect();
+    const stale = plannedRows.filter((r) => r.epoch !== exceptEpoch);
+    for (const row of stale) {
       await ctx.db.patch(row._id, { status: "cancelled" as const });
     }
-    if (planned.length > 0) {
+    if (stale.length > 0) {
       await logEvent(ctx, "tokenomics.execute", {
         pubkey: caller.pubkey,
-        data: { phase: "cancel-stale-planned", exceptEpoch, cancelled: planned.length },
+        data: { phase: "cancel-stale-planned", exceptEpoch, cancelled: stale.length },
       });
     }
-    return { cancelled: planned.length };
+    return { cancelled: stale.length };
   },
 });
 
@@ -563,23 +649,52 @@ export const incompleteEpochs = query({
     { token },
   ): Promise<Array<{ epoch: string; total: number; paid: number; pending: number }>> => {
     await requireRole(ctx, token, "admin");
-    const rows = await ctx.db.query("payoutLedger").collect();
-    const byEpoch = new Map<
-      string,
-      { total: number; paid: number; pending: number }
-    >();
-    for (const r of rows) {
-      if (r.status === "cancelled") continue; // terminal, never relayed → ignore
-      const e = byEpoch.get(r.epoch) ?? { total: 0, paid: 0, pending: 0 };
-      e.total++;
-      if (r.status === "paid") e.paid++;
-      else e.pending++;
-      byEpoch.set(r.epoch, e);
+
+    // The only NON-terminal ("pending") statuses are planned, attempted, failed
+    // (paid and cancelled are terminal). Querying just those three via by_status
+    // yields the BOUNDED set of incomplete epochs — every epoch with pending > 0,
+    // which is exactly the set the old whole-table scan emitted — without reading
+    // the full ledger. cancelled rows are never read here, so they're excluded
+    // from both total and pending by construction (matching the old behavior).
+    const pendingByEpoch = new Map<string, number>();
+    for (const status of ["planned", "attempted", "failed"] as const) {
+      const rows = await ctx.db
+        .query("payoutLedger")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .collect();
+      for (const r of rows) {
+        pendingByEpoch.set(r.epoch, (pendingByEpoch.get(r.epoch) ?? 0) + 1);
+      }
     }
-    return [...byEpoch.entries()]
-      .filter(([, val]) => val.pending > 0)
-      .map(([epoch, val]) => ({ epoch, ...val }))
-      .sort((a, b) => (a.epoch < b.epoch ? 1 : -1));
+
+    // For each incomplete epoch, a BOUNDED per-epoch read via by_epoch gives the
+    // remaining counts: total = non-cancelled rows, paid = paid rows. pending is
+    // the count gathered above (planned+attempted+failed); total - paid would
+    // equal it but we keep them computed independently to match the old shape.
+    const out: Array<{
+      epoch: string;
+      total: number;
+      paid: number;
+      pending: number;
+    }> = [];
+    for (const [epoch, pending] of pendingByEpoch) {
+      const rows = await ctx.db
+        .query("payoutLedger")
+        .withIndex("by_epoch", (q) => q.eq("epoch", epoch))
+        .collect();
+      let total = 0;
+      let paid = 0;
+      for (const r of rows) {
+        if (r.status === "cancelled") continue; // terminal, never relayed → ignore
+        total++;
+        if (r.status === "paid") paid++;
+      }
+      out.push({ epoch, total, paid, pending });
+    }
+
+    // Only pending > 0 epochs are in pendingByEpoch already, so no extra filter is
+    // needed. Same descending-epoch sort as before.
+    return out.sort((a, b) => (a.epoch < b.epoch ? 1 : -1));
   },
 });
 

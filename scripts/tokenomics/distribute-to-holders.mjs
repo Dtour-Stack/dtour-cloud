@@ -64,6 +64,8 @@ import {
   lamportsToSol,
   printTransferPlan,
   confirmExecute,
+  buildMemoIx,
+  simulateOrThrow,
   snapshotHolders,
   aggregateByOwner,
   filterHolders,
@@ -102,7 +104,11 @@ async function main() {
     args.method ?? cfg.distribution?.snapshotMethod ?? "getProgramAccounts";
   const decimals = cfg.tokenDecimals;
   const minBalanceTokens = cfg.distribution?.minBalanceTokens ?? 0;
-  const minPayoutLamports = solToLamports(cfg.distribution?.minPayoutSol ?? 0);
+  // Default the dust floor to 0.001 SOL (not 0) so a config missing the field
+  // never sends sub-dust spam; set it to 0 explicitly to disable.
+  const minPayoutSol = cfg.distribution?.minPayoutSol ?? 0.001;
+  const minPayoutLamports = solToLamports(minPayoutSol);
+  const memo = (cfg.distribution?.memo ?? "").trim();
 
   console.log("\n══ distribute-to-holders — $DTOUR holder rewards ══");
   console.log(`  mint            : ${cfg.mint}`);
@@ -111,7 +117,8 @@ async function main() {
   console.log(`  snapshot method : ${method}`);
   console.log(`  token decimals  : ${decimals}`);
   console.log(`  min balance     : ${minBalanceTokens} $DTOUR`);
-  console.log(`  dust floor      : ${cfg.distribution?.minPayoutSol ?? 0} SOL`);
+  console.log(`  dust floor      : ${minPayoutSol} SOL`);
+  console.log(`  memo            : ${memo || "(none)"}`);
   console.log(`  mode            : ${args.execute ? "EXECUTE" : "DRY-RUN"}\n`);
 
   // ── snapshot → aggregate → filter ───────────────────────────────────────────
@@ -266,13 +273,20 @@ async function main() {
 
   const paidLamports = toPay.reduce((s, p) => s + BigInt(p.lamports), 0n);
   const skippedLamports = skipped.reduce((s, p) => s + BigInt(p.lamports), 0n);
+  // Per-run SOL cap (config; default 5). Informational in dry-run; ENFORCED
+  // (abort before any send) under --execute below.
+  const perRunCapSol = cfg.perRunCapSol ?? 5;
+  const capLamports = solToLamports(perRunCapSol);
   console.log("  RECONCILIATION:");
   console.log(`    pool                : ${lamportsToSol(poolLamports)} SOL`);
   console.log(
     `    paid (${toPay.length} owners) : ${lamportsToSol(paidLamports)} SOL`,
   );
   console.log(
-    `    dust-skipped (${skipped.length})    : ${lamportsToSol(skippedLamports)} SOL (below ${cfg.distribution?.minPayoutSol ?? 0} SOL floor)`,
+    `    per-run cap         : ${perRunCapSol} SOL${paidLamports > capLamports ? "  ⚠ OUTGOING TOTAL EXCEEDS CAP — --execute will ABORT" : ""}`,
+  );
+  console.log(
+    `    dust-skipped (${skipped.length})    : ${lamportsToSol(skippedLamports)} SOL (below ${minPayoutSol} SOL floor)`,
   );
   console.log(
     `    rounding remainder  : ${lamportsToSol(remainderLamports)} SOL (stays in paying wallet → treasury / next epoch)`,
@@ -288,6 +302,19 @@ async function main() {
   }
 
   if (!confirmExecute(args.execute, "distribute")) return;
+
+  // ── per-run SOL cap: abort BEFORE any send if the TOTAL outgoing SOL to
+  // holders this run exceeds the configured cap (config.perRunCapSol, default
+  // 5). A circuit-breaker against a fat-fingered --amount that would distribute
+  // far more than intended. Mirrors collect-and-split's disburse-vs-cap guard.
+  if (paidLamports > capLamports) {
+    fatal(
+      "per-run SOL cap exceeded — refusing to send.\n" +
+        `    outgoing to holders : ${lamportsToSol(paidLamports)} SOL (${toPay.length} owners)\n` +
+        `    perRunCapSol        : ${perRunCapSol} SOL\n` +
+        "  Distribute a smaller --amount, or raise perRunCapSol in config.json.",
+    );
+  }
 
   // ── EXECUTE: send each payout, appending to the ledger as we go ─────────────
   const creatorKp = loadCreatorKeypair();
@@ -346,11 +373,17 @@ async function main() {
           lamports: Number(p.lamports),
         }),
       );
+      if (memo) tx.add(buildMemoIx(memo));
       const { blockhash, lastValidBlockHeight } =
         await conn.getLatestBlockhash("confirmed");
       tx.recentBlockhash = blockhash;
       tx.feePayer = creatorPk;
       tx.sign(creatorKp);
+
+      // Gate the real send on a successful simulation. Placed BEFORE the
+      // "attempted" ledger write so a sim failure leaves no orphan record; the
+      // throw is caught below and breaks the loop (abort before any send).
+      await simulateOrThrow(conn, tx, `distribute:${p.owner}`);
 
       // Record an "attempted" entry + persist BEFORE sending, so a tx that lands
       // but times out on confirmation is reconciled (not resent) on a later run.

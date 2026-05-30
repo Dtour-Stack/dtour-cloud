@@ -24,6 +24,7 @@ import {
   serializeUnsignedBase64,
   solscanTx,
   TRANSFERS_PER_BATCH,
+  transfersPerBatch,
 } from "@/lib/tokenomics-exec";
 import { Button, Icon, Panel, SectionHeading } from "@/ui";
 
@@ -136,6 +137,9 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   // check before re-render and would relay two tx sets for the same owners. This
   // ref flips before any await, so the second call returns immediately.
   const inFlightRef = useRef(false);
+  // Which collectedSol basis has already been split — blocks a re-split of the
+  // SAME collection (the 4×-split footgun). Cleared on each fresh Collect.
+  const splitBasisRef = useRef<number | null>(null);
 
   // Resume picker.
   const incompleteEpochs = useQuery(
@@ -211,6 +215,9 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   // ── STEP 1: collect ─────────────────────────────────────────────────────────
   const runCollect = useCallback(async () => {
     if (!signTransaction || !publicKey) return;
+    if (inFlightRef.current) return; // re-entrancy guard (shared across steps)
+    inFlightRef.current = true;
+    setBusy(true);
     setErr(null);
     setCollect({ status: "running", message: "Reading creator balance…" });
     try {
@@ -247,6 +254,10 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
         after.creatorBalanceLamports - (preCollectLamportsRef.current ?? 0),
       );
       setCollectedSol(collectedLamports / 1e9);
+      // Fresh collection → re-arm the downstream steps for this new basis.
+      splitBasisRef.current = null;
+      setSplit({ status: "idle" });
+      setDistribute({ status: "idle" });
       setCollect({
         status: "done",
         message: `Collected ~${fmt(collectedLamports / 1e9)} SOL`,
@@ -254,6 +265,9 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
       });
     } catch (e) {
       fail(setCollect, e);
+    } finally {
+      setBusy(false);
+      inFlightRef.current = false;
     }
   }, [
     signTransaction,
@@ -270,6 +284,18 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   // ── STEP 2: split ───────────────────────────────────────────────────────────
   const runSplit = useCallback(async () => {
     if (!signTransaction) return;
+    if (inFlightRef.current) return; // re-entrancy guard (shared across steps)
+    // Block re-splitting the SAME collection — splitting once per Collect is the
+    // invariant; re-runs over-fund the pools (the observed 4×-split). A new
+    // Collect clears splitBasisRef, re-enabling the split.
+    if (collectedSol != null && splitBasisRef.current === collectedSol) {
+      setErr(
+        "This collection was already split. Run Collect again before splitting once more.",
+      );
+      return;
+    }
+    inFlightRef.current = true;
+    setBusy(true);
     setErr(null);
     setSplit({ status: "running", message: "Building split tx…" });
     try {
@@ -305,6 +331,8 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
       setSplit({ status: "running", message: "Confirming…", signature });
       const landed = await pollLanded(signature);
       if (landed === "absent") throw new Error("Split tx failed on-chain.");
+      // Mark THIS collection's basis as split so it can't be re-split.
+      splitBasisRef.current = collectedSol;
       setSplit({
         status: "done",
         message:
@@ -315,6 +343,9 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
       });
     } catch (e) {
       fail(setSplit, e);
+    } finally {
+      setBusy(false);
+      inFlightRef.current = false;
     }
   }, [
     signTransaction,
@@ -332,7 +363,11 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
   // `resumeEpoch` lets the resume picker re-enter a prior epoch's exact rows.
   const runDistribute = useCallback(
     async (resumeEpoch?: string) => {
-      if (!token || !signAllTransactions || !publicKey || !snap || !plan) return;
+      // Resume reads frozen amounts from the ledger and needs neither snap nor
+      // plan — only a FRESH run does (checked inside the else branch below). On a
+      // page reload snap/plan are null until a manual snapshot, so requiring them
+      // here would silently no-op a cross-session Resume click.
+      if (!token || !signAllTransactions || !publicKey) return;
       if (inFlightRef.current) return; // re-entrancy guard (see ref decl)
       inFlightRef.current = true;
       setErr(null);
@@ -351,6 +386,11 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
           // MUST be the SOL collected this run (collect → split → distribute),
           // not the full creator balance. Cross-session continuation goes through
           // the resume picker (amounts come from the frozen ledger instead).
+          if (!snap || !plan) {
+            throw new Error(
+              "Run 'Refresh snapshot' first to build a fresh distribution plan.",
+            );
+          }
           if (collectedSol == null) {
             throw new Error(
               "Run Collect first — a fresh distribution must base its amounts on the SOL collected this run. Use Resume to continue a prior run.",
@@ -411,7 +451,7 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
 
         // 4. Batch into ~15 transfers/tx, build + simulate each with a fresh
         //    blockhash, then ONE signAllTransactions for the whole run.
-        const batches = chunk(toPay, TRANSFERS_PER_BATCH);
+        const batches = chunk(toPay, transfersPerBatch(cfg.memo));
         const built: Array<{
           tx: Transaction;
           owners: string[];
@@ -431,7 +471,7 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
             to: r.owner,
             lamports: BigInt(r.lamports),
           }));
-          const tx = buildTransferTx(creator, transfers, prep.blockhash);
+          const tx = buildTransferTx(creator, transfers, prep.blockhash, cfg.memo);
           await simulateOrThrow(serializeUnsignedBase64(tx), `Batch ${i + 1}`);
           built.push({
             tx,
@@ -644,7 +684,14 @@ export function AdminTokenomicsExecute({ cfg, snap }: { cfg: Cfg; snap: Snap | n
               size="sm"
               variant="secondary"
               onClick={runSplit}
-              disabled={!isCreator || busy || split.status === "running" || collectedSol == null}
+              disabled={
+                !isCreator ||
+                busy ||
+                split.status === "running" ||
+                // Disabled once this collection is split — a fresh Collect re-arms it.
+                split.status === "done" ||
+                collectedSol == null
+              }
             >
               Split
             </Button>

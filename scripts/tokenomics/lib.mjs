@@ -38,12 +38,26 @@ import {
   PublicKey,
   LAMPORTS_PER_SOL,
   SystemProgram,
+  TransactionInstruction,
   VersionedTransaction,
 } from "@solana/web3.js";
 
 // $DTOUR — fixed mint, fixed supply, NO mint authority. Used as a config guard.
 export const DTOUR_MINT = "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy";
 export const DTOUR_TOTAL_SUPPLY = 1_000_000_000;
+
+// SPL Memo program — attaches a UTF-8 note (branding/link) to a tx; shown on
+// explorers + some wallets. One memo per tx.
+export const MEMO_PROGRAM_ID = new PublicKey(
+  "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+);
+export function buildMemoIx(memo) {
+  return new TransactionInstruction({
+    keys: [],
+    programId: MEMO_PROGRAM_ID,
+    data: Buffer.from(memo, "utf8"),
+  });
+}
 
 // System Program / PublicKey.default — both are the all-ones base58 address
 // "11111111111111111111111111111111". A destination wallet equal to this is a
@@ -370,6 +384,32 @@ export function printTransferPlan(rows) {
   console.log(
     `  ${"TOTAL".padEnd(wFrom)} │ ${"".padEnd(wTo)} │ ${fmtSol(total).padStart(wAmt)} │ ${rows.length} transfer(s)\n`,
   );
+}
+
+/**
+ * simulateOrThrow(connection, tx, label) — MANDATORY pre-send gate. Simulates a
+ * SIGNED transaction (legacy Transaction or VersionedTransaction) and THROWS,
+ * printing the simulation logs, if the run would fail on-chain (value.err is
+ * non-null). Every real sendRawTransaction MUST be preceded by this so a tx that
+ * would revert is never broadcast (no wasted base fee, no half-applied state).
+ *
+ * Call form is intentionally ONE argument: passing a 2nd positional arg means
+ * "signers" for a legacy Transaction (which re-signs + refetches a blockhash)
+ * but "config" for a VersionedTransaction — so the single-arg form is the only
+ * shape that's correct for both. We simulate AFTER signing (blockhash set,
+ * sigVerify defaults false), so no signers/replaceRecentBlockhash are needed.
+ */
+export async function simulateOrThrow(connection, tx, label = "tx") {
+  const { value } = await connection.simulateTransaction(tx);
+  if (value.err) {
+    const logs = (value.logs ?? []).map((l) => `      ${l}`).join("\n");
+    throw new Error(
+      `simulation FAILED for [${label}] — refusing to send.\n` +
+        `    err: ${JSON.stringify(value.err)}\n` +
+        (logs ? `    logs:\n${logs}\n` : "    (no logs returned)\n"),
+    );
+  }
+  return value;
 }
 
 /**
@@ -773,11 +813,12 @@ export function assertCollectOnlyTx(tx, creatorPubkey) {
 }
 
 /**
- * signAndSend(conn, txBytes, signers, { assertCollectOnly } = {}) → signature.
+ * signAndSend(conn, txBytes, signers, { assertCollectOnly, label } = {}) → signature.
  * Deserializes the versioned tx, OPTIONALLY inspects it (collectCreatorFee:
  * pass { assertCollectOnly: <creatorPubkey> } to refuse a tx that drains the
- * creator), signs with the provided Keypair(s), sends raw, and confirms. ONLY
- * called under --execute.
+ * creator), signs with the provided Keypair(s), SIMULATES (throws if it would
+ * fail), sends raw, and confirms. ONLY called under --execute. The simulation
+ * gate is mandatory: a tx that would revert on-chain is never broadcast.
  */
 export async function signAndSend(conn, txBytes, signers, opts = {}) {
   const tx = VersionedTransaction.deserialize(txBytes);
@@ -785,6 +826,9 @@ export async function signAndSend(conn, txBytes, signers, opts = {}) {
     assertCollectOnlyTx(tx, opts.assertCollectOnly);
   }
   tx.sign(signers);
+  // Gate the real send on a successful simulation — never broadcast a tx that
+  // would fail on-chain.
+  await simulateOrThrow(conn, tx, opts.label ?? "collectCreatorFee");
   const sig = await conn.sendRawTransaction(tx.serialize());
   await conn.confirmTransaction(sig, "confirmed");
   return sig;

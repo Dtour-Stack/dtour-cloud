@@ -7,6 +7,9 @@
   "tokenDecimals": 6,
   "//tokenDecimals": "EDIT-VERIFY: pump.fun tokens are usually 6. Confirm via getMint before distributing.",
 
+  "perRunCapSol": 5,
+  "//perRunCapSol": "Circuit-breaker: max total SOL a SINGLE run may DISBURSE. collect-and-split caps builder+treasury sent this run; distribute-to-holders caps the total paid to holders. A run whose outgoing total exceeds this ABORTS before any send (under --execute). Defaults to 5 if omitted. Raise deliberately for large epochs.",
+
   "wallets": {
     "creator": "EDIT_CREATOR_WALLET_PUBKEY",
     "//creator": "Receives collected creator fees. The tx SIGNER. Its secret is env CREATOR_WALLET_SECRET — never put a key here.",
@@ -41,7 +44,9 @@
     "minBalanceTokens": 1000,
     "//minBalanceTokens": "EDIT: ignore owners holding fewer than this many $DTOUR.",
     "minPayoutSol": 0.001,
-    "//minPayoutSol": "EDIT: dust floor — skip payouts below this (not worth the fee).",
+    "//minPayoutSol": "EDIT: dust floor — skip payouts below this (not worth the fee). Defaults to 0.001 if omitted; set 0 to disable.",
+    "memo": "Detour Cloud · $DTOUR holder reward · detour.ninja",
+    "//memo": "Optional branding note attached (SPL Memo program) to each holder-payout tx; shows on explorers + some wallets. \"\" = no memo.",
     "excludeWallets": [
       "EDIT_CREATOR_WALLET_PUBKEY",
       "EDIT_BUILDER_POOL_PUBKEY",

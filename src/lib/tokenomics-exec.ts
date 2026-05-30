@@ -13,11 +13,27 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionInstruction,
   VersionedTransaction,
 } from "@solana/web3.js";
 
 export const LAMPORTS_PER_SOL = 1_000_000_000;
 const PUMPPORTAL_LOCAL = "https://pumpportal.fun/api/trade-local";
+
+// SPL Memo program — attaches a UTF-8 note (e.g. a branding link) to a tx, shown
+// on explorers + in some wallets. One memo per batch tx covers all its transfers.
+const MEMO_PROGRAM_ID = new PublicKey(
+  "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+);
+
+/** Memo instruction (no signer/account keys) carrying the note's UTF-8 bytes. */
+export function buildMemoIx(memo: string): TransactionInstruction {
+  return new TransactionInstruction({
+    keys: [],
+    programId: MEMO_PROGRAM_ID,
+    data: Buffer.from(new TextEncoder().encode(memo)),
+  });
+}
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58();
 
 // ── base64 (browser; uses the Buffer shim imported in main.tsx) ───────────────
@@ -54,6 +70,7 @@ export type Cfg = {
   creatorReserveSol: number;
   excludeWallets: string[];
   perRunCapSol: number;
+  memo?: string;
 };
 
 /**
@@ -156,6 +173,12 @@ export function buildDistributePlan(
 
 export const TRANSFERS_PER_BATCH = 15;
 
+/** Transfers per batch tx — shrink to leave room for a memo ix under the 1232b
+ *  tx limit (a ~60-byte memo + program key ≈ 90 bytes ≈ 2 transfers' worth). */
+export function transfersPerBatch(memo?: string): number {
+  return memo && memo.trim() ? 13 : TRANSFERS_PER_BATCH;
+}
+
 export function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -170,6 +193,7 @@ export function buildTransferTx(
   creator: PublicKey,
   transfers: Array<{ to: string; lamports: bigint }>,
   blockhash: string,
+  memo?: string,
 ): Transaction {
   const tx = new Transaction();
   for (const t of transfers) {
@@ -181,6 +205,9 @@ export function buildTransferTx(
       }),
     );
   }
+  // Optional branding memo (one per batch tx). Simulate-before-send guards the
+  // 1232-byte limit; transfersPerBatch() pre-shrinks batches when a memo is set.
+  if (memo && memo.trim()) tx.add(buildMemoIx(memo.trim()));
   tx.recentBlockhash = blockhash;
   tx.feePayer = creator;
   return tx;

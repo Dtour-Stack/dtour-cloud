@@ -25,6 +25,7 @@ type Cfg = {
   creatorReserveSol: number;
   excludeWallets: string[];
   perRunCapSol: number;
+  memo?: string;
   updatedAt?: number | null;
 };
 type Snap = {
@@ -238,6 +239,26 @@ export function AdminTokenomics() {
                 Listed here only for visibility — adding it is optional.
               </p>
             )}
+          </div>
+
+          {/* Drop memo — branding note attached to each distribute batch tx. */}
+          <div>
+            <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">
+              Drop memo (on-chain, per batch)
+            </label>
+            <input
+              type="text"
+              maxLength={120}
+              value={cfg.memo ?? ""}
+              onChange={(e) => patch({ memo: e.target.value })}
+              placeholder="Detour Cloud · $DTOUR holder reward · detour.ninja"
+              className={field}
+            />
+            <p className="mt-1.5 text-xs text-white/40">
+              Attached via the SPL Memo program to every holder-drop batch; shows on
+              explorers (link auto-linkified) and in some wallets as text. Blank = no memo.
+              A memo trims batches to ~13 transfers/tx to stay under the size limit.
+            </p>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">

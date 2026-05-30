@@ -59,6 +59,7 @@ import {
   lamportsToSol,
   printTransferPlan,
   confirmExecute,
+  simulateOrThrow,
   postPumpPortalLocal,
   signAndSend,
   readManifest,
@@ -248,6 +249,22 @@ async function main() {
 
   if (!confirmExecute(args.execute, "split")) return;
 
+  // ── per-run SOL cap: abort BEFORE any send if the total SOL DISBURSED this
+  // run (builder + treasury — holders + buyback are RETAINED, not sent) exceeds
+  // the configured cap. A circuit-breaker against a fat-fingered --amount-sol or
+  // a bps misconfig that would move more than intended in a single run.
+  const perRunCapSol = cfg.perRunCapSol ?? 5;
+  const disbursedLamports = builderL + treasuryL;
+  const capLamports = solToLamports(perRunCapSol);
+  if (disbursedLamports > capLamports) {
+    fatal(
+      "per-run SOL cap exceeded — refusing to send.\n" +
+        `    disbursed this run : ${lamportsToSol(disbursedLamports)} SOL (builder + treasury)\n` +
+        `    perRunCapSol       : ${perRunCapSol} SOL\n` +
+        "  Lower --amount-sol, fix splitBps, or raise perRunCapSol in config.json.",
+    );
+  }
+
   // ── EXECUTE: send builder + treasury transfers ──────────────────────────────
   const creatorKp = loadCreatorKeypair();
   const sigs = {};
@@ -270,6 +287,8 @@ async function main() {
     tx.recentBlockhash = blockhash;
     tx.feePayer = creatorPk;
     tx.sign(creatorKp);
+    // Gate the real send on a successful simulation.
+    await simulateOrThrow(conn, tx, `split:${name}`);
     const sig = await conn.sendRawTransaction(tx.serialize());
     await conn.confirmTransaction(sig, "confirmed");
     sigs[name] = sig;

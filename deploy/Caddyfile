@@ -2,6 +2,12 @@
 # {$DOMAIN} via Let's Encrypt (needs DNS pointing here + ports 80/443 open).
 # {$DOMAIN} is injected from deploy/.env via the caddy service environment.
 
+# Canonicalize www → apex (301). Caddy provisions a separate cert for the www
+# name via ACME; requires www.{$DOMAIN} DNS to resolve here (it now does).
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
 {$DOMAIN} {
 	encode zstd gzip
 
