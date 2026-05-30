@@ -1,0 +1,13 @@
+{
+  "name": "@dtour/coding-relay",
+  "private": true,
+  "type": "module",
+  "description": "WebSocket relay: browser wterm terminal ⇄ E2B Firecracker sandbox PTY",
+  "scripts": {
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "convex": "^1.39.0",
+    "e2b": "^2.27.0"
+  }
+}

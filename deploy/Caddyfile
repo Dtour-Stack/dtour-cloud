@@ -22,6 +22,12 @@ www.{$DOMAIN} {
 		reverse_proxy backend:3211
 	}
 
+	# Coding dashboard terminal — WebSocket bridge to the E2B sandbox relay.
+	# reverse_proxy upgrades the connection automatically.
+	handle /coding-ws* {
+		reverse_proxy coding-relay:8787
+	}
+
 	# Frontend SPA — every other path falls back to index.html for client routing.
 	handle {
 		root * /srv

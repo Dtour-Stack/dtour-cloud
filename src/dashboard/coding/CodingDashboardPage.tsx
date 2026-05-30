@@ -7,15 +7,16 @@ import "@wterm/react/css";
 import coreWasmUrl from "@wterm/core/wasm?url";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/dashboard/AppShell";
+import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 
 /**
- * Coding dashboard — an embedded web terminal (wterm) with three selectable
- * backends. Only the in-browser sandbox has a live endpoint today; the runner
- * and self-host modes connect to a WebSocket PTY endpoint the moment one is
- * wired (ElizaCloud coding-remote-runner proxy, or the DOKS platform).
+ * Coding dashboard — an embedded web terminal (wterm). The primary backend is a
+ * real E2B Firecracker sandbox bridged over WebSocket by the coding-relay
+ * service (server holds the E2B key; goes live once E2B_API_KEY is set). Also a
+ * zero-server in-browser sandbox, and a placeholder for a future self-host tier.
  */
-type Backend = "sandbox" | "runner" | "selfhost";
+type Backend = "runner" | "sandbox" | "selfhost";
 
 const BACKENDS: {
   key: Backend;
@@ -25,38 +26,42 @@ const BACKENDS: {
   icon: React.ReactNode;
 }[] = [
   {
+    key: "runner",
+    label: "Detour Cloud",
+    desc: "Real coding agent in an E2B Firecracker microVM (server-side, isolated).",
+    live: true,
+    icon: <Icon.Bot size={13} />,
+  },
+  {
     key: "sandbox",
     label: "Sandbox",
-    desc: "WASM bash, runs entirely in your browser — no server, fully isolated.",
+    desc: "WASM bash, runs entirely in your browser — no server.",
     live: true,
     icon: <Icon.Shield size={13} />,
   },
   {
-    key: "runner",
-    label: "ElizaCloud runner",
-    desc: "Real coding agent via ElizaCloud's coding-remote-runner (proxied).",
-    live: false,
-    icon: <Icon.Bot size={13} />,
-  },
-  {
     key: "selfhost",
     label: "Self-host",
-    desc: "Your own gVisor-sandboxed container on DigitalOcean (DOKS).",
+    desc: "Your own gVisor/Firecracker container (DOKS) — future sovereign tier.",
     live: false,
     icon: <Icon.Plug size={13} />,
   },
 ];
 
-// Configurable per-backend WebSocket PTY endpoint. Empty until the backend
-// exists; when set (e.g. wss://detour.ninja/coding/runner), the terminal wires
-// straight through with no other change.
-const WS_ENDPOINT: Record<Exclude<Backend, "sandbox">, string> = {
-  runner: "",
-  selfhost: "",
-};
+/** WebSocket PTY endpoint for a backend, or "" if none. The runner points at the
+ *  same-origin coding-relay (/coding-ws), authenticated with the session token. */
+function wsEndpoint(backend: Backend): string {
+  if (backend === "runner" && typeof window !== "undefined") {
+    const token = getDtourSessionToken();
+    if (!token) return "";
+    const proto = window.location.protocol === "https:" ? "wss" : "ws";
+    return `${proto}://${window.location.host}/coding-ws?token=${encodeURIComponent(token)}`;
+  }
+  return ""; // selfhost: pending its endpoint
+}
 
 export default function CodingDashboardPage() {
-  const [backend, setBackend] = useState<Backend>("sandbox");
+  const [backend, setBackend] = useState<Backend>("runner");
   const active = BACKENDS.find((b) => b.key === backend)!;
 
   return (
@@ -124,13 +129,12 @@ function CodingTerminal({ backend }: { backend: Backend }) {
       shellRef.current = shell;
       return;
     }
-    const url = WS_ENDPOINT[backend];
+    const url = wsEndpoint(backend);
     if (!url) {
       write(
         "\r\n  \x1b[33mThis backend isn't connected yet.\x1b[0m\r\n" +
-          "  It will go live the moment the " +
-          (backend === "runner" ? "ElizaCloud coding-remote-runner" : "self-host DOKS") +
-          " endpoint is wired —\r\n  no other change needed. Use the Sandbox backend meanwhile.\r\n",
+          "  The self-host (DOKS) tier is future work — use Detour Cloud or the\r\n" +
+          "  in-browser Sandbox meanwhile.\r\n",
       );
       return;
     }
@@ -148,7 +152,16 @@ function CodingTerminal({ backend }: { backend: Backend }) {
       if (backend === "sandbox") {
         void shellRef.current?.handleInput(data);
       } else if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(data);
+        wsRef.current.send("d" + data); // "d" = PTY input (see relay wire protocol)
+      }
+    },
+    [backend],
+  );
+
+  const onResize = useCallback(
+    (cols: number, rows: number) => {
+      if (backend !== "sandbox" && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send("r" + JSON.stringify({ cols, rows }));
       }
     },
     [backend],
@@ -167,6 +180,7 @@ function CodingTerminal({ backend }: { backend: Backend }) {
       wasmUrl={coreWasmUrl}
       onReady={onReady}
       onData={onData}
+      onResize={onResize}
       autoResize
       cursorBlink
       className="h-full w-full"

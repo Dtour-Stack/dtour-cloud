@@ -51,6 +51,14 @@ docker run --rm --network host -v "$ROOT":/app -w /app \
   -e CONVEX_SELF_HOSTED_ADMIN_KEY="$ADMIN_KEY" \
   oven/bun:1 sh -c "bun install --frozen-lockfile && bunx convex deploy"
 
+# Caddy bind-mounts deploy/Caddyfile by inode; `git reset` rewrites it with a
+# NEW inode, so `up -d` (which doesn't recreate caddy) keeps serving the stale
+# file and `caddy reload` reports "config is unchanged". Restart caddy so it
+# re-resolves the mount and applies any Caddyfile change (~1-2s blip; the apex
+# cert is cached, not re-issued).
+echo "==> Restarting caddy to apply any Caddyfile change"
+$COMPOSE restart caddy
+
 echo
 echo "✅ Stack is up: https://${DOMAIN}"
 echo "   First run? Seed the DB:  bash deploy/seed.sh"

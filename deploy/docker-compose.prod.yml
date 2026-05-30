@@ -66,6 +66,25 @@ services:
     environment:
       - NEXT_PUBLIC_DEPLOYMENT_URL=${CONVEX_CLOUD_ORIGIN}
 
+  # Coding dashboard backend: bridges the browser wterm terminal to an E2B
+  # Firecracker sandbox PTY. Reached via Caddy at /coding-ws (not published).
+  # Degrades gracefully if E2B_API_KEY is unset (tells the client + closes).
+  coding-relay:
+    image: oven/bun:1
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ../services/coding-relay:/app
+    command: sh -c "bun install && bun run server.ts"
+    environment:
+      - PORT=8787
+      - CONVEX_URL=http://backend:3210
+      - E2B_API_KEY=${E2B_API_KEY:-}
+      - CODING_SESSION_MS=${CODING_SESSION_MS:-900000}
+
 volumes:
   convex_data:
   caddy_data:
