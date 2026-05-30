@@ -1,0 +1,15 @@
+{
+  "name": "@dtour/detour-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "4.12.18",
+    "convex": "^1.28.0",
+    "pg": "^8.20.0"
+  }
+}
