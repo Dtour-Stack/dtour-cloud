@@ -16,6 +16,33 @@ export const PORT_COLOR: Record<PortType, string> = {
   any: "#9CA3AF", // gray
 };
 
+/** All elizaOS plugins selectable in the builders (workflow node + agent creator). */
+export const ELIZA_PLUGINS: string[] = [
+  "plugin-elizacloud",
+  "plugin-anthropic",
+  "plugin-openai",
+  "plugin-google-genai",
+  "plugin-openrouter",
+  "plugin-discord",
+  "plugin-telegram",
+  "plugin-twitter",
+  "plugin-bluesky",
+  "plugin-farcaster",
+  "plugin-elevenlabs",
+  "plugin-browser",
+  "plugin-documents",
+  "plugin-pdf",
+  "plugin-knowledge",
+  "plugin-sql",
+  "plugin-web-search",
+  "plugin-image",
+  "plugin-video",
+  "plugin-solana",
+  "plugin-evm",
+  "plugin-goat",
+  "plugin-mcp",
+];
+
 export const NODE_DEFS: NodeDef[] = [
   // ── Input ──
   {
@@ -160,18 +187,7 @@ export const NODE_DEFS: NodeDef[] = [
         kind: "select",
         label: "Plugin",
         default: "plugin-elizacloud",
-        options: [
-          "plugin-elizacloud",
-          "plugin-anthropic",
-          "plugin-discord",
-          "plugin-bluesky",
-          "plugin-elevenlabs",
-          "plugin-browser",
-          "plugin-documents",
-          "plugin-sql",
-          "plugin-x",
-          "plugin-web-search",
-        ],
+        options: [...ELIZA_PLUGINS],
       },
     ],
   },

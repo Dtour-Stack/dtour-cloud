@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      # @elizaos/* imports in src are type-only and erased at build, so the
+      # monorepo symlinks aren't needed here — third-party deps install normally.
+      - run: bun install --frozen-lockfile
+      - name: Build (Vite)
+        run: bun run build
+      - name: Unit tests (vitest)
+        run: bun run test
+
+  deploy:
+    name: Deploy to droplet
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy over SSH (skips if DROPLET_SSH_KEY is unset)
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::notice::DROPLET_SSH_KEY not configured — skipping deploy."
+            echo "Add it under Settings → Secrets → Actions to enable continuous deployment."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 162.243.193.104 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 root@162.243.193.104 \
+            'cd /opt/dtour-cloud && git fetch --quiet origin main && git reset --hard origin/main && bash deploy/deploy.sh'

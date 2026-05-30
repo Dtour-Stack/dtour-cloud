@@ -105,7 +105,19 @@ export default defineSchema({
     type: v.string(),
     endpointUrl: v.optional(v.string()),
     createdAt: v.number(),
+    // Attached elizaOS plugin ids (e.g. "plugin-discord"). Optional/back-compat.
+    plugins: v.optional(v.array(v.string())),
+    // "My Apps" monetization — publish an agent at a price.
+    published: v.optional(v.boolean()),
+    priceUsd: v.optional(v.number()),
   }).index("by_owner", ["owner"]),
+
+  // MCP servers a user has connected (the catalog lives in code).
+  mcpConnections: defineTable({
+    pubkey: v.string(),
+    mcp: v.string(), // catalog id, e.g. "web-search"
+    at: v.number(),
+  }).index("by_pubkey", ["pubkey"]),
 
   agentMessages: defineTable({
     agentId: v.id("agents"),

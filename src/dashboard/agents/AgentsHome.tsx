@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ELIZA_PLUGINS } from "@/dashboard/design/workflow/registry";
 import { getDtourSessionToken } from "@/lib/session";
 import {
   Badge,
@@ -44,6 +45,9 @@ export function AgentsHome() {
   const [systemPrompt, setSystemPrompt] = useState("");
   // "auto" lets Detour Cloud route the model — users never have to pick.
   const [model, setModel] = useState("auto");
+  const [plugins, setPlugins] = useState<string[]>([]);
+  const togglePlugin = (p: string) =>
+    setPlugins((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
 
   useEffect(() => {
     if (!token) return;
@@ -66,11 +70,12 @@ export function AgentsHome() {
     setBusy(true);
     setError(null);
     try {
-      await create({ token, name, description: description || undefined, systemPrompt, model });
+      await create({ token, name, description: description || undefined, systemPrompt, model, plugins });
       setName("");
       setDescription("");
       setSystemPrompt("");
       setModel("auto");
+      setPlugins([]);
       setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't create agent");
@@ -125,6 +130,34 @@ export function AgentsHome() {
               </select>
               <p className="mt-1.5 text-[11px] text-white/35">
                 Leave on Auto and we pick the right model per message. Override only if you need a specific one.
+              </p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-white/55">
+                Plugins {plugins.length > 0 && <span className="text-white/35">· {plugins.length} attached</span>}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {ELIZA_PLUGINS.map((p) => {
+                  const on = plugins.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => togglePlugin(p)}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                        on
+                          ? "border-violet-400/50 bg-violet-400/10 text-white"
+                          : "border-white/10 text-white/55 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      {p.replace(/^plugin-/, "")}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[11px] text-white/35">
+                Attach capabilities — connectors (Discord, X, Telegram), tools (web search, browser),
+                media, chains. Wire several together.
               </p>
             </div>
             <div className="flex items-center gap-3">

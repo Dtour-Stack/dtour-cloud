@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "typecheck:shared": "tsc --noEmit -p packages/cloud-shared/tsconfig.json",
     "typecheck:api": "tsc --noEmit -p packages/cloud-api/tsconfig.json",
     "typecheck:sdk": "tsc --noEmit -p packages/cloud-sdk/tsconfig.json",

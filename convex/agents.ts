@@ -30,6 +30,9 @@ export const list = query({
       model: a.model,
       type: a.type,
       createdAt: a.createdAt,
+      plugins: a.plugins ?? [],
+      published: a.published ?? false,
+      priceUsd: a.priceUsd ?? null,
     }));
   },
 });
@@ -59,8 +62,9 @@ export const create = mutation({
     description: v.optional(v.string()),
     systemPrompt: v.string(),
     model: v.optional(v.string()),
+    plugins: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, { token, name, description, systemPrompt, model }) => {
+  handler: async (ctx, { token, name, description, systemPrompt, model, plugins }) => {
     const caller = await resolveRole(ctx, token);
     if (!caller) throw new Error("Not authenticated");
     if (!name.trim()) throw new Error("Agent name is required");
@@ -72,6 +76,7 @@ export const create = mutation({
       model: model?.trim() || "auto",
       type: "lightweight",
       createdAt: Date.now(),
+      plugins: plugins && plugins.length ? plugins : undefined,
     });
     await logEvent(ctx, "agent.create", { pubkey: caller.pubkey, data: { id, name } });
     return { id };
@@ -86,6 +91,37 @@ export const setModel = mutation({
     const a = await ctx.db.get(id);
     if (!a || a.owner !== caller.pubkey) throw new Error("Not found");
     await ctx.db.patch(id, { model: model.trim() || "auto" });
+    return { ok: true };
+  },
+});
+
+/** Set the plugins attached to an agent (the builders' multi-attach). */
+export const setPlugins = mutation({
+  args: { token: v.string(), id: v.id("agents"), plugins: v.array(v.string()) },
+  handler: async (ctx, { token, id, plugins }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) throw new Error("Not authenticated");
+    const a = await ctx.db.get(id);
+    if (!a || a.owner !== caller.pubkey) throw new Error("Not found");
+    await ctx.db.patch(id, { plugins: plugins.length ? plugins : undefined });
+    return { ok: true };
+  },
+});
+
+/** Publish/unpublish an agent as a monetized app (My Apps). */
+export const setApp = mutation({
+  args: {
+    token: v.string(),
+    id: v.id("agents"),
+    published: v.boolean(),
+    priceUsd: v.optional(v.number()),
+  },
+  handler: async (ctx, { token, id, published, priceUsd }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) throw new Error("Not authenticated");
+    const a = await ctx.db.get(id);
+    if (!a || a.owner !== caller.pubkey) throw new Error("Not found");
+    await ctx.db.patch(id, { published, priceUsd: priceUsd && priceUsd > 0 ? priceUsd : undefined });
     return { ok: true };
   },
 });
