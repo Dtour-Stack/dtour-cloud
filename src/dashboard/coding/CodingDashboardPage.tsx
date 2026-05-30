@@ -5,6 +5,8 @@ import "@wterm/react/css";
 // library's default loader can't find it under our bundle.
 // @ts-expect-error — Vite ?url asset import (typed by vite/client at build time).
 import coreWasmUrl from "@wterm/core/wasm?url";
+import { useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
@@ -60,9 +62,26 @@ function wsEndpoint(backend: Backend): string {
   return ""; // selfhost: pending its endpoint
 }
 
+type Credits = { balanceUsd: number; holder: boolean } | null | undefined;
+type Pricing =
+  | { example: { nonHolderPerHourUsd: number; holderPerHourUsd: number } }
+  | undefined;
+
 export default function CodingDashboardPage() {
   const [backend, setBackend] = useState<Backend>("runner");
   const active = BACKENDS.find((b) => b.key === backend)!;
+  const token = getDtourSessionToken();
+  const credits = useQuery(
+    anyApi.coding.myCredits,
+    token ? { token } : "skip",
+  ) as Credits;
+  const pricing = useQuery(anyApi.coding.pricing, {}) as Pricing;
+  const rateUsd = pricing
+    ? credits?.holder
+      ? pricing.example.holderPerHourUsd
+      : pricing.example.nonHolderPerHourUsd
+    : null;
+  const lowBalance = backend === "runner" && credits != null && credits.balanceUsd < 0.05;
 
   return (
     <AppShell title="Coding" context="coding" bare>
@@ -93,8 +112,47 @@ export default function CodingDashboardPage() {
               )}
             </button>
           ))}
-          <span className="ml-auto hidden text-xs text-white/40 sm:block">{active.desc}</span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-xs text-white/40 lg:block">{active.desc}</span>
+            {backend === "runner" && (
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px]",
+                  lowBalance
+                    ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                    : "border-white/10 bg-white/[0.03] text-white/70",
+                )}
+                title={
+                  rateUsd != null
+                    ? `Metered E2B cost × 2 (holders −20%) → ~$${rateUsd.toFixed(2)}/sandbox-hr`
+                    : undefined
+                }
+              >
+                <Icon.Coins size={13} />
+                {credits === undefined ? (
+                  "…"
+                ) : (
+                  <>
+                    <span className="tabular-nums">
+                      ${(credits?.balanceUsd ?? 0).toFixed(2)}
+                    </span>
+                    {rateUsd != null && (
+                      <span className="text-white/40">
+                        · ~${rateUsd.toFixed(2)}/hr{credits?.holder ? " · holder" : ""}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+        {lowBalance && (
+          <div className="border-b border-amber-400/20 bg-amber-400/[0.06] px-4 py-2 text-xs text-amber-200/90">
+            Low credits — top up to keep running Detour Cloud sandboxes. (Top-up flow
+            coming; an admin can grant credits meanwhile.)
+          </div>
+        )}
 
         {/* terminal — keyed by backend so switching cleanly remounts */}
         <div className="min-h-0 flex-1 p-3">

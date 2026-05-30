@@ -59,6 +59,12 @@ docker run --rm --network host -v "$ROOT":/app -w /app \
 echo "==> Restarting caddy to apply any Caddyfile change"
 $COMPOSE restart caddy
 
+# The coding-relay bind-mounts services/coding-relay and runs `bun run server.ts`
+# at start; a restart re-reads the (git-reset-updated) server.ts. up -d won't
+# recreate it on a code-only change, so restart explicitly.
+echo "==> Restarting coding-relay to apply any code change"
+$COMPOSE restart coding-relay || true
+
 echo
 echo "✅ Stack is up: https://${DOMAIN}"
 echo "   First run? Seed the DB:  bash deploy/seed.sh"

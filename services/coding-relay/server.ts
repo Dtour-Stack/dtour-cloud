@@ -19,6 +19,10 @@ const E2B_API_KEY = process.env.E2B_API_KEY ?? "";
 const CONVEX_URL = process.env.CONVEX_URL ?? "http://backend:3210";
 // Hard cap on a single sandbox's lifetime — bounds E2B cost per session.
 const SESSION_MS = Number(process.env.CODING_SESSION_MS ?? 15 * 60 * 1000);
+// Default sandbox resources — MUST match the size E2B actually provisions so the
+// metered cost is accurate. Update alongside any Sandbox.create() size change.
+const SANDBOX_VCPU = Number(process.env.SANDBOX_VCPU ?? 2);
+const SANDBOX_RAM_GIB = Number(process.env.SANDBOX_RAM_GIB ?? 0.5);
 
 const convex = new ConvexHttpClient(CONVEX_URL);
 
@@ -35,9 +39,12 @@ async function validSession(token: string | null): Promise<boolean> {
 }
 
 type WSData = {
+  token: string;
   sandbox: Sandbox | null;
   pid: number | null;
   closed: boolean;
+  startedAtMs: number;
+  sandboxId: string;
 };
 
 const enc = new TextEncoder();
@@ -51,7 +58,18 @@ Bun.serve<WSData>({
     if (!(await validSession(token))) {
       return new Response("unauthorized", { status: 401 });
     }
-    if (server.upgrade(req, { data: { sandbox: null, pid: null, closed: false } })) {
+    if (
+      server.upgrade(req, {
+        data: {
+          token: token as string,
+          sandbox: null,
+          pid: null,
+          closed: false,
+          startedAtMs: 0,
+          sandboxId: "",
+        },
+      })
+    ) {
       return undefined;
     }
     return new Response("expected a websocket upgrade", { status: 426 });
@@ -67,6 +85,24 @@ Bun.serve<WSData>({
         ws.close();
         return;
       }
+      // Gate on credits BEFORE spinning up a billable sandbox.
+      try {
+        const gate = (await convex.query(anyApi.coding.canStart, {
+          token: ws.data.token,
+        })) as { ok: boolean; balanceUsd?: number } | null;
+        if (!gate?.ok) {
+          ws.send(
+            `\r\n  \x1b[33mout of credits\x1b[0m — balance $${(gate?.balanceUsd ?? 0).toFixed(2)}.\r\n` +
+              "  Top up to start a coding session.\r\n",
+          );
+          ws.close();
+          return;
+        }
+      } catch {
+        ws.send("\r\n  \x1b[31mbilling check failed — try again shortly.\x1b[0m\r\n");
+        ws.close();
+        return;
+      }
       try {
         ws.send("\r\n  spinning up a Firecracker sandbox…\r\n");
         const sandbox = await Sandbox.create({
@@ -78,6 +114,8 @@ Bun.serve<WSData>({
           return;
         }
         ws.data.sandbox = sandbox;
+        ws.data.startedAtMs = Date.now();
+        ws.data.sandboxId = (sandbox as { sandboxId?: string }).sandboxId ?? "";
         const term = await sandbox.pty.create({
           cols: 80,
           rows: 24,
@@ -119,6 +157,21 @@ Bun.serve<WSData>({
         await ws.data.sandbox?.kill();
       } catch {
         /* already gone */
+      }
+      // Meter + debit — only if a sandbox actually ran this connection.
+      if (ws.data.startedAtMs > 0) {
+        try {
+          await convex.mutation(anyApi.coding.recordSession, {
+            token: ws.data.token,
+            sandboxId: ws.data.sandboxId || `sb_${ws.data.startedAtMs}`,
+            startedAtMs: ws.data.startedAtMs,
+            endedAtMs: Date.now(),
+            vcpu: SANDBOX_VCPU,
+            ramGiB: SANDBOX_RAM_GIB,
+          });
+        } catch {
+          /* metering failure must not crash the relay; logged server-side */
+        }
       }
     },
   },

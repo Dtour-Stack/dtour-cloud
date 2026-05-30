@@ -234,4 +234,31 @@ export default defineSchema({
     .index("by_epoch", ["epoch"]) // ledgerForEpoch / plan freeze / resume
     .index("by_signature", ["signature"]) // reconcile a batch by its shared sig
     .index("by_status", ["status"]), // bounded status scans (cancelStalePlanned / incompleteEpochs)
+
+  // USD-credit wallet for paid usage (coding sandboxes etc.). Money stored as
+  // INTEGER micro-USD (1 USD = 1e6) — float64 is exact for integers ≪ 2^53, so
+  // no precision loss. Topped up via $DTOUR (at top-up rate) or admin grant.
+  creditBalances: defineTable({
+    pubkey: v.string(),
+    balanceMicroUsd: v.number(), // integer micro-USD
+    updatedAt: v.number(),
+  }).index("by_pubkey", ["pubkey"]),
+
+  // Per-session coding-sandbox usage ledger — the accuracy record. Stores the
+  // metered E2B cost AND the price charged (cost × markup × holder-discount).
+  codingUsage: defineTable({
+    pubkey: v.string(),
+    sandboxId: v.string(),
+    startedAt: v.number(),
+    endedAt: v.number(),
+    durationSec: v.number(),
+    vcpu: v.number(),
+    ramGiB: v.number(),
+    costMicroUsd: v.number(), // raw E2B cost (what we pay)
+    priceMicroUsd: v.number(), // what the user was charged
+    holderDiscount: v.boolean(),
+    at: v.number(),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_sandbox", ["sandboxId"]),
 });
