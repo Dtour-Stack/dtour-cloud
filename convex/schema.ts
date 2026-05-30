@@ -275,4 +275,52 @@ export default defineSchema({
   })
     .index("by_pubkey", ["pubkey"])
     .index("by_sandbox", ["sandboxId"]),
+
+  // Programmatic API keys (for the ElizaCloud proxy + dtour API). Only a HASH of
+  // the secret is stored — the plaintext is shown once at creation. `prefix` is
+  // the public, non-secret leading segment used to look a key up before hashing.
+  apiKeys: defineTable({
+    pubkey: v.string(), // owner
+    label: v.string(),
+    keyHash: v.string(), // hash of the full secret (never the plaintext)
+    prefix: v.string(), // public lookup prefix, e.g. "dt_live_AbCd"
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revoked: v.optional(v.boolean()),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_prefix", ["prefix"]),
+
+  // Affiliate program: one record per affiliate. `code` is their public referral
+  // code; `shareBps` is their revenue-share in basis points (1% = 100 bps).
+  affiliates: defineTable({
+    pubkey: v.string(), // the affiliate
+    code: v.string(), // public referral code
+    shareBps: v.number(), // revenue share, basis points
+    createdAt: v.number(),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_code", ["code"]),
+
+  // Referral attribution: links a referred wallet to the affiliate code (and the
+  // referrer who owns it) that brought them in.
+  referrals: defineTable({
+    referredPubkey: v.string(), // the new/referred wallet
+    code: v.string(), // affiliate code used
+    referrerPubkey: v.string(), // the affiliate who owns the code
+    at: v.number(),
+  })
+    .index("by_referred", ["referredPubkey"])
+    .index("by_referrer", ["referrerPubkey"])
+    .index("by_code", ["code"]),
+
+  // Affiliate payout ledger. Money stored as INTEGER micro-USD (1 USD = 1e6) —
+  // float64 is exact for integers ≪ 2^53, so no precision loss. `status` is a
+  // free-form string (e.g. "pending" | "paid" | "failed").
+  affiliatePayouts: defineTable({
+    pubkey: v.string(), // affiliate being paid
+    amountMicroUsd: v.number(), // integer micro-USD
+    status: v.string(),
+    at: v.number(),
+  }).index("by_pubkey", ["pubkey"]),
 });

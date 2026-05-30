@@ -1,4 +1,4 @@
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -10,12 +10,43 @@ import { InboxPanel } from "./InboxPanel";
 
 type Me = { username?: string | null; role?: Role } | null | undefined;
 
-export type NavItem = { to: string; label: string; icon: ReactNode; end?: boolean };
+export type NavItem = {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  end?: boolean;
+  /** Optional section header to group this item under (rendered uppercase). */
+  group?: string;
+  /** Show a small "NEW" badge next to the label. */
+  isNew?: boolean;
+};
 
-const USER_NAV: NavItem[] = [
+/** The user dashboard nav. The first three items are ungrouped (always on top);
+ *  the rest are grouped into sections (Runtime → Account → Monetization). Drives
+ *  the sidebar here AND the dashboard surfaces. */
+export const USER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: <Icon.Home />, end: true },
   { to: "/agents", label: "Agents", icon: <Icon.Bot /> },
   { to: "/profile", label: "Profile", icon: <Icon.User /> },
+
+  // Runtime
+  { to: "/api-explorer", label: "API Explorer", icon: <Icon.Search />, group: "Runtime" },
+  { to: "/api-keys", label: "API Keys", icon: <Icon.Plug />, group: "Runtime" },
+  { to: "/docs", label: "Docs", icon: <Icon.BookOpen />, group: "Runtime" },
+  { to: "/instances", label: "Instances", icon: <Icon.LayoutGrid />, group: "Runtime" },
+  { to: "/mcps", label: "MCPs", icon: <Icon.Zap />, group: "Runtime" },
+
+  // Account
+  { to: "/settings", label: "Settings", icon: <Icon.Settings />, group: "Account" },
+  { to: "/account", label: "Account", icon: <Icon.User />, group: "Account" },
+  { to: "/security", label: "Security", icon: <Icon.Shield />, group: "Account" },
+
+  // Monetization
+  { to: "/apps", label: "My Apps", icon: <Icon.LayoutGrid />, group: "Monetization" },
+  { to: "/earnings", label: "Earnings", icon: <Icon.Coins />, group: "Monetization", isNew: true },
+  { to: "/affiliates", label: "Affiliates", icon: <Icon.Flag />, group: "Monetization" },
+  { to: "/billing", label: "Billing", icon: <Icon.Wallet />, group: "Monetization" },
+  { to: "/analytics", label: "Analytics", icon: <Icon.Activity />, group: "Monetization" },
 ];
 
 /** Shared app shell: collapsible nav, header (with admin context switcher),
@@ -50,6 +81,25 @@ export function AppShell({
   useEffect(() => {
     if (token) void refreshBalance({ token }).catch(() => {});
   }, [token, refreshBalance]);
+  // Attribute a pending affiliate referral (captured from ?ref= at load) once.
+  const attributeRef = useMutation(anyApi.affiliates.attribute);
+  useEffect(() => {
+    if (!token) return;
+    let ref: string | null = null;
+    try {
+      ref = localStorage.getItem("dtour-ref");
+    } catch {
+      /* ignore */
+    }
+    if (!ref) return;
+    void attributeRef({ token, code: ref }).finally(() => {
+      try {
+        localStorage.removeItem("dtour-ref");
+      } catch {
+        /* ignore */
+      }
+    });
+  }, [token, attributeRef]);
   const unread = useQuery(
     anyApi.messages.unreadCount,
     token ? { token } : "skip",
@@ -148,18 +198,60 @@ export function AppShell({
           </div>
         ) : (
           <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Primary">
-            {nav.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={linkClass}
-                onClick={closeMobile}
-              >
-                {item.icon}
-                {label(item.label)}
-              </NavLink>
-            ))}
+            {(() => {
+              const renderItem = (item: NavItem) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={linkClass}
+                  onClick={closeMobile}
+                >
+                  {item.icon}
+                  {label(item.label)}
+                  {item.isNew && (
+                    <span
+                      className={cn(
+                        "ml-auto rounded-full border border-purple-400/25 bg-purple-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-wider text-purple-200",
+                        !navOpen && "md:hidden",
+                      )}
+                    >
+                      New
+                    </span>
+                  )}
+                </NavLink>
+              );
+
+              const ungrouped = nav.filter((i) => !i.group);
+              // Derive group order from first appearance — keeps AppShell generic
+              // (a flat nav with no groups renders nothing here) while honoring the
+              // manifest order: Runtime → Account → Monetization.
+              const groupOrder: string[] = [];
+              for (const i of nav) {
+                if (i.group && !groupOrder.includes(i.group)) groupOrder.push(i.group);
+              }
+
+              return (
+                <>
+                  {ungrouped.map(renderItem)}
+                  {groupOrder.map((g) => (
+                    <div key={g} className="pt-2">
+                      <p
+                        className={cn(
+                          "px-2.5 pb-1 text-[11px] uppercase tracking-wider text-white/40",
+                          !navOpen && "md:hidden",
+                        )}
+                      >
+                        {g}
+                      </p>
+                      <div className="space-y-1">
+                        {nav.filter((i) => i.group === g).map(renderItem)}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
           </nav>
         )}
 

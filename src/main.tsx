@@ -9,6 +9,15 @@ import App from "@/App";
 import { convex } from "@/lib/convex";
 import { StewardProvider } from "@/providers/StewardProvider";
 
+// Capture an affiliate referral code (detour.ninja/?ref=CODE) at first load;
+// AppShell attributes it once the user has a session.
+try {
+  const ref = new URLSearchParams(window.location.search).get("ref");
+  if (ref && !localStorage.getItem("dtour-ref")) localStorage.setItem("dtour-ref", ref);
+} catch {
+  /* ignore */
+}
+
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("#root element not found");
 
