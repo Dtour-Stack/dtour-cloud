@@ -302,73 +302,34 @@ export const chat = action({
     }
 
     try {
-      // Real ElizaCloud chat endpoint: POST /api/v1/chat with the AI SDK
-      // UIMessage format (role + parts); `id` selects the model.
-      const mk = (role: string, text: string) => ({ role, parts: [{ type: "text", text }] });
-      const res = await fetch(`${data.baseUrl}/api/v1/chat`, {
+      // ElizaCloud OpenAI-compatible endpoint: POST /api/v1/chat/completions
+      // (verified live with an eliza_ API key). Non-streaming for reliability —
+      // one request, parse choices[0].message.content, write the full reply.
+      const res = await fetch(`${data.baseUrl}/api/v1/chat/completions`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          id: data.model && data.model !== "auto" ? data.model : "gpt-4o",
+          model: data.model && data.model !== "auto" ? data.model : "google/gemini-2.5-flash",
           messages: [
-            mk("system", data.systemPrompt),
-            ...data.history.map((h: { role: string; content: string }) => mk(h.role, h.content)),
-            mk("user", message.trim()),
+            { role: "system", content: data.systemPrompt },
+            ...data.history,
+            { role: "user", content: message.trim() },
           ],
         }),
       });
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
         throw new Error(`Inference failed (${res.status})`);
       }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let acc = "";
-      let lastFlush = Date.now();
-
-      const addFrame = (l: string) => {
-        // AI SDK v3 text frame: 0:"chunk"
-        const m = l.match(/^0:(".*")$/);
-        if (m) {
-          try { acc += JSON.parse(m[1]); } catch { /* skip */ }
-          return;
-        }
-        // SSE data frame: data: {"type":"text-delta","delta":"x"}
-        if (l.startsWith("data:")) {
-          const p = l.slice(5).trim();
-          if (p === "[DONE]") return;
-          try {
-            const o = JSON.parse(p);
-            const d = o.delta ?? o.text ?? o.textDelta;
-            if (typeof d === "string") acc += d;
-          } catch { /* skip partial frame */ }
-        }
+      const json = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
       };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) addFrame(line.trim());
-        // Throttle DB writes (~8/sec) so the reactive UI streams smoothly.
-        if (acc && Date.now() - lastFlush > 120) {
-          await ctx.runMutation(internal.agents.setMessageContent, {
-            id: asstId,
-            content: acc,
-          });
-          lastFlush = Date.now();
-        }
-      }
-      if (buffer.trim()) addFrame(buffer.trim());
+      const reply = json.choices?.[0]?.message?.content;
       await ctx.runMutation(internal.agents.setMessageContent, {
         id: asstId,
-        content: acc || "(no response)",
+        content: typeof reply === "string" && reply ? reply : "(no response)",
       });
     } catch (e) {
       await ctx.runMutation(internal.agents.setMessageContent, {

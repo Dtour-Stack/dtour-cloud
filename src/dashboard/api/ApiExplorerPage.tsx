@@ -13,9 +13,9 @@ const GROUPS: { group: string; routes: Route[] }[] = [
     routes: [
       {
         method: "POST",
-        path: "/api/v1/chat",
-        desc: "Chat completion (AI SDK format)",
-        body: '{\n  "id": "gpt-4o",\n  "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Hello!" }] }]\n}',
+        path: "/api/v1/chat/completions",
+        desc: "Chat completion (OpenAI-compatible)",
+        body: '{\n  "model": "google/gemini-2.5-flash",\n  "messages": [{ "role": "user", "content": "Hello!" }]\n}',
       },
       { method: "POST", path: "/api/v1/generate-prompts", desc: "Creative prompt ideas", body: "{}" },
       { method: "GET", path: "/api/v1/models", desc: "List available models" },

@@ -297,58 +297,24 @@ async function chat(
   model: string | undefined,
   system: string,
   prompt: string,
-  _temperature: number,
+  temperature: number,
 ): Promise<string> {
-  // Real ElizaCloud chat endpoint: POST /api/v1/chat, AI SDK UIMessage format
-  // (role + parts), `id` selects the model. Returns an AI SDK data stream.
-  const mk = (role: string, text: string) => ({ role, parts: [{ type: "text", text }] });
+  // ElizaCloud OpenAI-compatible endpoint: POST /api/v1/chat/completions
+  // (verified live with an eliza_ API key). Standard OpenAI message format.
   const messages = [
-    ...(system ? [mk("system", system)] : []),
-    mk("user", prompt),
+    ...(system ? [{ role: "system", content: system }] : []),
+    { role: "user", content: prompt },
   ];
-  const res = await post("/api/v1/chat", {
-    id: model && model !== "Auto" ? model : "gpt-4o",
+  const res = await post("/api/v1/chat/completions", {
+    model: model && model !== "Auto" ? model : "google/gemini-2.5-flash",
     messages,
+    temperature,
   });
   if (!res.ok) throw new Error(`Text generation failed (${res.status})`);
-  return extractAiSdkText(await res.text());
-}
-
-/** Pull plain text out of an ElizaCloud /chat response — handles AI SDK data
- *  streams (`0:"chunk"` and SSE `data:{type:text-delta,...}`) and plain JSON. */
-function extractAiSdkText(raw: string): string {
-  const t = raw.trim();
-  // Plain JSON (non-streamed)?
-  try {
-    const j = JSON.parse(t);
-    const s = j.text ?? j.choices?.[0]?.message?.content ?? j.content;
-    if (typeof s === "string") return s;
-  } catch {
-    /* not plain JSON — fall through to stream parsing */
-  }
-  let out = "";
-  for (const line of t.split("\n")) {
-    const l = line.trim();
-    if (!l) continue;
-    // AI SDK v3 text frame: 0:"chunk"
-    const m = l.match(/^0:(".*")$/);
-    if (m) {
-      try { out += JSON.parse(m[1]); } catch { /* skip */ }
-      continue;
-    }
-    // SSE data frame: data: {"type":"text-delta","delta":"x"}
-    if (l.startsWith("data:")) {
-      const p = l.slice(5).trim();
-      if (p === "[DONE]") continue;
-      try {
-        const o = JSON.parse(p);
-        const d = o.delta ?? o.text ?? o.textDelta;
-        if (typeof d === "string") out += d;
-      } catch { /* skip */ }
-    }
-  }
-  if (!out) throw new Error("No text returned");
-  return out;
+  const json = await res.json();
+  const text = json.choices?.[0]?.message?.content;
+  if (typeof text !== "string") throw new Error("No text returned");
+  return text;
 }
 
 /** Resolve a media response to a usable URL (remote url or data URL). */
