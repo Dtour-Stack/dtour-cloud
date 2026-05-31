@@ -5,13 +5,21 @@ import { useAction, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useEffect, useState } from "react";
 import { buildTopUpTx } from "@/lib/credits-topup";
+import { buildUsdcTopUpTx } from "@/lib/credits-topup-usdc";
 import { Button, Icon } from "@/ui";
 
-type Info = { treasury: string; mint: string; priceUsd: number };
+type Info = {
+  treasury: string;
+  mint: string;
+  dtourMint: string;
+  usdcMint: string;
+  priceUsd: number;
+};
+type Asset = "DTOUR" | "USDC";
 
-/** Buy USD credits with $DTOUR: build a Token-2022 transfer to the credits
+/** Buy USD credits with $DTOUR or USDC: build a transfer to the credits
  *  treasury, the wallet signs + broadcasts, then convex verifies on-chain and
- *  grants credits at the live rate. */
+ *  grants credits ($DTOUR at the live rate, USDC 1:1). */
 export function TopUpModal({
   token,
   onClose,
@@ -25,12 +33,14 @@ export function TopUpModal({
   const { connection } = useConnection();
   const topUpInfo = useAction(anyApi.credits.topUpInfo);
   const topUpVerify = useAction(anyApi.credits.topUpVerify);
+  const usdcTopUpVerify = useAction(anyApi.credits.usdcTopUpVerify);
   const me = useQuery(anyApi.users.me, token ? { token } : "skip") as
     | { pubkey: string }
     | null
     | undefined;
 
   const [info, setInfo] = useState<Info | null>(null);
+  const [asset, setAsset] = useState<Asset>("DTOUR");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -42,10 +52,14 @@ export function TopUpModal({
       .catch(() => setErr("Couldn't load the live rate."));
   }, [topUpInfo]);
 
+  const isUsdc = asset === "USDC";
   const amt = Number(amount);
-  const usd = info && amt > 0 ? amt * info.priceUsd : 0;
+  // USDC credits 1:1; $DTOUR converts at the live rate.
+  const usd = isUsdc ? (amt > 0 ? amt : 0) : info && amt > 0 ? amt * info.priceUsd : 0;
   const walletMatches =
     !me || !publicKey || publicKey.toBase58() === me.pubkey;
+  // Only the $DTOUR path depends on the price feed; USDC stays usable if it's down.
+  const priceReady = isUsdc || (info ? info.priceUsd > 0 : false);
 
   async function pay() {
     if (!info || !publicKey || !sendTransaction || !(amt > 0)) return;
@@ -53,19 +67,28 @@ export function TopUpModal({
     setBusy(true);
     try {
       setStatus("Building transfer…");
-      const tx = await buildTopUpTx({
-        connection,
-        payer: publicKey,
-        treasury: new PublicKey(info.treasury),
-        mint: new PublicKey(info.mint),
-        amountUi: amt,
-      });
+      const tx = isUsdc
+        ? await buildUsdcTopUpTx({
+            connection,
+            payer: publicKey,
+            treasury: new PublicKey(info.treasury),
+            mint: new PublicKey(info.usdcMint),
+            amountUi: amt,
+          })
+        : await buildTopUpTx({
+            connection,
+            payer: publicKey,
+            treasury: new PublicKey(info.treasury),
+            mint: new PublicKey(info.dtourMint),
+            amountUi: amt,
+          });
       setStatus("Approve in your wallet…");
       const sig = await sendTransaction(tx, connection);
       setStatus("Confirming on-chain…");
       await connection.confirmTransaction(sig, "confirmed");
       setStatus("Crediting your balance…");
-      const res = (await topUpVerify({ token, signature: sig })) as {
+      const verify = isUsdc ? usdcTopUpVerify : topUpVerify;
+      const res = (await verify({ token, signature: sig })) as {
         ok: boolean;
         reason?: string;
         creditedUsd?: number;
@@ -87,7 +110,7 @@ export function TopUpModal({
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0d12] p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium text-white">
-            <Icon.Coins size={16} /> Top up credits with $DTOUR
+            <Icon.Coins size={16} /> Top up credits
           </div>
           <button
             type="button"
@@ -98,15 +121,41 @@ export function TopUpModal({
           </button>
         </div>
 
-        <p className="mt-2 text-xs text-white/50">
-          Pay $DTOUR now; it converts to USD credits at the current rate
-          {info ? ` ($${info.priceUsd.toFixed(6)}/DTOUR)` : ""}. Credits never lose
-          value to token swings — the conversion is locked at top-up.
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {(["DTOUR", "USDC"] as Asset[]).map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => {
+                setAsset(a);
+                setAmount("");
+                setErr(null);
+                setStatus(null);
+              }}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                asset === a
+                  ? "border-purple-400/50 bg-purple-400/10 text-white"
+                  : "border-white/10 bg-white/[0.03] text-white/60 hover:text-white/80"
+              }`}
+            >
+              {a === "DTOUR" ? "$DTOUR" : "USDC"}
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-3 text-xs text-white/50">
+          {isUsdc
+            ? "1 USDC = $1.00 credit. Credits are stored in USD, so what you pay is what you get."
+            : `Pay $DTOUR now; it converts to USD credits at the current rate${
+                info ? ` ($${info.priceUsd.toFixed(6)}/DTOUR)` : ""
+              }. Credits never lose value to token swings — the conversion is locked at top-up.`}
         </p>
 
         {!publicKey ? (
           <div className="mt-5">
-            <p className="mb-2 text-xs text-white/60">Connect the wallet that holds your $DTOUR:</p>
+            <p className="mb-2 text-xs text-white/60">
+              Connect the wallet that holds your {isUsdc ? "USDC" : "$DTOUR"}:
+            </p>
             <WalletMultiButton />
           </div>
         ) : (
@@ -118,7 +167,7 @@ export function TopUpModal({
               </p>
             )}
             <label className="mt-4 block text-xs uppercase tracking-widest text-white/50">
-              Amount ($DTOUR)
+              Amount ({isUsdc ? "USDC" : "$DTOUR"})
             </label>
             <input
               type="number"
@@ -127,30 +176,32 @@ export function TopUpModal({
               step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="e.g. 100000"
+              placeholder={isUsdc ? "e.g. 10" : "e.g. 100000"}
               className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white tabular-nums placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
             />
             <div className="mt-2 flex items-center justify-between text-xs">
               <span className="text-white/40">You'll receive</span>
               <span className="tabular-nums text-white/80">
-                {info ? `≈ $${usd.toFixed(2)} credits` : "…"}
+                {isUsdc || info ? `≈ $${usd.toFixed(2)} credits` : "…"}
               </span>
             </div>
 
             <Button
               className="mt-5 w-full justify-center"
               onClick={pay}
-              disabled={busy || !info || !(amt > 0) || !(info?.priceUsd > 0)}
+              disabled={busy || !info || !(amt > 0) || !priceReady}
             >
-              {busy ? status || "Working…" : `Pay ${amt > 0 ? amt.toLocaleString() : ""} $DTOUR`}
+              {busy
+                ? status || "Working…"
+                : `Pay ${amt > 0 ? amt.toLocaleString() : ""} ${isUsdc ? "USDC" : "$DTOUR"}`}
             </Button>
             {status && !err && <p className="mt-3 text-xs text-emerald-200/80">{status}</p>}
           </>
         )}
         {err && <p className="mt-3 whitespace-pre-wrap text-xs text-red-400/90">{err}</p>}
-        {info && !(info.priceUsd > 0) && (
+        {!isUsdc && info && !(info.priceUsd > 0) && (
           <p className="mt-3 text-xs text-amber-200/80">
-            Live $DTOUR price is unavailable right now — try again shortly.
+            Live $DTOUR price is unavailable right now — try again shortly, or pay with USDC.
           </p>
         )}
       </div>

@@ -256,14 +256,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_pubkey", ["pubkey"]),
 
-  // $DTOUR → USD-credit top-ups. Idempotent by on-chain signature: a verified
-  // $DTOUR transfer to the credits treasury credits the payer's wallet at the
-  // $DTOUR/USD rate captured AT verification time (volatility risk taken here).
+  // Credit top-ups (idempotent by on-chain signature). Two assets land here:
+  //   • $DTOUR — credited at the $DTOUR/USD rate captured AT verification time
+  //     (volatility risk taken here); sets dtourAmount + priceUsd.
+  //   • USDC   — credited 1:1 (USDC is $1, no oracle); sets usdcAmount.
+  // `asset` is "DTOUR" | "USDC" (absent on legacy rows ⇒ read as "DTOUR").
+  // dtourAmount/priceUsd are optional so USDC rows validate; usdMicro is the
+  // common integer micro-USD credited regardless of asset.
   creditTopUps: defineTable({
-    signature: v.string(), // the on-chain $DTOUR transfer tx
+    signature: v.string(), // the on-chain transfer tx (globally unique → dedup key)
     pubkey: v.string(), // payer (credited)
-    dtourAmount: v.number(), // $DTOUR received by treasury (uiAmount)
-    priceUsd: v.number(), // $DTOUR/USD at verification
+    asset: v.optional(v.string()), // "DTOUR" | "USDC" (absent ⇒ DTOUR)
+    dtourAmount: v.optional(v.number()), // $DTOUR received by treasury (uiAmount)
+    priceUsd: v.optional(v.number()), // $DTOUR/USD at verification
+    usdcAmount: v.optional(v.number()), // USDC received by treasury (uiAmount)
     usdMicro: v.number(), // credits granted (integer micro-USD)
     at: v.number(),
   })
