@@ -38,17 +38,15 @@ export const forward = action({
       return { ok: false, reason: "ElizaCloud proxy not configured (set ELIZACLOUD_API_URL + ELIZACLOUD_API_KEY)" };
     }
     try {
-      const headers: Record<string, string> = {
-        authorization: `Bearer ${key}`,
-        "content-type": "application/json",
-      };
-      // White-label affiliate: every proxied call carries Detour's ElizaCloud
-      // affiliate code so Detour earns the upstream cut (paid in $ELIZA).
-      const aff = process.env.ELIZACLOUD_AFFILIATE_CODE;
-      if (aff) headers["x-affiliate-code"] = aff;
+      // Model 1 (biller): all inference flows under Detour's single ElizaCloud
+      // org/key. ElizaCloud attributes affiliates at SIGNUP (/api/v1/affiliates
+      // + /affiliates/link), not per-request — so no affiliate header here.
       const res = await fetch(`${base.replace(/\/$/, "")}${path}`, {
         method: method.toUpperCase(),
-        headers,
+        headers: {
+          authorization: `Bearer ${key}`,
+          "content-type": "application/json",
+        },
         body: body && method.toUpperCase() !== "GET" ? body : undefined,
       });
       const text = await res.text();
