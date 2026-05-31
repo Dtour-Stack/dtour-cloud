@@ -16,12 +16,11 @@ type Me = {
 
 const trunc = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-6)}` : a);
 
-export default function AccountPage() {
+export default function AccountPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
   const me = useQuery(anyApi.users.me, token ? { token } : "skip") as Me;
 
-  return (
-    <AppShell title="Account">
+  const body = (
       <div className="mx-auto max-w-2xl space-y-6">
         <h1 className="text-xl font-semibold text-white">Account</h1>
         <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/[0.02]">
@@ -38,8 +37,8 @@ export default function AccountPage() {
           <Link to="/billing" className="text-purple-300 hover:underline">Billing</Link>
         </div>
       </div>
-    </AppShell>
-  );
+    );
+  return embedded ? body : <AppShell title="Account">{body}</AppShell>;
 }
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

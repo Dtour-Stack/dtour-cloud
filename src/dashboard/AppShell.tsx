@@ -24,29 +24,15 @@ export type NavItem = {
 /** The user dashboard nav. The first three items are ungrouped (always on top);
  *  the rest are grouped into sections (Runtime → Account → Monetization). Drives
  *  the sidebar here AND the dashboard surfaces. */
+// Lean nav: the few daily-driver surfaces. Everything else (Developers, Account,
+// Analytics, Instances, MCPs, My Apps, Earnings) lives on the Dashboard launcher
+// grid; the dashboard "views" (Profile, Design, Coding, Admin) live in the
+// header context-switcher dropdown.
 export const USER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: <Icon.Home />, end: true },
   { to: "/agents", label: "Agents", icon: <Icon.Bot /> },
-  { to: "/profile", label: "Profile", icon: <Icon.User /> },
-
-  // Runtime
-  { to: "/api-explorer", label: "API Explorer", icon: <Icon.Search />, group: "Runtime" },
-  { to: "/api-keys", label: "API Keys", icon: <Icon.Plug />, group: "Runtime" },
-  { to: "/docs", label: "Docs", icon: <Icon.BookOpen />, group: "Runtime" },
-  { to: "/instances", label: "Instances", icon: <Icon.LayoutGrid />, group: "Runtime" },
-  { to: "/mcps", label: "MCPs", icon: <Icon.Zap />, group: "Runtime" },
-
-  // Account
-  { to: "/settings", label: "Settings", icon: <Icon.Settings />, group: "Account" },
-  { to: "/account", label: "Account", icon: <Icon.User />, group: "Account" },
-  { to: "/security", label: "Security", icon: <Icon.Shield />, group: "Account" },
-
-  // Monetization
-  { to: "/apps", label: "My Apps", icon: <Icon.LayoutGrid />, group: "Monetization" },
-  { to: "/earnings", label: "Earnings", icon: <Icon.Coins />, group: "Monetization", isNew: true },
-  { to: "/affiliates", label: "Affiliates", icon: <Icon.Flag />, group: "Monetization" },
-  { to: "/billing", label: "Billing", icon: <Icon.Wallet />, group: "Monetization" },
-  { to: "/analytics", label: "Analytics", icon: <Icon.Activity />, group: "Monetization" },
+  { to: "/affiliates", label: "Affiliates", icon: <Icon.Flag /> },
+  { to: "/billing", label: "Billing", icon: <Icon.Wallet /> },
 ];
 
 /** Shared app shell: collapsible nav, header (with admin context switcher),
@@ -68,7 +54,7 @@ export function AppShell({
   /** Sidebar items. Defaults to the user-dashboard nav. */
   nav?: NavItem[];
   /** Which context this shell renders — drives the context switcher. */
-  context?: "user" | "admin" | "design" | "coding";
+  context?: "user" | "admin" | "design" | "coding" | "profile";
   /** Custom sidebar body (replaces the default nav) — e.g. the chat recents rail. */
   sidebar?: (o: { collapsed: boolean; closeMobile: () => void }) => ReactNode;
 }) {
@@ -100,6 +86,12 @@ export function AppShell({
       }
     });
   }, [token, attributeRef]);
+  // Auto-provision the user's own affiliate code + invite link on first session,
+  // so every signup can invite friends and earn $ELIZA from day one.
+  const provisionAffiliate = useMutation(anyApi.affiliates.getOrCreateCode);
+  useEffect(() => {
+    if (token) void provisionAffiliate({ token }).catch(() => {});
+  }, [token, provisionAffiliate]);
   const unread = useQuery(
     anyApi.messages.unreadCount,
     token ? { token } : "skip",
@@ -352,7 +344,7 @@ function ContextSwitcher({
   context,
   role,
 }: {
-  context: "user" | "admin" | "design" | "coding";
+  context: "user" | "admin" | "design" | "coding" | "profile";
   role?: Role;
 }) {
   const navigate = useNavigate();
@@ -376,6 +368,7 @@ function ContextSwitcher({
 
   const items = [
     { key: "user", label: "User Dashboard", to: "/dashboard", icon: <Icon.Home size={14} /> },
+    { key: "profile", label: "Profile", to: "/profile", icon: <Icon.User size={14} /> },
     ...(isPro(role)
       ? [
           { key: "design", label: "Design Studio", to: "/design", icon: <Icon.Palette size={14} /> },

@@ -41,7 +41,7 @@ const GROUPS: { group: string; routes: { method: string; path: string; desc: str
 
 const COLOR: Record<string, string> = { GET: "text-sky-300", POST: "text-emerald-300" };
 
-export default function ApiExplorerPage() {
+export default function ApiExplorerPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
   const status = useAction(anyApi.proxy.status);
   const forward = useAction(anyApi.proxy.forward);
@@ -76,8 +76,7 @@ export default function ApiExplorerPage() {
     }
   }
 
-  return (
-    <AppShell title="API Explorer">
+  const content = (
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-white">API Explorer</h1>
@@ -155,6 +154,6 @@ export default function ApiExplorerPage() {
           </div>
         ))}
       </div>
-    </AppShell>
-  );
+    );
+  return embedded ? content : <AppShell title="API Explorer">{content}</AppShell>;
 }

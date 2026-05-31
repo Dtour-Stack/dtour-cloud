@@ -4,7 +4,7 @@ import { AppShell } from "@/dashboard/AppShell";
 
 const PREF_KEY = "dtour-prefs";
 
-export default function SettingsPage() {
+export default function SettingsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [prefs, setPrefs] = useState<{ sounds: boolean; compact: boolean }>({
     sounds: true,
     compact: false,
@@ -31,8 +31,7 @@ export default function SettingsPage() {
     });
   }
 
-  return (
-    <AppShell title="Settings">
+  const body = (
       <div className="mx-auto max-w-2xl space-y-6">
         <h1 className="text-xl font-semibold text-white">Settings</h1>
 
@@ -53,8 +52,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </AppShell>
-  );
+    );
+  return embedded ? body : <AppShell title="Settings">{body}</AppShell>;
 }
 
 function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {

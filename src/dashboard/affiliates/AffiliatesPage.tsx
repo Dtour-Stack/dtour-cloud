@@ -1,6 +1,6 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { anyApi } from "convex/server";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, Icon } from "@/ui";
@@ -12,23 +12,69 @@ type Stats = {
   referrals: number;
   earnedUsd: number;
   pendingUsd: number;
+  earnedEliza: number;
+  pendingEliza: number;
+  elizaPriceUsd: number;
+  payoutNetwork: string | null;
+  payoutAddress: string | null;
 } | null;
+
+const NETWORKS = [
+  { id: "solana", label: "Solana" },
+  { id: "base", label: "Base" },
+  { id: "ethereum", label: "Ethereum" },
+];
 
 export default function AffiliatesPage() {
   const token = getDtourSessionToken();
-  const stats = useQuery(anyApi.affiliates.myStats, token ? { token } : "skip") as Stats | undefined;
-  const getOrCreate = useMutation(anyApi.affiliates.getOrCreateCode);
-  const requestPayout = useMutation(anyApi.affiliates.requestPayout);
-  const [msg, setMsg] = useState<string | null>(null);
+  const myStats = useAction(anyApi.affiliates.myStats);
+  const setWallet = useMutation(anyApi.affiliates.setPayoutWallet);
+  const requestPayout = useAction(anyApi.affiliates.requestPayout);
 
-  // Mint the code on first visit if the user doesn't have one yet.
-  useEffect(() => {
-    if (token && stats !== undefined && stats && !stats.code) {
-      void getOrCreate({ token }).catch(() => {});
-    }
-  }, [token, stats, getOrCreate]);
+  const [stats, setStats] = useState<Stats>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [network, setNetwork] = useState("solana");
+  const [address, setAddress] = useState("");
+
+  const load = useCallback(() => {
+    if (!token) return;
+    void myStats({ token })
+      .then((s) => {
+        setStats(s as Stats);
+        if (s) {
+          setNetwork((s as Stats)?.payoutNetwork ?? "solana");
+          setAddress((s as Stats)?.payoutAddress ?? "");
+        }
+      })
+      .catch(() => {});
+  }, [token, myStats]);
+  useEffect(load, [load]);
 
   const share = stats ? (stats.shareBps / 100).toFixed(0) : "20";
+
+  async function saveWallet() {
+    if (!token) return;
+    try {
+      await setWallet({ token, network, address });
+      setMsg("Wallet saved");
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+    setTimeout(() => setMsg(null), 2500);
+  }
+
+  async function payout() {
+    if (!token) return;
+    try {
+      const r = (await requestPayout({ token })) as { ok: boolean; reason?: string; requestedEliza?: number };
+      setMsg(r.ok ? `Requested ${(r.requestedEliza ?? 0).toFixed(2)} $ELIZA` : r.reason || "Failed");
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+    setTimeout(() => setMsg(null), 3000);
+  }
 
   return (
     <AppShell title="Affiliates">
@@ -36,19 +82,24 @@ export default function AffiliatesPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Affiliate program</h1>
           <p className="mt-1 text-sm text-white/50">
-            Earn {share}% of the platform fee on everything your referrals spend — funded by the
-            fee itself, so it costs them nothing extra.
+            Share your link to earn {share}% of the platform fee on your referrals' top-ups and MCP
+            usage — forever. Earnings are paid as <span className="text-white">$ELIZA</span> to any
+            EVM or Solana wallet. It costs your referrals nothing extra.
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <Stat label="Referrals" value={stats?.referrals ?? "—"} />
-          <Stat label="Earned" value={stats ? `$${stats.earnedUsd.toFixed(2)}` : "—"} />
-          <Stat label="Pending" value={stats ? `$${stats.pendingUsd.toFixed(2)}` : "—"} />
+          <Stat label="Earned ($ELIZA)" value={stats ? stats.earnedEliza.toFixed(2) : "—"} />
+          <Stat label="Pending ($ELIZA)" value={stats ? stats.pendingEliza.toFixed(2) : "—"} />
         </div>
 
+        {/* Invite link */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="text-xs uppercase tracking-widest text-white/50">Your referral link</div>
+          <div className="text-xs uppercase tracking-widest text-white/50">Your invite link</div>
+          <p className="mt-1 text-xs text-white/45">
+            You both earn bonus credits when a friend signs up through it.
+          </p>
           <div className="mt-2 flex items-center gap-2">
             <code className="flex-1 break-all rounded bg-black/40 px-3 py-2 font-mono text-xs text-white">
               {stats?.link ?? "minting…"}
@@ -65,42 +116,58 @@ export default function AffiliatesPage() {
               }}
               className="rounded-lg border border-white/15 px-3 py-2 text-xs text-white/70 hover:bg-white/10"
             >
-              <Icon.Copy size={13} /> {msg ?? "Copy"}
+              <Icon.Copy size={13} /> {msg === "Copied!" ? "Copied" : "Copy"}
             </button>
           </div>
         </div>
 
+        {/* $ELIZA payout wallet */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-white">Payout</div>
-              <div className="text-xs text-white/45">
-                Pending ${stats?.pendingUsd.toFixed(2) ?? "0.00"} — paid in $DTOUR.
-              </div>
-            </div>
-            <Button
-              size="sm"
-              disabled={!token || !stats || stats.pendingUsd <= 0}
-              onClick={async () => {
-                if (!token) return;
-                try {
-                  await requestPayout({ token });
-                  setMsg("Payout requested");
-                } catch (e) {
-                  setMsg(e instanceof Error ? e.message : "Failed");
-                }
-                setTimeout(() => setMsg(null), 2000);
-              }}
+          <div className="text-xs uppercase tracking-widest text-white/50">$ELIZA payout wallet</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <select
+              value={network}
+              onChange={(e) => setNetwork(e.target.value)}
+              className="rounded-lg border border-white/15 bg-white/5 px-2 py-2 text-sm text-white focus:outline-none"
             >
-              Request payout
+              {NETWORKS.map((n) => (
+                <option key={n.id} value={n.id}>{n.label}</option>
+              ))}
+            </select>
+            <input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder={network === "solana" ? "Solana address" : "0x… EVM address"}
+              className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
+            />
+            <Button size="sm" variant="secondary" onClick={saveWallet} disabled={!address.trim()}>
+              Save
             </Button>
           </div>
+          <p className="mt-1.5 text-[11px] text-white/35">
+            Send to a self-custody wallet — not an exchange deposit address (it may reject $ELIZA).
+          </p>
         </div>
 
-        <p className="text-xs text-white/40">
-          How it works: share your link, anyone who signs up through it is attributed to you (once,
-          no self-referral). As they use paid features, your share of the platform fee accrues here.
-        </p>
+        {/* Payout */}
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div>
+            <div className="text-sm text-white">Withdraw</div>
+            <div className="text-xs text-white/45">
+              Pending {stats?.pendingEliza.toFixed(2) ?? "0.00"} $ELIZA
+              {stats && stats.elizaPriceUsd > 0 ? ` (~$${stats.pendingUsd.toFixed(2)})` : ""}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            disabled={!stats || stats.pendingEliza <= 0 || !stats.payoutAddress}
+            onClick={payout}
+          >
+            Withdraw $ELIZA
+          </Button>
+        </div>
+
+        {msg && <p className="text-xs text-emerald-200/80">{msg}</p>}
       </div>
     </AppShell>
   );

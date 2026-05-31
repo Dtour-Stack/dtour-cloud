@@ -1,14 +1,26 @@
-import { useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { anyApi } from "convex/server";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
 
-type Stats = { referrals: number; earnedUsd: number; pendingUsd: number } | null | undefined;
+type Stats = {
+  referrals: number;
+  earnedEliza: number;
+  pendingEliza: number;
+  earnedUsd: number;
+} | null;
 
 export default function EarningsPage() {
   const token = getDtourSessionToken();
-  const stats = useQuery(anyApi.affiliates.myStats, token ? { token } : "skip") as Stats;
+  const myStats = useAction(anyApi.affiliates.myStats);
+  const [stats, setStats] = useState<Stats>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    void myStats({ token }).then((s) => setStats(s as Stats)).catch(() => {});
+  }, [token, myStats]);
 
   return (
     <AppShell title="Earnings">
@@ -16,22 +28,22 @@ export default function EarningsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Earnings</h1>
           <p className="mt-1 text-sm text-white/50">
-            Your affiliate revenue. $DTOUR creator-fee rewards (for holders) are distributed
-            separately on-chain.
+            Your affiliate revenue, paid as <span className="text-white">$ELIZA</span> to an EVM or
+            Solana wallet. Holder $DTOUR creator-fee rewards are distributed separately on-chain.
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <Stat label="Total earned" value={stats ? `$${stats.earnedUsd.toFixed(2)}` : "—"} />
-          <Stat label="Pending payout" value={stats ? `$${stats.pendingUsd.toFixed(2)}` : "—"} />
+          <Stat label="Total ($ELIZA)" value={stats ? stats.earnedEliza.toFixed(2) : "—"} />
+          <Stat label="Pending ($ELIZA)" value={stats ? stats.pendingEliza.toFixed(2) : "—"} />
           <Stat label="Referrals" value={stats?.referrals ?? "—"} />
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-white/60">
-          Earnings come from the <span className="text-white">affiliate program</span> — a share of
-          the platform fee on what your referrals spend.{" "}
+          Earnings come from the <span className="text-white">affiliate program</span> — your share
+          of the fee on what your referrals spend.{" "}
           <Link to="/affiliates" className="text-purple-300 hover:underline">
-            Manage affiliates →
+            Manage affiliates & withdraw →
           </Link>
         </div>
       </div>

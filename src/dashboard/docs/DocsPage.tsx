@@ -13,9 +13,8 @@ const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
   { title: "elizaOS docs", body: "The underlying agent runtime documentation.", href: "https://docs.elizaos.ai" },
 ];
 
-export default function DocsPage() {
-  return (
-    <AppShell title="Docs">
+export default function DocsPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const body = (
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-white">Docs</h1>
@@ -44,6 +43,6 @@ export default function DocsPage() {
           })}
         </div>
       </div>
-    </AppShell>
-  );
+    );
+  return embedded ? body : <AppShell title="Docs">{body}</AppShell>;
 }

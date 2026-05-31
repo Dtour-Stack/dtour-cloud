@@ -38,18 +38,64 @@ export const forward = action({
       return { ok: false, reason: "ElizaCloud proxy not configured (set ELIZACLOUD_API_URL + ELIZACLOUD_API_KEY)" };
     }
     try {
+      const headers: Record<string, string> = {
+        authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+      };
+      // White-label affiliate: every proxied call carries Detour's ElizaCloud
+      // affiliate code so Detour earns the upstream cut (paid in $ELIZA).
+      const aff = process.env.ELIZACLOUD_AFFILIATE_CODE;
+      if (aff) headers["x-affiliate-code"] = aff;
       const res = await fetch(`${base.replace(/\/$/, "")}${path}`, {
         method: method.toUpperCase(),
-        headers: {
-          authorization: `Bearer ${key}`,
-          "content-type": "application/json",
-        },
+        headers,
         body: body && method.toUpperCase() !== "GET" ? body : undefined,
       });
       const text = await res.text();
       return { ok: res.ok, status: res.status, data: text.slice(0, 20000) };
     } catch (e) {
       return { ok: false, reason: String(e).slice(0, 200) };
+    }
+  },
+});
+
+/** Read the white-label affiliate's real ElizaCloud referral record
+ *  (GET /api/v1/referrals → { code, total_referrals, is_active }). Returns
+ *  configured:false until the proxy env is set. Pure V8. */
+export const referral = action({
+  args: { token: v.string() },
+  handler: async (
+    ctx,
+    { token },
+  ): Promise<{
+    configured: boolean;
+    code?: string;
+    totalReferrals?: number;
+    isActive?: boolean;
+  }> => {
+    const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
+    if (!me) return { configured: false };
+    const base = process.env.ELIZACLOUD_API_URL;
+    const key = process.env.ELIZACLOUD_API_KEY;
+    if (!base || !key) return { configured: false };
+    try {
+      const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/referrals`, {
+        headers: { authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) return { configured: true };
+      const j = (await res.json()) as {
+        code?: string;
+        total_referrals?: number;
+        is_active?: boolean;
+      };
+      return {
+        configured: true,
+        code: typeof j.code === "string" ? j.code : undefined,
+        totalReferrals: typeof j.total_referrals === "number" ? j.total_referrals : undefined,
+        isActive: typeof j.is_active === "boolean" ? j.is_active : undefined,
+      };
+    } catch {
+      return { configured: true };
     }
   },
 });

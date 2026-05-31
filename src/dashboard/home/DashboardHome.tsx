@@ -14,6 +14,19 @@ import {
   StatCard,
 } from "@/ui";
 
+const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode }[] = [
+  { to: "/coding", label: "Coding", desc: "Sandboxed coding agents", icon: <Icon.Zap size={16} /> },
+  { to: "/design", label: "Design", desc: "Workflows & canvas", icon: <Icon.Palette size={16} /> },
+  { to: "/developers", label: "Developers", desc: "API, keys & docs", icon: <Icon.Plug size={16} /> },
+  { to: "/account-hub", label: "Account", desc: "Profile, security, settings", icon: <Icon.User size={16} /> },
+  { to: "/analytics", label: "Analytics", desc: "Usage & spend", icon: <Icon.Activity size={16} /> },
+  { to: "/instances", label: "Instances", desc: "Running agents", icon: <Icon.LayoutGrid size={16} /> },
+  { to: "/mcps", label: "MCPs", desc: "Hosted tool servers", icon: <Icon.Zap size={16} /> },
+  { to: "/apps", label: "My Apps", desc: "Publish & monetize", icon: <Icon.LayoutGrid size={16} /> },
+  { to: "/earnings", label: "Earnings", desc: "Affiliate $ELIZA", icon: <Icon.Coins size={16} /> },
+  { to: "/affiliates", label: "Affiliates", desc: "Invite & earn", icon: <Icon.Flag size={16} /> },
+];
+
 type Me = {
   pubkey: string;
   balance: number;
@@ -176,6 +189,28 @@ export function DashboardHome() {
             description="Sign-ins, deploys, and credit changes will show up here."
           />
         </Panel>
+      </div>
+
+      {/* Launcher grid — everything that isn't in the slim side nav. */}
+      <div className="fade-up mt-8" style={{ animationDelay: "210ms" }}>
+        <SectionHeading title="Explore" description="Jump to any part of Detour Cloud." />
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {LAUNCHER.map((l) => (
+            <Link
+              key={l.to}
+              to={l.to}
+              className="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]"
+            >
+              <span className="rounded-lg bg-white/5 p-2 text-white/70 group-hover:text-white">
+                {l.icon}
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-white">{l.label}</div>
+                <div className="truncate text-xs text-white/45">{l.desc}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Attribution */}

@@ -3,7 +3,7 @@ import { ProfileHome } from "./ProfileHome";
 
 export default function ProfilePage() {
   return (
-    <AppShell title="Profile">
+    <AppShell title="Profile" context="profile">
       <ProfileHome />
     </AppShell>
   );

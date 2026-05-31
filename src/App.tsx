@@ -43,6 +43,8 @@ const EarningsPage = lazy(() => import("@/dashboard/earnings/EarningsPage"));
 const AffiliatesPage = lazy(() => import("@/dashboard/affiliates/AffiliatesPage"));
 const BillingPage = lazy(() => import("@/dashboard/billing/BillingPage"));
 const AnalyticsPage = lazy(() => import("@/dashboard/analytics/AnalyticsPage"));
+const DevelopersPage = lazy(() => import("@/dashboard/developers/DevelopersPage"));
+const AccountHubPage = lazy(() => import("@/dashboard/account/AccountHubPage"));
 
 export default function App() {
   return (
@@ -191,6 +193,22 @@ export default function App() {
           element={
             <RequireSession>
               <AnalyticsPage />
+            </RequireSession>
+          }
+        />
+        <Route
+          path="/developers"
+          element={
+            <RequireSession>
+              <DevelopersPage />
+            </RequireSession>
+          }
+        />
+        <Route
+          path="/account-hub"
+          element={
+            <RequireSession>
+              <AccountHubPage />
             </RequireSession>
           }
         />

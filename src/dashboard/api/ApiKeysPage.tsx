@@ -7,7 +7,7 @@ import { Button, Icon } from "@/ui";
 
 type Key = { id: string; label: string; masked: string; createdAt: number; lastUsedAt: number | null };
 
-export default function ApiKeysPage() {
+export default function ApiKeysPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
   const keys = useQuery(anyApi.apikeys.list, token ? { token } : "skip") as Key[] | undefined;
   const create = useMutation(anyApi.apikeys.create);
@@ -28,8 +28,7 @@ export default function ApiKeysPage() {
     }
   }
 
-  return (
-    <AppShell title="API Keys">
+  const body = (
       <div className="mx-auto max-w-3xl space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-white">API Keys</h1>
@@ -92,6 +91,6 @@ export default function ApiKeysPage() {
           )}
         </div>
       </div>
-    </AppShell>
-  );
+    );
+  return embedded ? body : <AppShell title="API Keys">{body}</AppShell>;
 }

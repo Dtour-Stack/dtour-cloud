@@ -8,7 +8,7 @@ import { Button, Icon } from "@/ui";
 type Me = { pubkey: string; lastLoginAt: number | null } | null | undefined;
 const trunc = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-6)}` : a);
 
-export default function SecurityPage() {
+export default function SecurityPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
   const me = useQuery(anyApi.users.me, token ? { token } : "skip") as Me;
   const navigate = useNavigate();
@@ -18,8 +18,7 @@ export default function SecurityPage() {
     navigate("/login", { replace: true });
   }
 
-  return (
-    <AppShell title="Security">
+  const body = (
       <div className="mx-auto max-w-2xl space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-white">Security</h1>
@@ -56,6 +55,6 @@ export default function SecurityPage() {
           </div>
         </div>
       </div>
-    </AppShell>
-  );
+    );
+  return embedded ? body : <AppShell title="Security">{body}</AppShell>;
 }

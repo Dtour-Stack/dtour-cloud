@@ -310,6 +310,9 @@ export default defineSchema({
     code: v.string(), // public referral code
     shareBps: v.number(), // revenue share, basis points
     createdAt: v.number(),
+    // $ELIZA payout destination (mirrors ElizaCloud: withdraw to EVM or Solana).
+    payoutNetwork: v.optional(v.string()), // "ethereum" | "base" | "solana"
+    payoutAddress: v.optional(v.string()),
   })
     .index("by_pubkey", ["pubkey"])
     .index("by_code", ["code"]),
@@ -331,8 +334,13 @@ export default defineSchema({
   // free-form string (e.g. "pending" | "paid" | "failed").
   affiliatePayouts: defineTable({
     pubkey: v.string(), // affiliate being paid
-    amountMicroUsd: v.number(), // integer micro-USD
+    amountMicroUsd: v.number(), // integer micro-USD value at request time
     status: v.string(),
     at: v.number(),
+    // Paid out as $ELIZA to an EVM/Solana wallet (mirrors ElizaCloud redemption).
+    network: v.optional(v.string()),
+    address: v.optional(v.string()),
+    amountEliza: v.optional(v.number()), // $ELIZA tokens at request-time price
+    elizaPriceUsd: v.optional(v.number()),
   }).index("by_pubkey", ["pubkey"]),
 });
