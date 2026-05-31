@@ -200,8 +200,7 @@ export const forChat = internalQuery({
       systemPrompt: a.systemPrompt,
       baseUrl: await getConfig(
         ctx,
-        "elizacloud_base_url",
-        "https://www.elizacloud.ai/api/v1",
+        "elizacloud_base_url", "https://api.elizacloud.ai",
       ),
       history: rows.reverse().map((m) => ({ role: m.role, content: m.content })),
     };
@@ -265,8 +264,7 @@ export const modelEnv = internalQuery({
     return {
       baseUrl: await getConfig(
         ctx,
-        "elizacloud_base_url",
-        "https://www.elizacloud.ai/api/v1",
+        "elizacloud_base_url", "https://api.elizacloud.ai",
       ),
     };
   },
@@ -293,7 +291,7 @@ export const chat = action({
       owner: data.owner,
     });
 
-    const apiKey = process.env.ELIZAOS_CLOUD_API_KEY;
+    const apiKey = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
     if (!apiKey) {
       await ctx.runMutation(internal.agents.setMessageContent, {
         id: asstId,
@@ -304,19 +302,21 @@ export const chat = action({
     }
 
     try {
-      const res = await fetch(`${data.baseUrl}/chat/completions`, {
+      // Real ElizaCloud chat endpoint: POST /api/v1/chat with the AI SDK
+      // UIMessage format (role + parts); `id` selects the model.
+      const mk = (role: string, text: string) => ({ role, parts: [{ type: "text", text }] });
+      const res = await fetch(`${data.baseUrl}/api/v1/chat`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: data.model,
-          stream: true,
+          id: data.model && data.model !== "auto" ? data.model : "gpt-4o",
           messages: [
-            { role: "system", content: data.systemPrompt },
-            ...data.history,
-            { role: "user", content: message.trim() },
+            mk("system", data.systemPrompt),
+            ...data.history.map((h: { role: string; content: string }) => mk(h.role, h.content)),
+            mk("user", message.trim()),
           ],
         }),
       });
@@ -330,24 +330,32 @@ export const chat = action({
       let acc = "";
       let lastFlush = Date.now();
 
+      const addFrame = (l: string) => {
+        // AI SDK v3 text frame: 0:"chunk"
+        const m = l.match(/^0:(".*")$/);
+        if (m) {
+          try { acc += JSON.parse(m[1]); } catch { /* skip */ }
+          return;
+        }
+        // SSE data frame: data: {"type":"text-delta","delta":"x"}
+        if (l.startsWith("data:")) {
+          const p = l.slice(5).trim();
+          if (p === "[DONE]") return;
+          try {
+            const o = JSON.parse(p);
+            const d = o.delta ?? o.text ?? o.textDelta;
+            if (typeof d === "string") acc += d;
+          } catch { /* skip partial frame */ }
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          const t = line.trim();
-          if (!t.startsWith("data:")) continue;
-          const payload = t.slice(5).trim();
-          if (payload === "[DONE]") continue;
-          try {
-            const delta = JSON.parse(payload).choices?.[0]?.delta?.content;
-            if (typeof delta === "string") acc += delta;
-          } catch {
-            /* skip partial frame */
-          }
-        }
+        for (const line of lines) addFrame(line.trim());
         // Throttle DB writes (~8/sec) so the reactive UI streams smoothly.
         if (acc && Date.now() - lastFlush > 120) {
           await ctx.runMutation(internal.agents.setMessageContent, {
@@ -357,6 +365,7 @@ export const chat = action({
           lastFlush = Date.now();
         }
       }
+      if (buffer.trim()) addFrame(buffer.trim());
       await ctx.runMutation(internal.agents.setMessageContent, {
         id: asstId,
         content: acc || "(no response)",
@@ -382,10 +391,10 @@ export const listModels = action({
   > => {
     const ctxData = await ctx.runQuery(internal.agents.modelEnv, { token });
     if (!ctxData) return [];
-    const apiKey = process.env.ELIZAOS_CLOUD_API_KEY;
+    const apiKey = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
     if (!apiKey) return [];
     try {
-      const res = await fetch(`${ctxData.baseUrl}/models`, {
+      const res = await fetch(`${ctxData.baseUrl}/api/v1/models`, {
         headers: { authorization: `Bearer ${apiKey}` },
       });
       if (!res.ok) return [];

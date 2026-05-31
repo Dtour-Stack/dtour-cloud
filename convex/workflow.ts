@@ -57,7 +57,7 @@ export const ctxFor = internalQuery({
     if (!caller) return null;
     return {
       pubkey: caller.pubkey,
-      baseUrl: await getConfig(ctx, "elizacloud_base_url", "https://www.elizacloud.ai/api/v1"),
+      baseUrl: await getConfig(ctx, "elizacloud_base_url", "https://api.elizacloud.ai"),
     };
   },
 });
@@ -132,7 +132,7 @@ export const runWorkflow = action({
       if (!e) return undefined;
       return outputs[e.source.node]?.[e.source.port];
     };
-    const apiKey = process.env.ELIZAOS_CLOUD_API_KEY;
+    const apiKey = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
     const flush = (status?: string) =>
       ctx.runMutation(internal.workflow.patchRun, { id: runId, nodes: JSON.stringify(state), status });
 
@@ -154,7 +154,7 @@ export const runWorkflow = action({
       try {
         const v0 = (node.values ?? {}) as Record<string, unknown>;
         const need = () => {
-          if (!apiKey) throw new Error("Set ELIZAOS_CLOUD_API_KEY on Convex to run this node");
+          if (!apiKey) throw new Error("Set ELIZACLOUD_API_KEY on Convex to run this node");
           return apiKey;
         };
         const post = (path: string, body: unknown) =>
@@ -210,13 +210,7 @@ export const runWorkflow = action({
           case "generate.image": {
             const prompt = inputVal(id, "prompt") ?? "";
             if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
-            const model = inputVal(id, "model") || "google/gemini-2.5-flash-image";
-            const res = await post("/generate-image", {
-              model,
-              prompt,
-              width: Number(v0.width ?? 1024),
-              height: Number(v0.height ?? 1024),
-            });
+            const res = await post("/api/v1/generate-image", { prompt });
             outputs[id] = { image: await mediaUrl(res, "image/png") };
             state[id] = { status: "done", output: outputs[id].image };
             break;
@@ -224,7 +218,7 @@ export const runWorkflow = action({
           case "generate.video": {
             const prompt = inputVal(id, "prompt") ?? "";
             if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
-            const res = await post("/generate-video", { prompt, seconds: Number(v0.seconds ?? 4) });
+            const res = await post("/api/v1/generate-video", { prompt });
             outputs[id] = { video: await mediaUrl(res, "video/mp4") };
             state[id] = { status: "done", output: outputs[id].video };
             break;
@@ -232,21 +226,20 @@ export const runWorkflow = action({
           case "generate.speech": {
             const text = inputVal(id, "text") ?? "";
             if (!text.trim()) throw new Error("Connect text to speak");
-            const res = await post("/voice/tts", { text, voice: String(v0.voice ?? "Default") });
-            outputs[id] = { audio: await mediaUrl(res, "audio/mpeg") };
-            state[id] = { status: "done", output: outputs[id].audio };
+            // ElevenLabs TTS returns a streaming audio/mpeg body (not JSON).
+            const res = await post("/api/elevenlabs/tts", { text, modelId: "eleven_flash_v2_5" });
+            if (!res.ok) throw new Error(`Speech failed (${res.status})`);
+            const buf = new Uint8Array(await res.arrayBuffer());
+            let bin = "";
+            for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+            outputs[id] = { audio: `data:audio/mpeg;base64,${btoa(bin)}` };
+            state[id] = { status: "done", output: "(audio generated)" };
             break;
           }
           case "tools.search": {
-            const query = inputVal(id, "query") ?? "";
-            if (!query.trim()) throw new Error("Connect a query");
-            const res = await post("/search", { query, count: Number(v0.count ?? 5) });
-            if (!res.ok) throw new Error(`Search failed (${res.status})`);
-            const json = await res.json();
-            const text = typeof json.results === "string" ? json.results : JSON.stringify(json.results ?? json);
-            outputs[id] = { results: text };
-            state[id] = { status: "done", output: text.slice(0, 500) };
-            break;
+            // ElizaCloud's public API doesn't expose a web-search endpoint; this
+            // node lights up once an MCP web-search tool is wired (see /mcps).
+            throw new Error("Web search runs via an MCP tool — connect one under MCPs.");
           }
           case "refine.upscale": {
             const img = inputVal(id, "image");
@@ -304,31 +297,77 @@ async function chat(
   model: string | undefined,
   system: string,
   prompt: string,
-  temperature: number,
+  _temperature: number,
 ): Promise<string> {
+  // Real ElizaCloud chat endpoint: POST /api/v1/chat, AI SDK UIMessage format
+  // (role + parts), `id` selects the model. Returns an AI SDK data stream.
+  const mk = (role: string, text: string) => ({ role, parts: [{ type: "text", text }] });
   const messages = [
-    ...(system ? [{ role: "system", content: system }] : []),
-    { role: "user", content: prompt },
+    ...(system ? [mk("system", system)] : []),
+    mk("user", prompt),
   ];
-  const res = await post("/chat/completions", {
-    model: model && model !== "Auto" ? model : "openai/gpt-oss-120b:free",
+  const res = await post("/api/v1/chat", {
+    id: model && model !== "Auto" ? model : "gpt-4o",
     messages,
-    temperature,
   });
   if (!res.ok) throw new Error(`Text generation failed (${res.status})`);
-  const json = await res.json();
-  const text = json.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new Error("No text returned");
-  return text;
+  return extractAiSdkText(await res.text());
+}
+
+/** Pull plain text out of an ElizaCloud /chat response — handles AI SDK data
+ *  streams (`0:"chunk"` and SSE `data:{type:text-delta,...}`) and plain JSON. */
+function extractAiSdkText(raw: string): string {
+  const t = raw.trim();
+  // Plain JSON (non-streamed)?
+  try {
+    const j = JSON.parse(t);
+    const s = j.text ?? j.choices?.[0]?.message?.content ?? j.content;
+    if (typeof s === "string") return s;
+  } catch {
+    /* not plain JSON — fall through to stream parsing */
+  }
+  let out = "";
+  for (const line of t.split("\n")) {
+    const l = line.trim();
+    if (!l) continue;
+    // AI SDK v3 text frame: 0:"chunk"
+    const m = l.match(/^0:(".*")$/);
+    if (m) {
+      try { out += JSON.parse(m[1]); } catch { /* skip */ }
+      continue;
+    }
+    // SSE data frame: data: {"type":"text-delta","delta":"x"}
+    if (l.startsWith("data:")) {
+      const p = l.slice(5).trim();
+      if (p === "[DONE]") continue;
+      try {
+        const o = JSON.parse(p);
+        const d = o.delta ?? o.text ?? o.textDelta;
+        if (typeof d === "string") out += d;
+      } catch { /* skip */ }
+    }
+  }
+  if (!out) throw new Error("No text returned");
+  return out;
 }
 
 /** Resolve a media response to a usable URL (remote url or data URL). */
 async function mediaUrl(res: Response, fallbackType: string): Promise<string> {
-  if (!res.ok) throw new Error(`Generation failed (${res.status})`);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = j?.error ? ` — ${j.error}` : "";
+    } catch { /* ignore */ }
+    throw new Error(`Generation failed (${res.status})${detail}`);
+  }
   const json = await res.json();
   const d = json.data?.[0] ?? json;
-  if (d?.url) return d.url as string;
-  if (d?.b64_json) return `data:${fallbackType};base64,${d.b64_json}`;
+  if (typeof d?.url === "string") return d.url;
   if (typeof json.url === "string") return json.url;
+  if (typeof json.image === "string") return json.image;
+  if (typeof json.video === "string") return json.video;
+  if (Array.isArray(json.images) && typeof json.images[0] === "string") return json.images[0];
+  if (d?.b64_json) return `data:${fallbackType};base64,${d.b64_json}`;
   throw new Error("No media returned");
 }

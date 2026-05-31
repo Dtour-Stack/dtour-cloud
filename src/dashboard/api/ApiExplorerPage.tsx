@@ -6,35 +6,57 @@ import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button } from "@/ui";
 
-const GROUPS: { group: string; routes: { method: string; path: string; desc: string }[] }[] = [
+type Route = { method: string; path: string; desc: string; body?: string };
+const GROUPS: { group: string; routes: Route[] }[] = [
   {
-    group: "Agents",
+    group: "AI Completions",
     routes: [
-      { method: "GET", path: "/v1/agents", desc: "List your agents" },
-      { method: "POST", path: "/v1/agents", desc: "Create an agent" },
-      { method: "POST", path: "/v1/agents/:id/message", desc: "Send a message" },
+      {
+        method: "POST",
+        path: "/api/v1/chat",
+        desc: "Chat completion (AI SDK format)",
+        body: '{\n  "id": "gpt-4o",\n  "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Hello!" }] }]\n}',
+      },
+      { method: "POST", path: "/api/v1/generate-prompts", desc: "Creative prompt ideas", body: "{}" },
+      { method: "GET", path: "/api/v1/models", desc: "List available models" },
     ],
   },
   {
-    group: "Inference",
+    group: "Media Generation",
     routes: [
-      { method: "POST", path: "/v1/chat/completions", desc: "Chat completion (model-routed)" },
-      { method: "POST", path: "/v1/embeddings", desc: "Embeddings" },
+      {
+        method: "POST",
+        path: "/api/v1/generate-image",
+        desc: "Generate an image",
+        body: '{ "prompt": "A futuristic city with neon lights" }',
+      },
+      {
+        method: "POST",
+        path: "/api/v1/generate-video",
+        desc: "Generate a video",
+        body: '{ "prompt": "A serene mountain landscape" }',
+      },
+      { method: "GET", path: "/api/v1/gallery", desc: "List your generations" },
     ],
   },
   {
-    group: "Media",
+    group: "Voice (ElevenLabs)",
     routes: [
-      { method: "POST", path: "/v1/images", desc: "Generate an image" },
-      { method: "POST", path: "/v1/video", desc: "Generate a video" },
-      { method: "POST", path: "/v1/speech", desc: "Text to speech" },
+      {
+        method: "POST",
+        path: "/api/elevenlabs/tts",
+        desc: "Text to speech",
+        body: '{ "text": "Welcome to Detour Cloud", "modelId": "eleven_flash_v2_5" }',
+      },
+      { method: "GET", path: "/api/elevenlabs/voices", desc: "List public voices" },
+      { method: "GET", path: "/api/elevenlabs/voices/user", desc: "Your cloned voices" },
     ],
   },
   {
-    group: "MCP & Tools",
+    group: "Account",
     routes: [
-      { method: "GET", path: "/v1/mcps", desc: "List hosted MCP servers" },
-      { method: "POST", path: "/v1/search", desc: "Web search" },
+      { method: "GET", path: "/api/v1/user", desc: "Your profile (session auth)" },
+      { method: "GET", path: "/api/v1/api-keys", desc: "List API keys (session auth)" },
     ],
   },
 ];
@@ -48,7 +70,7 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
   const [configured, setConfigured] = useState<boolean | null>(null);
 
   const [method, setMethod] = useState("GET");
-  const [path, setPath] = useState("/v1/agents");
+  const [path, setPath] = useState("/api/v1/models");
   const [body, setBody] = useState("");
   const [resp, setResp] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -140,6 +162,7 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
                   onClick={() => {
                     setMethod(r.method);
                     setPath(r.path);
+                    setBody(r.body ?? "");
                   }}
                   className="flex w-full items-center gap-3 border-b border-white/5 px-4 py-2.5 text-left text-sm transition last:border-0 hover:bg-white/[0.03]"
                 >
