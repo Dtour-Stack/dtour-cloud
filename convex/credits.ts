@@ -219,6 +219,54 @@ export const applyTopUp = internalMutation({
   },
 });
 
+// One-time free starter credits, granted on first dashboard load so metered
+// inference doesn't wall new users at signup. Everyone gets it — INCLUDING
+// lifetime accounts (lifetime also never gets charged for inference, but the
+// grant is universal). Idempotent via a "starter:<pubkey>" ledger marker.
+const STARTER_USD = 0.25;
+
+/** Grant the one-time starter credit if not already granted. Idempotent. */
+export const claimStarter = action({
+  args: { token: v.string() },
+  handler: async (
+    ctx,
+    { token },
+  ): Promise<{ granted: boolean; amountUsd?: number }> => {
+    const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
+    if (!me) return { granted: false };
+    return await ctx.runMutation(internal.credits._grantStarter, { pubkey: me.pubkey });
+  },
+});
+
+export const _grantStarter = internalMutation({
+  args: { pubkey: v.string() },
+  handler: async (ctx, { pubkey }): Promise<{ granted: boolean; amountUsd?: number }> => {
+    const sig = `starter:${pubkey}`;
+    const existing = await ctx.db
+      .query("creditTopUps")
+      .withIndex("by_signature", (q) => q.eq("signature", sig))
+      .unique();
+    if (existing) return { granted: false };
+    const usdMicro = Math.round(STARTER_USD * USD);
+    await ctx.db.insert("creditTopUps", {
+      signature: sig,
+      pubkey,
+      asset: "STARTER",
+      usdMicro,
+      at: Date.now(),
+    });
+    const row = await ctx.db
+      .query("creditBalances")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .unique();
+    const after = (row?.balanceMicroUsd ?? 0) + usdMicro;
+    if (row) await ctx.db.patch(row._id, { balanceMicroUsd: after, updatedAt: Date.now() });
+    else await ctx.db.insert("creditBalances", { pubkey, balanceMicroUsd: after, updatedAt: Date.now() });
+    await logEvent(ctx, "credits.starter", { pubkey, data: { usdMicro } });
+    return { granted: true, amountUsd: STARTER_USD };
+  },
+});
+
 /** Idempotent credit for a verified USDC top-up: record it + add USD 1:1 to the
  *  wallet. Internal — only usdcTopUpVerify (after on-chain verification) calls
  *  this. Shares the creditTopUps ledger; dedup is by globally-unique signature. */

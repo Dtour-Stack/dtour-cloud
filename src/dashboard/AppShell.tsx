@@ -92,6 +92,11 @@ export function AppShell({
   useEffect(() => {
     if (token) void provisionAffiliate({ token }).catch(() => {});
   }, [token, provisionAffiliate]);
+  // One-time free starter credits so metered inference doesn't wall new users.
+  const claimStarter = useAction(anyApi.credits.claimStarter);
+  useEffect(() => {
+    if (token) void claimStarter({ token }).catch(() => {});
+  }, [token, claimStarter]);
   const unread = useQuery(
     anyApi.messages.unreadCount,
     token ? { token } : "skip",
