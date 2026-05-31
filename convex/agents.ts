@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import {
   action,
   internalMutation,
@@ -291,45 +291,25 @@ export const chat = action({
       owner: data.owner,
     });
 
-    const apiKey = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
-    if (!apiKey) {
-      await ctx.runMutation(internal.agents.setMessageContent, {
-        id: asstId,
-        content:
-          "⚠️ Chat isn't configured yet. An admin needs to set ELIZAOS_CLOUD_API_KEY on the Convex deployment.",
-      });
-      return { ok: true };
-    }
-
     try {
-      // ElizaCloud OpenAI-compatible endpoint: POST /api/v1/chat/completions
-      // (verified live with an eliza_ API key). Non-streaming for reliability —
-      // one request, parse choices[0].message.content, write the full reply.
-      const res = await fetch(`${data.baseUrl}/api/v1/chat/completions`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: data.model && data.model !== "auto" ? data.model : "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: data.systemPrompt },
-            ...data.history,
-            { role: "user", content: message.trim() },
-          ],
-        }),
-      });
-      if (!res.ok) {
-        throw new Error(`Inference failed (${res.status})`);
-      }
-      const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const reply = json.choices?.[0]?.message?.content;
+      // Route through inference.runChat: DIRECT to OpenRouter (cheaper than
+      // ElizaCloud + metered/charged) when OPENROUTER_API_KEY is set, else falls
+      // back to ElizaCloud (free, current behavior). Charging is idempotent by
+      // refId = the assistant message id.
+      const model = data.model && data.model !== "auto" ? data.model : "google/gemini-2.5-flash";
+      const { text } = (await ctx.runAction(api.inference.runChat, {
+        token,
+        model,
+        messages: [
+          { role: "system", content: data.systemPrompt },
+          ...data.history,
+          { role: "user", content: message.trim() },
+        ],
+        refId: asstId,
+      })) as { text: string };
       await ctx.runMutation(internal.agents.setMessageContent, {
         id: asstId,
-        content: typeof reply === "string" && reply ? reply : "(no response)",
+        content: text || "(no response)",
       });
     } catch (e) {
       await ctx.runMutation(internal.agents.setMessageContent, {

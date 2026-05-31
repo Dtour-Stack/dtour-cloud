@@ -294,6 +294,31 @@ export default defineSchema({
     .index("by_pubkey", ["pubkey"])
     .index("by_sandbox", ["sandboxId"]),
 
+  // Per-call inference usage ledger (chat/media). Keyed by refId for idempotency
+  // (one charge per logical call) — mirrors codingUsage. Stores metered gateway
+  // cost AND price charged (cost × (1+markup) × holder-discount).
+  inferenceUsage: defineTable({
+    pubkey: v.string(),
+    refId: v.string(), // stable per-call id (e.g. assistant message id) — dedup key
+    surface: v.string(), // "chat" | "image" | "video" | "tts" | "workflow"
+    model: v.string(),
+    promptTokens: v.optional(v.number()),
+    completionTokens: v.optional(v.number()),
+    costMicroUsd: v.number(), // raw gateway cost (what we pay)
+    priceMicroUsd: v.number(), // what the user was charged
+    holderDiscount: v.boolean(),
+    at: v.number(),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_ref", ["refId"]),
+
+  // Cached OpenRouter model price catalog (per-token rates) — refreshed on demand
+  // so inference metering doesn't refetch the full list every call. Single row.
+  openrouterPrices: defineTable({
+    json: v.string(), // JSON: Record<modelId, { prompt: number, completion: number }> (USD/token)
+    fetchedAt: v.number(),
+  }),
+
   // Programmatic API keys (for the ElizaCloud proxy + dtour API). Only a HASH of
   // the secret is stored — the plaintext is shown once at creation. `prefix` is
   // the public, non-secret leading segment used to look a key up before hashing.
