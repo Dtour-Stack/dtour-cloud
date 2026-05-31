@@ -193,7 +193,9 @@ export const forChat = internalQuery({
       a.model && a.model !== "auto"
         ? a.model
         : (await getConfig(ctx, "default_chat_model", "")) ||
-          "openai/gpt-oss-120b:free";
+          // OpenRouter Auto Router — picks the best model per prompt; always
+          // resolvable and returns usage.cost for metering.
+          "openrouter/auto";
     return {
       owner: caller.pubkey,
       model: routed,
@@ -296,7 +298,7 @@ export const chat = action({
       // ElizaCloud + metered/charged) when OPENROUTER_API_KEY is set, else falls
       // back to ElizaCloud (free, current behavior). Charging is idempotent by
       // refId = the assistant message id.
-      const model = data.model && data.model !== "auto" ? data.model : "google/gemini-2.5-flash";
+      const model = data.model && data.model !== "auto" ? data.model : "openrouter/auto";
       const { text } = (await ctx.runAction(api.inference.runChat, {
         token,
         model,

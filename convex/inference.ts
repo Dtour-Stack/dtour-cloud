@@ -235,7 +235,7 @@ export const runChat = action({
       }
       const json = (await res.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
+        usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
         model?: string;
       };
       const text = json.choices?.[0]?.message?.content;
@@ -244,9 +244,17 @@ export const runChat = action({
       const usedModel = json.model || model;
       const prompt = json.usage?.prompt_tokens ?? 0;
       const completion = json.usage?.completion_tokens ?? 0;
-      const prices = await getPrices(ctx);
-      const rate = prices[usedModel] ?? prices[model] ?? { prompt: 0, completion: 0 };
-      const costMicroUsd = (prompt * rate.prompt + completion * rate.completion) * USD;
+      // OpenRouter returns the AUTHORITATIVE per-request USD cost inline
+      // (usage.cost) — exactly what we pay (incl. provider variance + cache
+      // discounts). Use it; fall back to the per-token catalog only if absent.
+      let costMicroUsd: number;
+      if (typeof json.usage?.cost === "number") {
+        costMicroUsd = json.usage.cost * USD;
+      } else {
+        const prices = await getPrices(ctx);
+        const rate = prices[usedModel] ?? prices[model] ?? { prompt: 0, completion: 0 };
+        costMicroUsd = (prompt * rate.prompt + completion * rate.completion) * USD;
+      }
       await ctx.runMutation(internal.inference._charge, {
         pubkey,
         refId,
