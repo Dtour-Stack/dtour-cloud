@@ -284,6 +284,80 @@ export const runChat = action({
   },
 });
 
+/**
+ * Generate an image via OpenRouter (same /chat/completions endpoint, modalities
+ * ["image","text"]). Returns a data URL. Metered from usage.cost like chat —
+ * one gateway for chat + image (OpenRouter now does media; no Fal needed). Falls
+ * back to ElizaCloud /api/v1/generate-image when OPENROUTER_API_KEY is unset.
+ */
+export const runImage = action({
+  args: { token: v.string(), model: v.optional(v.string()), prompt: v.string(), refId: v.string() },
+  handler: async (ctx, { token, model, prompt, refId }): Promise<{ url: string; source: string }> => {
+    const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
+    if (!me) throw new Error("Not signed in");
+    const pubkey = me.pubkey;
+    const orKey = process.env.OPENROUTER_API_KEY;
+
+    if (orKey) {
+      const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
+      if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to generate." : "Cannot run inference.");
+      const usedModel = model && model !== "Auto" && model !== "auto" ? model : "google/gemini-2.5-flash-image-preview";
+      const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${orKey}`,
+          "content-type": "application/json",
+          "http-referer": "https://detour.ninja",
+          "x-title": "Detour Cloud",
+        },
+        body: JSON.stringify({
+          model: usedModel,
+          messages: [{ role: "user", content: prompt }],
+          modalities: ["image", "text"],
+        }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`Image generation failed (${res.status}): ${t.slice(0, 160)}`);
+      }
+      const json = (await res.json()) as {
+        choices?: Array<{ message?: { images?: Array<{ image_url?: { url?: string } }> } }>;
+        usage?: { cost?: number };
+        model?: string;
+      };
+      const url = json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      if (typeof url !== "string" || !url) throw new Error("No image returned");
+      const costMicroUsd = (json.usage?.cost ?? 0) * USD;
+      await ctx.runMutation(internal.inference._charge, {
+        pubkey,
+        refId,
+        surface: "image",
+        model: json.model || usedModel,
+        costMicroUsd,
+      });
+      return { url, source: "openrouter" };
+    }
+
+    // Fallback: ElizaCloud (unmetered/free until the gateway key lands).
+    const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
+    const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
+    if (!key) throw new Error("Image generation isn't configured.");
+    const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/generate-image`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`Image generation failed (${res.status})${t ? ` — ${t.slice(0, 120)}` : ""}`);
+    }
+    const j = (await res.json()) as { data?: Array<{ url?: string }>; url?: string; image?: string };
+    const url = j.data?.[0]?.url ?? j.url ?? j.image;
+    if (typeof url !== "string" || !url) throw new Error("No image returned");
+    return { url, source: "elizacloud" };
+  },
+});
+
 /** Per-user inference spend summary (powers the usage dashboard). */
 export const mySpend = query({
   args: { token: v.string() },

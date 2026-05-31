@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import {
   action,
   internalMutation,
@@ -210,9 +210,16 @@ export const runWorkflow = action({
           case "generate.image": {
             const prompt = inputVal(id, "prompt") ?? "";
             if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
-            const res = await post("/api/v1/generate-image", { prompt });
-            outputs[id] = { image: await mediaUrl(res, "image/png") };
-            state[id] = { status: "done", output: outputs[id].image };
+            // Direct to OpenRouter image gen (metered via usage.cost), ElizaCloud
+            // fallback — handled inside inference.runImage. refId per node run.
+            const { url } = (await ctx.runAction(api.inference.runImage, {
+              token,
+              model: inputVal(id, "model"),
+              prompt,
+              refId: `${runId}:${id}`,
+            })) as { url: string };
+            outputs[id] = { image: url };
+            state[id] = { status: "done", output: url };
             break;
           }
           case "generate.video": {
