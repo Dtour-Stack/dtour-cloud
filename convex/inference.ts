@@ -325,8 +325,21 @@ export const runImage = action({
         usage?: { cost?: number };
         model?: string;
       };
-      const url = json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      if (typeof url !== "string" || !url) throw new Error("No image returned");
+      const dataUrl = json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      if (typeof dataUrl !== "string" || !dataUrl) throw new Error("No image returned");
+      // An action can't RETURN a multi-MB base64 data URL (exceeds the value
+      // size limit) — store it in Convex storage and return a small hosted URL
+      // (same pattern as assets.ts). Store BEFORE charging so a store failure
+      // doesn't bill the user without a deliverable.
+      let url = dataUrl;
+      const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (m) {
+        const bin = atob(m[2]);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const storageId = await ctx.storage.store(new Blob([bytes], { type: m[1] }));
+        url = (await ctx.storage.getUrl(storageId)) ?? dataUrl;
+      }
       const costMicroUsd = (json.usage?.cost ?? 0) * USD;
       await ctx.runMutation(internal.inference._charge, {
         pubkey,
