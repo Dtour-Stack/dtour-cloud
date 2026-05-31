@@ -301,7 +301,7 @@ export const runImage = action({
     if (orKey) {
       const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
       if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to generate." : "Cannot run inference.");
-      const usedModel = model && model !== "Auto" && model !== "auto" ? model : "google/gemini-2.5-flash-image-preview";
+      const usedModel = model && model !== "Auto" && model !== "auto" ? model : "google/gemini-2.5-flash-image";
       const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
         method: "POST",
         headers: {
