@@ -98,7 +98,8 @@ export default function AffiliatesPage() {
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <div className="text-xs uppercase tracking-widest text-white/50">Your invite link</div>
           <p className="mt-1 text-xs text-white/45">
-            You both earn bonus credits when a friend signs up through it.
+            You earn a share of the platform fee on what your referrals spend — accrues as they use
+            paid features.
           </p>
           <div className="mt-2 flex items-center gap-2">
             <code className="flex-1 break-all rounded bg-black/40 px-3 py-2 font-mono text-xs text-white">

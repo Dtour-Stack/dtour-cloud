@@ -53,8 +53,9 @@ export default function BillingPage() {
           <div className="text-sm font-medium text-white">How charges work</div>
           <ul className="mt-2 space-y-1.5 text-xs text-white/55">
             <li>• Coding sandboxes are metered per second at E2B's real cost × markup.</li>
-            <li>• Holders of ≥0.5% $DTOUR get 20% off, applied automatically.</li>
+            <li>• Holders of ≥0.5% $DTOUR get 20% off coding sandboxes, applied automatically.</li>
             <li>• A small minimum charge per session covers overhead.</li>
+            <li>• Inference (chat, media, models) isn't metered yet — billing for it is coming soon.</li>
           </ul>
         </div>
       </div>

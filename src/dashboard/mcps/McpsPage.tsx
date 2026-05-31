@@ -27,9 +27,13 @@ export default function McpsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">MCP servers</h1>
           <p className="mt-1 text-sm text-white/50">
-            Hosted Model Context Protocol tools your agents can call. Connections are saved to your
-            account; tool execution proxies ElizaCloud's MCP registry.
+            Hosted Model Context Protocol tools your agents can call. Browse + bookmark the catalog
+            now; live tool execution is coming soon.
           </p>
+        </div>
+        <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-4 py-2.5 text-xs text-amber-200/90">
+          ⓘ <span className="font-medium">Coming soon.</span> "Connect" saves the server to your
+          account so it's ready to wire — agents don't execute MCP tools yet.
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {MCPS.map((m) => {

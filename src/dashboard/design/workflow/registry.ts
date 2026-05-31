@@ -131,15 +131,8 @@ export const NODE_DEFS: NodeDef[] = [
     widgets: [{ key: "voice", kind: "select", label: "Voice", default: "Default", options: ["Default", "Rachel", "Adam", "Bella"] }],
   },
 
-  // ── Tools ──
-  {
-    type: "tools.search",
-    title: "Web Search",
-    category: "Tools",
-    inputs: [{ name: "query", type: "text" }],
-    outputs: [{ name: "results", type: "text" }],
-    widgets: [{ key: "count", kind: "number", label: "Results", default: 5, min: 1, max: 10, step: 1 }],
-  },
+  // ── Tools ── (Web Search removed — no live web-search endpoint; returns once
+  //   MCP tool execution ships. See /mcps "coming soon".)
 
   // ── Refine ──
   {
