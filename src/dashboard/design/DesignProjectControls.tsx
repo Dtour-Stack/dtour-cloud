@@ -2,6 +2,10 @@ import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { DEFAULT_PROJECT_NAME, designPath } from "./designProject";
@@ -14,24 +18,28 @@ export function DesignProjectControls({
   onSave,
   onSaveAs,
   className,
+  menuPlacement = "bottom",
 }: {
   saveState?: SaveState;
   onSave?: () => void;
   /** Copy current surface into a newly named project, then switch to it. */
   onSaveAs?: (newName: string) => Promise<void>;
   className?: string;
+  menuPlacement?: "top" | "bottom";
 }) {
-  const token = getDtourSessionToken();
+  const isTestAuth = readDtourPlaywrightUser() !== null;
+  const token = isTestAuth ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const navigate = useNavigate();
   const { project, setProject } = useDesignProject();
   const createProject = useMutation(anyApi.design.createProject);
-  const projects = useQuery(
+  const remoteProjects = useQuery(
     anyApi.design.listProjects,
-    token ? { token } : "skip",
+    token && !isTestAuth ? { token } : "skip",
   ) as
     | { name: string; updatedAt: number; hasStudio: boolean; hasSketch: boolean; hasWorkflow: boolean }[]
     | null
     | undefined;
+  const projects = isTestAuth ? [] : remoteProjects;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -39,6 +47,11 @@ export function DesignProjectControls({
   async function handleNew() {
     const name = window.prompt("New project name");
     if (!name?.trim() || !token) return;
+    if (isTestAuth) {
+      setProject(name.trim());
+      navigate(designPath("canvas", name.trim()));
+      return;
+    }
     setBusy(true);
     try {
       const res = await createProject({ token, name: name.trim() });
@@ -69,7 +82,7 @@ export function DesignProjectControls({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1 rounded-full border border-white/12 bg-[#0d0d0d]/90 px-1 py-1 shadow-lg backdrop-blur-xl",
+        "flex flex-wrap items-center gap-1",
         className,
       )}
     >
@@ -93,7 +106,12 @@ export function DesignProjectControls({
               className="fixed inset-0 z-40 cursor-default"
               onClick={() => setPickerOpen(false)}
             />
-            <div className="absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0d0d12] py-1 shadow-2xl">
+            <div
+              className={cn(
+                "absolute left-0 z-50 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0d0d12] py-1 shadow-2xl",
+                menuPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2",
+              )}
+            >
               <p className="px-3 py-1.5 text-[10px] uppercase tracking-widest text-white/35">
                 Projects
               </p>

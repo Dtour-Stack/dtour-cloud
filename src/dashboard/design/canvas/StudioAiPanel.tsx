@@ -52,7 +52,7 @@ export function StudioAiPanel({
   const modes: { id: AiMode; label: string; hint: string }[] = [
     { id: "graphic", label: "Graphics", hint: "Layout — frames, shapes, text" },
     { id: "image", label: "Image", hint: "AI photo / illustration" },
-    { id: "website", label: "Website", hint: "HTML mockup in an embed" },
+    { id: "website", label: "Artifact", hint: "Sandboxed UI preview in an embed" },
   ];
 
   return (
@@ -60,7 +60,7 @@ export function StudioAiPanel({
       <div className="border-b border-white/10 p-4">
         <h2 className="text-sm font-medium text-white">AI create</h2>
         <p className="mt-1 text-[12px] leading-relaxed text-white/45">
-          Generate graphic layouts, images, or website mockups straight onto the artboard.
+          Generate graphic layouts, images, or artifact previews straight onto the artboard.
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {modes.map((m) => (

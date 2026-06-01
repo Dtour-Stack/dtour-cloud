@@ -28,6 +28,27 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("AI components")).toHaveCount(0);
   });
 
+  test("design editors expose focused rails and artifact language", async ({ page }) => {
+    await page.goto("/design/canvas");
+
+    await expect(page.locator('[data-tour="canvas-toolbar"]')).toBeVisible();
+    await expect(page.getByText("Start with an artboard")).toBeVisible();
+    await expect(page.getByText("Canva-style")).toHaveCount(0);
+
+    await page.goto("/design/sketch");
+
+    await expect(page.locator('[data-tour="sketch-toolbar"]')).toBeVisible();
+    await expect(page.getByText("Loading canvas…")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Assets/i })).toBeVisible();
+
+    await page.goto("/design/generate");
+
+    await expect(page.getByRole("heading", { name: "Prototype" })).toBeVisible();
+    await expect(page.getByText("Artifact preview", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Copy code/i })).toBeVisible();
+    await expect(page.getByText("Copy HTML")).toHaveCount(0);
+  });
+
   test("admin dashboard exposes Admin Detour workflows", async ({ page }) => {
     await page.goto("/admin");
 

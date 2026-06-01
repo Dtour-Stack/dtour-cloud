@@ -83,22 +83,22 @@ const STARTER_HTML = `<!doctype html>
     <div class="shell">
       <nav>
         <div class="logo"><span class="mark"></span>Detour</div>
-        <div class="nav-item">Generate</div>
-        <div class="nav-item">Studio</div>
+        <div class="nav-item">Prototype</div>
+        <div class="nav-item">Canvas</div>
         <div class="nav-item">Workflows</div>
       </nav>
       <main>
         <section class="hero">
           <h1>Preview agent-native UI before it touches production.</h1>
-          <p>Sandboxed HTML, local state, and a clean Detour surface for fast product decisions.</p>
+          <p>Sandboxed artifact code, local state, and a clean Detour surface for fast product decisions.</p>
           <div class="actions">
             <button id="toggle">Toggle state</button>
-            <button class="secondary">Open in Studio</button>
+            <button class="secondary">Open in Canvas</button>
           </div>
           <div class="grid">
             <div class="card" data-active="true"><div class="label">Status</div><div class="value">Ready</div></div>
-            <div class="card"><div class="label">Preview</div><div class="value">HTML</div></div>
-            <div class="card"><div class="label">Runtime</div><div class="value">JS</div></div>
+            <div class="card"><div class="label">Preview</div><div class="value">Artifact</div></div>
+            <div class="card"><div class="label">Runtime</div><div class="value">Local</div></div>
           </div>
         </section>
       </main>
@@ -126,7 +126,7 @@ function extractJsonObject(raw: string): unknown {
 
 function parsePreview(raw: string): GeneratedPreview {
   const obj = extractJsonObject(raw) as { title?: unknown; html?: unknown; notes?: unknown };
-  if (typeof obj.html !== "string" || !obj.html.trim()) throw new Error("The model did not return HTML.");
+  if (typeof obj.html !== "string" || !obj.html.trim()) throw new Error("The model did not return preview code.");
   const notes = Array.isArray(obj.notes)
     ? obj.notes.filter((note): note is string => typeof note === "string").slice(0, 4)
     : [];
@@ -153,7 +153,7 @@ async function generateHtmlPreview(
   mode: GenerateMode,
   prompt: string,
 ): Promise<GeneratedPreview> {
-  const refId = `design-html-${mode}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const refId = `design-artifact-${mode}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const { text } = await runChat({
     token,
     model: "anthropic/claude-sonnet-4.5",
@@ -177,7 +177,7 @@ export function GeneratePanel() {
   const [preview, setPreview] = useState<GeneratedPreview>({
     title: "Detour preview",
     html: STARTER_HTML,
-    notes: ["Sandboxed iframe", "Inline CSS", "Vanilla JS toggle"],
+    notes: ["Sandboxed artifact", "Inline styles", "Local JS toggle"],
   });
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -264,12 +264,12 @@ export function GeneratePanel() {
             <Icon.Wand size={14} /> {busy ? "Generating" : "Generate preview"}
           </Button>
           <Button variant="secondary" onClick={() => void copyHtml()} disabled={!preview.html}>
-            <Icon.Copy size={14} /> {copied ? "Copied" : "Copy HTML"}
+            <Icon.Copy size={14} /> {copied ? "Copied" : "Copy code"}
           </Button>
           <Button
             variant="ghost"
             onClick={() => {
-              setPreview({ title: "Detour preview", html: STARTER_HTML, notes: ["Sandboxed iframe", "Inline CSS", "Vanilla JS toggle"] });
+              setPreview({ title: "Detour preview", html: STARTER_HTML, notes: ["Sandboxed artifact", "Inline styles", "Local JS toggle"] });
               setCopied(false);
               setError(null);
             }}
@@ -283,7 +283,7 @@ export function GeneratePanel() {
         <div className="flex h-12 items-center justify-between border-b border-white/10 bg-black/40 px-4">
           <div className="min-w-0">
             <div className="truncate text-sm font-medium text-white">{preview.title}</div>
-            <div className="text-[11px] text-white/35">Sandboxed web viewer</div>
+            <div className="text-[11px] text-white/35">Artifact preview</div>
           </div>
           <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-white/45">
             <span className={cn("h-1.5 w-1.5 rounded-full", busy ? "bg-amber-300 motion-safe:animate-pulse" : "bg-emerald-300")} />
@@ -302,7 +302,7 @@ export function GeneratePanel() {
             />
           </div>
           <aside className="bg-[#0d0d0d] p-4">
-            <div className="text-[10px] uppercase tracking-widest text-white/35">Preview notes</div>
+            <div className="text-[10px] uppercase tracking-widest text-white/35">Artifact notes</div>
             <div className="mt-3 space-y-2">
               {preview.notes.length === 0 ? (
                 <p className="text-[12px] leading-relaxed text-white/45">No notes returned with this preview.</p>
@@ -315,7 +315,7 @@ export function GeneratePanel() {
               )}
             </div>
             <details className="mt-4 rounded-xl border border-white/10 bg-black/25 p-3">
-              <summary className="cursor-pointer text-[12px] font-medium text-white/75">Source</summary>
+              <summary className="cursor-pointer text-[12px] font-medium text-white/75">Code</summary>
               <textarea
                 readOnly
                 value={preview.html}

@@ -9,6 +9,10 @@ import {
   useState,
 } from "react";
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { DESIGN_SURFACE } from "../designProject";
@@ -60,7 +64,7 @@ export function StudioCanvas() {
   const [tool, setTool] = useState<Tool>("select");
   const [selection, setSelection] = useState<string | null>(null);
   const [backend, setBackend] = useState<"webgpu" | "canvas2d" | "loading">("loading");
-  const [aiOpen, setAiOpen] = useState(true);
+  const [aiOpen, setAiOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [showArtboards, setShowArtboards] = useState(false);
@@ -72,11 +76,12 @@ export function StudioCanvas() {
   viewRef.current = view;
   toolRef.current = tool;
 
-  const token = getDtourSessionToken();
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const { project } = useDesignProject();
   const saved = useQuery(
     anyApi.design.getDoc,
-    token ? { token, kind: DESIGN_SURFACE.studio, project } : "skip",
+    token && !testUser ? { token, kind: DESIGN_SURFACE.studio, project } : "skip",
   ) as { data: string; updatedAt: number } | null | undefined;
   const saveDoc = useMutation(anyApi.design.saveDoc);
   const saveProjectAs = useMutation(anyApi.design.saveProjectAs);
@@ -109,6 +114,11 @@ export function StudioCanvas() {
   const persist = useCallback(
     async (manual = false) => {
       if (!token) return;
+      if (testUser) {
+        setSaveState("saved");
+        if (manual) window.setTimeout(() => setSaveState("idle"), 1500);
+        return;
+      }
       setSaveState("saving");
       try {
         await saveDoc({
@@ -123,7 +133,7 @@ export function StudioCanvas() {
         setSaveState("idle");
       }
     },
-    [saveDoc, token, project],
+    [saveDoc, token, project, testUser],
   );
 
   const scheduleSave = useCallback(() => {
@@ -439,210 +449,226 @@ export function StudioCanvas() {
   const cursor =
     tool === "select" ? (gestureRef.current?.kind === "pan" ? "grabbing" : "default") : "crosshair";
 
+  const sideMode = showArtboards ? "artboards" : layersOpen ? "layers" : null;
+
   return (
-    <div ref={rootRef} className="flex h-full min-h-0 w-full overflow-hidden bg-[#0a0a0a]">
+    <div ref={rootRef} className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0a0a0a]">
       <div
-        ref={rootRef}
-        className="relative min-h-0 min-w-0 flex-1"
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
+        data-studio-ui
+        data-tour="canvas-toolbar"
+        className="z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl lg:flex-nowrap"
       >
-        <canvas
-          ref={canvasRef}
-          onPointerDown={onPointerDown}
-          className="absolute inset-0 block h-full w-full touch-none"
-          style={{ cursor }}
-        />
-        <DomNodeLayer
-          scene={scene}
-          view={view}
-          selection={selection}
-          onSelect={setSelection}
-          onChangeNode={(id, patch) =>
-            setScene((s) => ({ nodes: s.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)) }))
-          }
-          onDragStart={(id, e) => {
-            const n = sceneRef.current.nodes.find((x) => x.id === id);
-            if (!n) return;
-            const rect = canvasRef.current!.getBoundingClientRect();
-            gestureRef.current = {
-              kind: "move",
-              id,
-              sx: e.clientX - rect.left,
-              sy: e.clientY - rect.top,
-              ox: n.x,
-              oy: n.y,
-            };
+        <DesignProjectControls
+          saveState={saveState}
+          onSave={() => void persist(true)}
+          onSaveAs={async (newName) => {
+            if (!token || testUser) return;
+            await saveProjectAs({
+              token,
+              kind: DESIGN_SURFACE.studio,
+              fromProject: project,
+              toName: newName,
+              data: serializeStudioDoc(sceneRef.current, viewRef.current),
+            });
           }}
         />
 
-        <div
-          data-studio-ui
-          data-tour="canvas-toolbar"
-          className="pointer-events-auto absolute left-1/2 top-4 z-20 flex max-w-[95vw] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-full border border-white/12 bg-[#0d0d0d]/90 p-1 shadow-2xl backdrop-blur-xl"
-        >
+        <div className="hidden h-6 w-px bg-white/10 sm:block" />
+
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/25 p-1" role="toolbar" aria-label="Canvas tools">
           <ToolButton active={tool === "select"} label="Select (V)" onClick={() => setTool("select")}>
-            <Icon.MousePointer size={16} />
+            <Icon.MousePointer size={15} />
           </ToolButton>
           <ToolButton active={tool === "frame"} label="Artboard (F)" onClick={() => setTool("frame")}>
-            <Icon.Frame size={16} />
+            <Icon.Frame size={15} />
           </ToolButton>
           <ToolButton active={tool === "rect"} label="Rectangle (R)" onClick={() => setTool("rect")}>
-            <Icon.Square size={16} />
+            <Icon.Square size={15} />
           </ToolButton>
           <ToolButton active={tool === "ellipse"} label="Ellipse (O)" onClick={() => setTool("ellipse")}>
-            <Icon.Circle size={16} />
+            <Icon.Circle size={15} />
           </ToolButton>
           <ToolButton active={tool === "text"} label="Text (T)" onClick={() => setTool("text")}>
-            <Icon.Type size={16} />
+            <Icon.Type size={15} />
           </ToolButton>
-          <ToolButton active={tool === "image"} label="Image" onClick={() => setTool("image")}>
-            <Icon.Image size={16} />
+          <ToolButton active={tool === "image"} label="Image" onClick={() => setShowGallery(true)}>
+            <Icon.Image size={15} />
           </ToolButton>
-          <div className="mx-1 hidden h-5 w-px bg-white/10 sm:block" />
+        </div>
+
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1">
           <button
             type="button"
             data-studio-ui
-            onClick={() => setShowArtboards((v) => !v)}
-            className="hidden rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white sm:block"
+            onClick={() => {
+              setShowArtboards((v) => !v);
+              setLayersOpen(false);
+            }}
+            className={cn(
+              "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
+              showArtboards ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/10 hover:text-white",
+            )}
           >
-            Artboards
+            <Icon.Frame size={14} /> Artboards
           </button>
           <button
             type="button"
             data-studio-ui
             onClick={() => setShowGallery(true)}
-            className="rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
+            className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/65 transition hover:bg-white/10 hover:text-white"
           >
-            Gallery
+            <Icon.Image size={14} /> Assets
           </button>
-          <DesignProjectControls
-            saveState={saveState}
-            onSave={() => void persist(true)}
-            onSaveAs={async (newName) => {
-              if (!token) return;
-              await saveProjectAs({
-                token,
-                kind: DESIGN_SURFACE.studio,
-                fromProject: project,
-                toName: newName,
-                data: serializeStudioDoc(sceneRef.current, viewRef.current),
-              });
-            }}
-          />
-          <div className="mx-1 h-5 w-px bg-white/10" />
           <GuidedTour id="canvas" heading="Design Studio" steps={CANVAS_TOUR} />
-          <div className="mx-1 h-5 w-px bg-white/10" />
           <button
             type="button"
             data-studio-ui
-            onClick={() => setLayersOpen((v) => !v)}
+            onClick={() => {
+              setLayersOpen((v) => !v);
+              setShowArtboards(false);
+            }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-[12px] transition",
-              layersOpen ? "bg-white/10 text-white" : "text-white/75 hover:bg-white/10",
+              "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
+              layersOpen ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/10 hover:text-white",
             )}
           >
-            Layers
+            <Icon.LayoutGrid size={14} /> Layers
           </button>
           <button
             type="button"
             data-studio-ui
             onClick={() => setAiOpen((v) => !v)}
             className={cn(
-              "rounded-full px-3 py-1.5 text-[12px] transition",
-              aiOpen ? "bg-white/10 text-white" : "text-white/75 hover:bg-white/10",
+              "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
+              aiOpen ? "bg-white text-black" : "text-white/65 hover:bg-white/10 hover:text-white",
             )}
           >
-            AI
+            <Icon.Wand size={14} /> AI
           </button>
+          <div className="ml-1 hidden items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] text-white/45 md:flex">
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                backend === "webgpu" ? "bg-emerald-400" : backend === "canvas2d" ? "bg-amber-400" : "bg-white/30",
+              )}
+            />
+            {backend === "webgpu" ? "WebGPU" : backend === "canvas2d" ? "Canvas2D" : "Rendering"}
+          </div>
         </div>
-
-        {showArtboards && (
-          <div
-            data-studio-ui
-            className="pointer-events-auto absolute left-1/2 top-16 z-20 w-64 -translate-x-1/2 rounded-2xl border border-white/12 bg-[#0d0d0d]/95 p-2 shadow-2xl backdrop-blur-xl"
-          >
-            {ARTBOARD_PRESETS.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => addArtboard(p)}
-                className="flex w-full flex-col rounded-xl px-3 py-2 text-left transition hover:bg-white/10"
-              >
-                <span className="text-[12px] text-white">{p.name}</span>
-                <span className="text-[10px] text-white/40">
-                  {p.w}×{p.h}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="pointer-events-none absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0d0d0d]/80 px-3 py-1.5 text-[11px] text-white/55 backdrop-blur-xl">
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              backend === "webgpu" ? "bg-emerald-400" : backend === "canvas2d" ? "bg-amber-400" : "bg-white/30",
-            )}
-          />
-          {backend === "webgpu" ? "WebGPU" : backend === "canvas2d" ? "Canvas2D" : "…"}
-        </div>
-
-        {layersOpen && (
-          <div
-            data-studio-ui
-            className="pointer-events-auto absolute bottom-4 left-4 z-20 max-h-64 w-56 overflow-y-auto rounded-2xl border border-white/12 bg-[#0d0d0d]/95 p-2 shadow-2xl backdrop-blur-xl"
-          >
-            {scene.nodes.length === 0 ? (
-              <p className="px-2 py-3 text-[11px] text-white/40">No layers yet</p>
-            ) : (
-              [...scene.nodes].reverse().map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => setSelection(n.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition hover:bg-white/10",
-                    selection === n.id ? "bg-white/10 text-white" : "text-white/60",
-                  )}
-                >
-                  <span className="truncate capitalize">{n.label ?? n.type}</span>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-
-        {selected && (
-          <PropertiesPanel
-            node={selected}
-            onChange={updateNode}
-            onDelete={() => {
-              setScene((s) => ({ nodes: s.nodes.filter((n) => n.id !== selection) }));
-              setSelection(null);
-            }}
-          />
-        )}
-
-        {scene.nodes.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <p className="max-w-sm text-center text-[13px] leading-relaxed text-white/30">
-              Canva-style studio — add an artboard, shapes, text, AI graphics, images, or website mockups.
-              <br />
-              Scroll to zoom · drag canvas to pan.
-            </p>
-          </div>
-        )}
       </div>
 
-      {aiOpen && (
-        <StudioAiPanel
-          token={token}
-          onInsertNodes={insertAiNodes}
-          onInsertImage={(url) => insertImageNode(url)}
-          onInsertEmbed={insertEmbed}
-        />
-      )}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {sideMode && (
+          <aside data-studio-ui className="hidden w-64 shrink-0 border-r border-white/10 bg-[#0d0d0d] p-3 md:block">
+            {sideMode === "artboards" ? (
+              <>
+                <div className="px-1 pb-3">
+                  <div className="text-[11px] font-medium text-white">Artboards</div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-white/40">Add a preset frame to the current viewport.</div>
+                </div>
+                <div className="space-y-1">
+                  {ARTBOARD_PRESETS.map((p) => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => addArtboard(p)}
+                      className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left transition hover:bg-white/10"
+                    >
+                      <span className="text-[12px] text-white/75">{p.name}</span>
+                      <span className="text-[10px] text-white/35">
+                        {p.w}×{p.h}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : scene.nodes.length === 0 ? (
+              <p className="px-2 py-3 text-[12px] text-white/40">No layers yet</p>
+            ) : (
+              <div className="space-y-1">
+                {[...scene.nodes].reverse().map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => setSelection(n.id)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] transition hover:bg-white/10",
+                      selection === n.id ? "bg-white/10 text-white" : "text-white/60",
+                    )}
+                  >
+                    <span className="truncate capitalize">{n.label ?? n.type}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </aside>
+        )}
+
+        <div
+          className="relative min-h-0 min-w-0 flex-1"
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        >
+          <canvas
+            ref={canvasRef}
+            onPointerDown={onPointerDown}
+            className="absolute inset-0 block h-full w-full touch-none"
+            style={{ cursor }}
+          />
+          <DomNodeLayer
+            scene={scene}
+            view={view}
+            selection={selection}
+            onSelect={setSelection}
+            onChangeNode={(id, patch) =>
+              setScene((s) => ({ nodes: s.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)) }))
+            }
+            onDragStart={(id, e) => {
+              const n = sceneRef.current.nodes.find((x) => x.id === id);
+              if (!n) return;
+              const rect = canvasRef.current!.getBoundingClientRect();
+              gestureRef.current = {
+                kind: "move",
+                id,
+                sx: e.clientX - rect.left,
+                sy: e.clientY - rect.top,
+                ox: n.x,
+                oy: n.y,
+              };
+            }}
+          />
+
+          {selected && (
+            <PropertiesPanel
+              node={selected}
+              onChange={updateNode}
+              onDelete={() => {
+                setScene((s) => ({ nodes: s.nodes.filter((n) => n.id !== selection) }));
+                setSelection(null);
+              }}
+            />
+          )}
+
+          {scene.nodes.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <p className="max-w-sm text-center text-[13px] leading-relaxed text-white/30">
+                Start with an artboard, shape, text block, image, AI graphic, or artifact embed.
+                <br />
+                Scroll to zoom · drag canvas to pan.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {aiOpen && (
+          <StudioAiPanel
+            token={token}
+            onInsertNodes={insertAiNodes}
+            onInsertImage={(url) => insertImageNode(url)}
+            onInsertEmbed={insertEmbed}
+          />
+        )}
+      </div>
 
       {showGallery && (
         <GalleryPicker
@@ -760,7 +786,7 @@ function ToolButton({
       data-studio-ui
       onClick={onClick}
       className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-full transition",
+        "flex h-7 w-7 items-center justify-center rounded-md transition",
         active ? "bg-white text-black" : "text-white/55 hover:bg-white/10 hover:text-white",
       )}
     >

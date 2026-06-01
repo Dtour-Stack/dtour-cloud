@@ -11,20 +11,11 @@ import { ProjectsOverview } from "./projects/ProjectsOverview";
 import { WorkflowEditor } from "./workflow/WorkflowEditor";
 
 const DESIGN_NAV: NavItem[] = [
-  { to: "/design", label: "Overview", icon: <Icon.Home />, end: true },
-  { to: "/design/generate", label: "Generate", icon: <Icon.Wand /> },
-  { to: "/design/canvas", label: "Studio", icon: <Icon.Frame /> },
-  { to: "/design/workflows", label: "Workflows", icon: <Icon.Plug /> },
+  { to: "/design/generate", label: "Prototype", icon: <Icon.Wand /> },
+  { to: "/design/canvas", label: "Canvas", icon: <Icon.Frame /> },
   { to: "/design/sketch", label: "Sketch", icon: <Icon.SquarePen /> },
-  { to: "/design/library", label: "Style Library", icon: <Icon.LayoutGrid /> },
-  { to: "/design/system", label: "Design System", icon: <Icon.Palette /> },
-  { to: "/design/projects", label: "All projects", icon: <Icon.LayoutGrid />, group: "Projects", end: true },
-  {
-    to: "/design/projects/gallery",
-    label: "Gallery",
-    icon: <Icon.Image />,
-    group: "Projects",
-  },
+  { to: "/design/workflows", label: "Workflows", icon: <Icon.Plug /> },
+  { to: "/design/library", label: "Library", icon: <Icon.LayoutGrid /> },
 ];
 
 function Section({
@@ -57,13 +48,13 @@ function Overview() {
     {
       to: "/design/generate",
       icon: <Icon.Wand size={18} />,
-      title: "Generate",
-      desc: "HTML mockups, wireframes, and UI previews in a sandboxed viewer.",
+      title: "Prototype",
+      desc: "Claude-style artifact previews for mockups, wireframes, and small interactive UI.",
     },
     {
       to: "/design/canvas",
       icon: <Icon.Frame size={18} />,
-      title: "Studio",
+      title: "Canvas",
       desc: "Artboards for frames, text, media, and embedded website previews.",
     },
     {
@@ -75,14 +66,8 @@ function Overview() {
     {
       to: "/design/library",
       icon: <Icon.LayoutGrid size={18} />,
-      title: "Style Library",
+      title: "Library",
       desc: "Reusable visual directions for generation prompts and mockups.",
-    },
-    {
-      to: "/design/system",
-      icon: <Icon.Palette size={18} />,
-      title: "Design System",
-      desc: "Detour tokens, type, radius, actions, and surface recipes.",
     },
     {
       to: "/design/projects",
@@ -94,7 +79,7 @@ function Overview() {
   return (
     <Section
       title="Design Studio"
-      description="A focused workspace for generating UI, previewing HTML, composing artboards, and routing assets into agent workflows."
+      description="A focused workspace for artifact previews, artboards, sketches, and agent workflow assets."
     >
       <Panel className="fade-up overflow-hidden p-0">
         <div className="grid gap-px bg-white/10 lg:grid-cols-[1fr_420px]">
@@ -104,15 +89,15 @@ function Overview() {
               Generate the interface, inspect it live, then move it into the canvas.
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60">
-              The Design area is now centered on working surfaces instead of component inventory. Generate creates
-              HTML previews, Studio handles artboards and embeds, and Workflows handles repeatable production chains.
+              The Design area is now centered on working surfaces instead of component inventory. Prototype creates
+              artifact previews, Canvas handles artboards and embeds, and Workflows handles repeatable production chains.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button onClick={() => navigate("/design/generate")}>
                 <Icon.Wand size={14} /> Generate preview
               </Button>
               <Button variant="secondary" onClick={() => navigate("/design/canvas")}>
-                <Icon.Frame size={14} /> Open Studio
+                <Icon.Frame size={14} /> Open canvas
               </Button>
             </div>
           </div>
@@ -123,7 +108,7 @@ function Overview() {
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-300/70" />
                 <span className="ml-2 rounded-full border border-white/10 bg-black/50 px-2 py-0.5 text-[10px] text-white/45">
-                  preview.html
+                  artifact.preview
                 </span>
               </div>
               <div className="space-y-3 p-4">
@@ -138,7 +123,7 @@ function Overview() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {["HTML", "CSS", "JS", "Agent"].map((label) => (
+                  {["Artifact", "Styles", "State", "Agent"].map((label) => (
                     <div key={label} className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-2 text-center text-[10px] text-white/45">
                       {label}
                     </div>
@@ -171,7 +156,7 @@ function Overview() {
         <div className="grid gap-3 md:grid-cols-4">
           {[
             ["Brief", "Prompt and constraints"],
-            ["Preview", "HTML/CSS/JS web viewer"],
+            ["Preview", "Sandboxed artifact viewer"],
             ["Canvas", "Artboard and embeds"],
             ["Workflow", "Repeatable generation"],
           ].map(([label, value]) => (
@@ -375,8 +360,8 @@ function StyleLibrary() {
 function Generate() {
   return (
     <Section
-      title="Generate"
-      description="Generate HTML mockups and wireframes, run lightweight vanilla JS in a sandbox, and inspect the result in a live web viewer."
+      title="Prototype"
+      description="Create Claude-style artifact previews with safe inline code, inspect them live, then move the result into Canvas."
     >
       <GeneratePanel />
     </Section>

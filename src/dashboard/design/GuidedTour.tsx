@@ -9,14 +9,6 @@ export type TourStep = { title: string; body: string; anchor?: string };
 const CARD_W = 360;
 const SPOT_PAD = 10;
 
-/**
- * Reusable first-visit walkthrough for the builder surfaces. Auto-opens once per
- * `id` (persisted in localStorage), re-openable anytime via the inline "Guide"
- * button, and opt-out-able via "Skip · don't show again". When a step has an
- * `anchor`, it spotlights the matching element and parks the card beside it —
- * so the tour actually points at the thing it's describing. Self-contained: drop
- * `<GuidedTour id=… heading=… steps={…} />` into a toolbar.
- */
 export function GuidedTour({
   id,
   heading,
@@ -28,18 +20,9 @@ export function GuidedTour({
   steps: TourStep[];
   label?: string;
 }) {
-  const KEY = `dtour-tour-${id}`;
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(KEY)) setOpen(true);
-    } catch {
-      /* localStorage unavailable → just don't auto-open */
-    }
-  }, [KEY]);
 
   const step = steps[i];
   const anchor = step?.anchor;
@@ -63,14 +46,7 @@ export function GuidedTour({
     };
   }, [open, anchor]);
 
-  function dismiss(remember: boolean) {
-    if (remember) {
-      try {
-        localStorage.setItem(KEY, "1");
-      } catch {
-        /* ignore */
-      }
-    }
+  function dismiss() {
     setOpen(false);
     setI(0);
     setRect(null);
@@ -120,10 +96,10 @@ export function GuidedTour({
       <div className="mt-6 flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => dismiss(true)}
+          onClick={dismiss}
           className="text-xs text-white/40 transition hover:text-white/70"
         >
-          Skip · don't show again
+          Close
         </button>
         <div className="flex items-center gap-2">
           {i > 0 && (
@@ -131,7 +107,7 @@ export function GuidedTour({
               <Icon.ArrowLeft size={14} /> Back
             </Button>
           )}
-          <Button size="sm" onClick={() => (last ? dismiss(true) : setI(i + 1))}>
+          <Button size="sm" onClick={() => (last ? dismiss() : setI(i + 1))}>
             {last ? "Done" : "Next"}
           </Button>
         </div>
@@ -222,7 +198,7 @@ export const SKETCH_TOUR: TourStep[] = [
   },
   {
     title: "Detour toolbar",
-    body: "Gallery drops images onto the board. AI adds labeled shapes from a prompt. Save persists to your account. Excalidraw's drawing tools stay in the canvas above this bottom bar.",
+    body: "Assets drops images onto the board. AI adds labeled shapes from a prompt. Save persists to your account. Excalidraw's drawing tools stay in the canvas below this rail.",
     anchor: "sketch-toolbar",
   },
 ];
@@ -230,7 +206,7 @@ export const SKETCH_TOUR: TourStep[] = [
 export const CANVAS_TOUR: TourStep[] = [
   {
     title: "Design Studio",
-    body: "A Canva-style canvas — artboards, shapes, text, images, and AI-generated graphics or website mockups. WebGPU accelerates shape rendering when your browser supports it.",
+    body: "A focused canvas for artboards, shapes, text, images, AI graphics, and artifact embeds. WebGPU accelerates shape rendering when your browser supports it.",
   },
   {
     title: "1 · Layout tools",
@@ -239,7 +215,7 @@ export const CANVAS_TOUR: TourStep[] = [
   },
   {
     title: "2 · AI & assets",
-    body: "Open AI to generate graphic layouts, images, or HTML website mockups. Gallery and workflow outputs land on the canvas too. Excalidraw diagrams live under Sketch in the sidebar.",
+    body: "Open AI to generate graphic layouts, images, or artifact previews. Assets and workflow outputs land on the canvas too. Excalidraw diagrams live under Sketch in the sidebar.",
     anchor: "canvas-toolbar",
   },
 ];

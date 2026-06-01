@@ -18,6 +18,10 @@ import type {
   OrderedExcalidrawElement,
 } from "@excalidraw/excalidraw/types";
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { DESIGN_SURFACE } from "../designProject";
@@ -40,11 +44,12 @@ const Excalidraw = lazy(() =>
 const AUTO_SAVE_MS = 2500;
 
 export function ExcalidrawDesignCanvas() {
-  const token = getDtourSessionToken();
+  const isTestAuth = readDtourPlaywrightUser() !== null;
+  const token = isTestAuth ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const { project } = useDesignProject();
   const saved = useQuery(
     anyApi.design.getDoc,
-    token ? { token, kind: DESIGN_SURFACE.sketch, project } : "skip",
+    token && !isTestAuth ? { token, kind: DESIGN_SURFACE.sketch, project } : "skip",
   ) as { data: string; updatedAt: number } | null | undefined;
   const saveDoc = useMutation(anyApi.design.saveDoc);
   const saveProjectAs = useMutation(anyApi.design.saveProjectAs);
@@ -65,7 +70,7 @@ export function ExcalidrawDesignCanvas() {
         try {
           await insertImageFromUrl(api, urls[i]!, i);
         } catch {
-          /* skip failed inserts */
+          continue;
         }
       }
       clearPendingImageUrls();
@@ -85,14 +90,15 @@ export function ExcalidrawDesignCanvas() {
   const [insertError, setInsertError] = useState<string | null>(null);
 
   useEffect(() => {
-    hydrated.current = false;
+    hydrated.current = isTestAuth;
     pendingHandled.current = false;
-    setInitialData(undefined);
-    setReady(false);
+    setInitialData(isTestAuth ? null : undefined);
+    setReady(isTestAuth);
     setSaveState("idle");
-  }, [project]);
+  }, [project, isTestAuth]);
 
   useEffect(() => {
+    if (isTestAuth) return;
     if (saved === undefined || hydrated.current) return;
     hydrated.current = true;
     void (async () => {
@@ -103,7 +109,7 @@ export function ExcalidrawDesignCanvas() {
       }
       setReady(true);
     })();
-  }, [saved, project]);
+  }, [saved, project, isTestAuth]);
 
   const persist = useCallback(
     async (
@@ -113,6 +119,13 @@ export function ExcalidrawDesignCanvas() {
       manual = false,
     ) => {
       if (!token) return;
+      if (isTestAuth) {
+        setSaveState("saved");
+        if (manual) {
+          window.setTimeout(() => setSaveState("idle"), 1800);
+        }
+        return;
+      }
       setSaveState("saving");
       try {
         await saveDoc({
@@ -129,7 +142,7 @@ export function ExcalidrawDesignCanvas() {
         setSaveState("idle");
       }
     },
-    [saveDoc, token, project],
+    [saveDoc, token, project, isTestAuth],
   );
 
   const scheduleSave = useCallback(
@@ -216,6 +229,48 @@ export function ExcalidrawDesignCanvas() {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0a0a0a]">
+      <div
+        data-tour="sketch-toolbar"
+        className="z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl lg:flex-nowrap"
+      >
+        <DesignProjectControls
+          saveState={saveState}
+          onSave={() => void saveNow()}
+          onSaveAs={async (newName) => {
+            const api = apiRef.current;
+            if (!api || !token || isTestAuth) return;
+            await saveProjectAs({
+              token,
+              kind: DESIGN_SURFACE.sketch,
+              fromProject: project,
+              toName: newName,
+              data: serializeCanvasSave(api.getSceneElements(), api.getAppState(), api.getFiles()),
+            });
+          }}
+        />
+        <div className="hidden h-6 w-px bg-white/10 sm:block" />
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1">
+          <GuidedTour id="sketch" heading="Sketch" steps={SKETCH_TOUR} />
+          <button
+            type="button"
+            onClick={() => setShowGallery(true)}
+            className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/65 transition hover:bg-white/10 hover:text-white"
+          >
+            <Icon.Image size={14} /> Assets
+          </button>
+          <button
+            type="button"
+            onClick={() => setAiOpen((v) => !v)}
+            className={cn(
+              "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
+              aiOpen ? "bg-white text-black" : "text-white/65 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            <Icon.Wand size={14} /> AI diagram
+          </button>
+        </div>
+      </div>
+
       <div className="relative flex min-h-0 min-w-0 flex-1">
         <div className="excalidraw-sketch-host relative min-h-0 min-w-0 flex-1">
           <Suspense
@@ -293,47 +348,6 @@ export function ExcalidrawDesignCanvas() {
             </button>
           </aside>
         )}
-      </div>
-
-      <div
-        data-tour="sketch-toolbar"
-        className="z-20 flex shrink-0 flex-wrap items-center justify-center gap-1 border-t border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl"
-      >
-        <DesignProjectControls
-          saveState={saveState}
-          onSave={() => void saveNow()}
-          onSaveAs={async (newName) => {
-            const api = apiRef.current;
-            if (!api || !token) return;
-            await saveProjectAs({
-              token,
-              kind: DESIGN_SURFACE.sketch,
-              fromProject: project,
-              toName: newName,
-              data: serializeCanvasSave(api.getSceneElements(), api.getAppState(), api.getFiles()),
-            });
-          }}
-        />
-        <div className="mx-1 h-5 w-px bg-white/10" />
-        <GuidedTour id="sketch" heading="Sketch" steps={SKETCH_TOUR} />
-        <div className="mx-1 h-5 w-px bg-white/10" />
-        <button
-          type="button"
-          onClick={() => setShowGallery(true)}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
-        >
-          <Icon.Image size={14} /> Gallery
-        </button>
-        <button
-          type="button"
-          onClick={() => setAiOpen((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
-            aiOpen ? "bg-white/10 text-white" : "text-white/75",
-          )}
-        >
-          <Icon.Wand size={14} /> AI diagram
-        </button>
       </div>
 
       {showGallery && token && (
