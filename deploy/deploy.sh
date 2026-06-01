@@ -45,11 +45,13 @@ if ! grep -q '^CONVEX_SELF_HOSTED_ADMIN_KEY=' deploy/.env; then
 fi
 ADMIN_KEY="$(envget CONVEX_SELF_HOSTED_ADMIN_KEY)"
 
-echo "==> 4/4  Pushing convex schema + functions"
+echo "==> 4/4  Codegen + push convex schema + functions"
+# codegen pulls deployment config from the live backend (requires step 3 healthy).
+# Run it before deploy so a unreachable backend fails fast with a clear error.
 docker run --rm --network host -v "$ROOT":/app -w /app \
   -e CONVEX_SELF_HOSTED_URL="http://127.0.0.1:3210" \
   -e CONVEX_SELF_HOSTED_ADMIN_KEY="$ADMIN_KEY" \
-  oven/bun:1 sh -c "bun install --frozen-lockfile && bunx convex deploy"
+  oven/bun:1 sh -c "bun install --frozen-lockfile && bunx convex codegen && bunx convex deploy"
 
 # Caddy bind-mounts deploy/Caddyfile by inode; `git reset` rewrites it with a
 # NEW inode, so `up -d` (which doesn't recreate caddy) keeps serving the stale

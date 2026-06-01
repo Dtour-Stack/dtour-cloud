@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   action,
   internalMutation,
@@ -7,11 +8,38 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { getConfig } from "./config_read";
 import { logEvent } from "./events";
 import { resolveRole } from "./rbac";
 
 const HISTORY_LIMIT = 20;
+
+function previewMessage(content: string): string {
+  const t = content.trim().replace(/\s+/g, " ");
+  if (!t) return "";
+  return t.length > 72 ? `${t.slice(0, 72)}…` : t;
+}
+
+async function requireOwnedAgent(
+  ctx: QueryCtx | MutationCtx,
+  callerPubkey: string,
+  agentId: Id<"agents">,
+) {
+  const a = await ctx.db.get(agentId);
+  if (!a || a.owner !== callerPubkey) return null;
+  return a;
+}
+
+function userAgentMessages(
+  ctx: QueryCtx | MutationCtx,
+  agentId: Id<"agents">,
+  owner: string,
+) {
+  return ctx.db
+    .query("agentMessages")
+    .withIndex("by_agent_owner", (q) => q.eq("agentId", agentId).eq("owner", owner));
+}
 
 export const list = query({
   args: { token: v.string() },
@@ -23,17 +51,27 @@ export const list = query({
       .withIndex("by_owner", (q) => q.eq("owner", caller.pubkey))
       .order("desc")
       .collect();
-    return rows.map((a) => ({
-      id: a._id,
-      name: a.name,
-      description: a.description ?? null,
-      model: a.model,
-      type: a.type,
-      createdAt: a.createdAt,
-      plugins: a.plugins ?? [],
-      published: a.published ?? false,
-      priceUsd: a.priceUsd ?? null,
-    }));
+    const enriched = await Promise.all(
+      rows.map(async (a) => {
+        const last = await userAgentMessages(ctx, a._id, caller.pubkey)
+          .order("desc")
+          .first();
+        return {
+          id: a._id,
+          name: a.name,
+          description: a.description ?? null,
+          model: a.model,
+          type: a.type,
+          createdAt: a.createdAt,
+          plugins: a.plugins ?? [],
+          published: a.published ?? false,
+          priceUsd: a.priceUsd ?? null,
+          lastChatAt: last?.at ?? a.createdAt,
+          lastPreview: last ? previewMessage(last.content) : null,
+        };
+      }),
+    );
+    return enriched.sort((a, b) => b.lastChatAt - a.lastChatAt);
   },
 });
 
@@ -148,14 +186,17 @@ export const messages = query({
   handler: async (ctx, { token, agentId }) => {
     const caller = await resolveRole(ctx, token);
     if (!caller) return [];
-    const a = await ctx.db.get(agentId);
-    if (!a || a.owner !== caller.pubkey) return [];
-    const rows = await ctx.db
-      .query("agentMessages")
-      .withIndex("by_agent", (q) => q.eq("agentId", agentId))
+    if (!(await requireOwnedAgent(ctx, caller.pubkey, agentId))) return [];
+    const rows = await userAgentMessages(ctx, agentId, caller.pubkey)
       .order("asc")
       .collect();
-    return rows.map((m) => ({ id: m._id, role: m.role, content: m.content, imageUrl: m.imageUrl ?? null, at: m.at }));
+    return rows.map((m) => ({
+      id: m._id,
+      role: m.role,
+      content: m.content,
+      imageUrl: m.imageUrl ?? null,
+      at: m.at,
+    }));
   },
 });
 
@@ -164,12 +205,10 @@ export const clearChat = mutation({
   handler: async (ctx, { token, agentId }) => {
     const caller = await resolveRole(ctx, token);
     if (!caller) throw new Error("Not authenticated");
-    const a = await ctx.db.get(agentId);
-    if (!a || a.owner !== caller.pubkey) throw new Error("Not found");
-    const msgs = await ctx.db
-      .query("agentMessages")
-      .withIndex("by_agent", (q) => q.eq("agentId", agentId))
-      .collect();
+    if (!(await requireOwnedAgent(ctx, caller.pubkey, agentId))) {
+      throw new Error("Not found");
+    }
+    const msgs = await userAgentMessages(ctx, agentId, caller.pubkey).collect();
     for (const m of msgs) await ctx.db.delete(m._id);
     return { ok: true };
   },
@@ -181,11 +220,9 @@ export const forChat = internalQuery({
   handler: async (ctx, { token, agentId }) => {
     const caller = await resolveRole(ctx, token);
     if (!caller) return null;
-    const a = await ctx.db.get(agentId);
-    if (!a || a.owner !== caller.pubkey) return null;
-    const rows = await ctx.db
-      .query("agentMessages")
-      .withIndex("by_agent", (q) => q.eq("agentId", agentId))
+    const a = await requireOwnedAgent(ctx, caller.pubkey, agentId);
+    if (!a) return null;
+    const rows = await userAgentMessages(ctx, agentId, caller.pubkey)
       .order("desc")
       .take(HISTORY_LIMIT);
     // "auto" / empty → route to the admin-set default, else ElizaCloud's free model.
@@ -253,8 +290,10 @@ export const startAssistantMessage = internalMutation({
 });
 
 export const setMessageContent = internalMutation({
-  args: { id: v.id("agentMessages"), content: v.string() },
-  handler: async (ctx, { id, content }) => {
+  args: { id: v.id("agentMessages"), content: v.string(), owner: v.string() },
+  handler: async (ctx, { id, content, owner }) => {
+    const msg = await ctx.db.get(id);
+    if (!msg || msg.owner !== owner) throw new Error("Message not found");
     await ctx.db.patch(id, { content });
   },
 });
@@ -320,11 +359,13 @@ export const chat = action({
       await ctx.runMutation(internal.agents.setMessageContent, {
         id: asstId,
         content: text || "(no response)",
+        owner: data.owner,
       });
     } catch (e) {
       await ctx.runMutation(internal.agents.setMessageContent, {
         id: asstId,
         content: `⚠️ ${e instanceof Error ? e.message : "Inference error"}`,
+        owner: data.owner,
       });
     }
     return { ok: true };

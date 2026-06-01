@@ -125,7 +125,7 @@ export const FLAG_REGISTRY: readonly FlagDef[] = [
     defaultEnabled: true,
     label: "Billing & credits",
     description: "Credit balance, top-up, and usage.",
-    routes: ["/billing"],
+    routes: ["/profile/billing", "/billing"],
     status: "live",
   },
   {
@@ -135,7 +135,7 @@ export const FLAG_REGISTRY: readonly FlagDef[] = [
     defaultEnabled: true,
     label: "Affiliates",
     description: "$ELIZA referral program + invite links.",
-    routes: ["/affiliates"],
+    routes: ["/profile/affiliates", "/affiliates"],
     status: "live",
   },
   {

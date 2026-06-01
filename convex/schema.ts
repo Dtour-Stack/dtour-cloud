@@ -127,7 +127,9 @@ export default defineSchema({
     // Optional gallery image attached to a user message (vision chat).
     imageUrl: v.optional(v.string()),
     at: v.number(),
-  }).index("by_agent", ["agentId"]),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_agent_owner", ["agentId", "owner"]),
 
   // User inbox — admin/system messages + push notifications.
   messages: defineTable({

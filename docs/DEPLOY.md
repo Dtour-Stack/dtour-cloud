@@ -42,7 +42,7 @@ cp deploy/env.prod.example deploy/.env
 #   INSTANCE_SECRET="$(openssl rand -hex 32)"
 #   VITE_SOLANA_RPC_URL=<a real RPC>
 
-bash deploy/deploy.sh   # builds frontend, brings up backend+caddy+dashboard, pushes functions
+bash deploy/deploy.sh   # builds frontend, brings up backend+caddy+dashboard, codegen + pushes functions
 ```
 
 Caddy issues TLS for `DOMAIN` automatically once DNS resolves to the droplet.

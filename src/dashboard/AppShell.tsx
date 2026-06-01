@@ -34,8 +34,6 @@ export const USER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: <Icon.Home />, end: true },
   { to: "/agents", label: "Agents", icon: <Icon.Bot /> },
   { to: "/gallery", label: "Gallery", icon: <Icon.Image /> },
-  { to: "/affiliates", label: "Affiliates", icon: <Icon.Flag /> },
-  { to: "/billing", label: "Billing", icon: <Icon.Wallet /> },
 ];
 
 /** Shared app shell: collapsible nav, header (with admin context switcher),

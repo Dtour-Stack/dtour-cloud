@@ -34,7 +34,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
         <div className="flex gap-3 text-sm">
           <Link to="/profile" className="text-purple-300 hover:underline">Edit profile</Link>
           <Link to="/security" className="text-purple-300 hover:underline">Security</Link>
-          <Link to="/billing" className="text-purple-300 hover:underline">Billing</Link>
+          <Link to="/profile/billing" className="text-purple-300 hover:underline">Billing</Link>
         </div>
       </div>
     );

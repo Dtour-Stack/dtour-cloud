@@ -24,7 +24,9 @@ const DesignDashboardPage = lazy(
 const CodingDashboardPage = lazy(
   () => import("@/dashboard/coding/CodingDashboardPage"),
 );
-const ProfilePage = lazy(() => import("@/dashboard/profile/ProfilePage"));
+const ProfileDashboardPage = lazy(
+  () => import("@/dashboard/profile/ProfileDashboardPage"),
+);
 const AgentsPage = lazy(() => import("@/dashboard/agents/AgentsPage"));
 
 // New dashboard surfaces (one file per surface, owned by sibling agents). Each
@@ -67,7 +69,19 @@ export default function App() {
           path="/profile"
           element={
             <RequireSession>
-              <ProfilePage />
+              <SolanaWalletProvider>
+                <ProfileDashboardPage />
+              </SolanaWalletProvider>
+            </RequireSession>
+          }
+        />
+        <Route
+          path="/profile/:section"
+          element={
+            <RequireSession>
+              <SolanaWalletProvider>
+                <ProfileDashboardPage />
+              </SolanaWalletProvider>
             </RequireSession>
           }
         />
@@ -177,15 +191,11 @@ export default function App() {
             </RequireSession>
           }
         />
-        {/* Billing nests the Solana wallet adapter so the Top-up modal can sign
-            with the connected wallet — same pattern as the admin/coding routes. */}
         <Route
           path="/billing"
           element={
             <RequireSession>
-              <SolanaWalletProvider>
-                <BillingPage />
-              </SolanaWalletProvider>
+              <BillingPage />
             </RequireSession>
           }
         />

@@ -1,7 +1,7 @@
 import { useAction, useMutation } from "convex/react";
 import { anyApi } from "convex/server";
 import { useCallback, useEffect, useState } from "react";
-import { AppShell } from "@/dashboard/AppShell";
+import { Navigate } from "react-router-dom";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, Icon } from "@/ui";
 
@@ -25,7 +25,7 @@ const NETWORKS = [
   { id: "ethereum", label: "Ethereum" },
 ];
 
-export default function AffiliatesPage() {
+export function AffiliatesHome() {
   const token = getDtourSessionToken();
   const myStats = useAction(anyApi.affiliates.myStats);
   const setWallet = useMutation(anyApi.affiliates.setPayoutWallet);
@@ -77,8 +77,7 @@ export default function AffiliatesPage() {
   }
 
   return (
-    <AppShell title="Affiliates">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
         <div>
           <h1 className="text-xl font-semibold text-white">Affiliate program</h1>
           <p className="mt-1 text-sm text-white/50">
@@ -169,9 +168,12 @@ export default function AffiliatesPage() {
         </div>
 
         {msg && <p className="text-xs text-emerald-200/80">{msg}</p>}
-      </div>
-    </AppShell>
+    </div>
   );
+}
+
+export default function AffiliatesPage() {
+  return <Navigate to="/profile/affiliates" replace />;
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

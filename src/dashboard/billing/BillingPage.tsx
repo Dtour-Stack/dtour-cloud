@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useState } from "react";
-import { AppShell } from "@/dashboard/AppShell";
+import { Navigate } from "react-router-dom";
 import { TopUpModal } from "@/dashboard/coding/TopUpModal";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, Icon } from "@/ui";
@@ -9,7 +9,7 @@ import { Button, Icon } from "@/ui";
 type Credits = { balanceUsd: number; holder: boolean } | null | undefined;
 type Pricing = { example: { nonHolderPerHourUsd: number; holderPerHourUsd: number } } | undefined;
 
-export default function BillingPage() {
+export function BillingHome() {
   const token = getDtourSessionToken();
   const credits = useQuery(anyApi.coding.myCredits, token ? { token } : "skip") as Credits;
   const pricing = useQuery(anyApi.coding.pricing, {}) as Pricing;
@@ -22,8 +22,8 @@ export default function BillingPage() {
       : null;
 
   return (
-    <AppShell title="Billing">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <>
+      <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
         <div>
           <h1 className="text-xl font-semibold text-white">Billing</h1>
           <p className="mt-1 text-sm text-white/50">
@@ -63,6 +63,10 @@ export default function BillingPage() {
       {topUp && token && (
         <TopUpModal token={token} onClose={() => setTopUp(false)} onCredited={() => {}} />
       )}
-    </AppShell>
+    </>
   );
+}
+
+export default function BillingPage() {
+  return <Navigate to="/profile/billing" replace />;
 }

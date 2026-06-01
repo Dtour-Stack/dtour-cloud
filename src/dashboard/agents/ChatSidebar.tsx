@@ -5,7 +5,13 @@ import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 
-type Agent = { id: string; name: string; createdAt: number };
+type Agent = {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastChatAt: number;
+  lastPreview: string | null;
+};
 
 /** ChatGPT-style chat rail: New agent + search at top, a scrollable "Recents"
  *  list of the user's agents below. Rendered by AppShell on the agents pages. */
@@ -99,14 +105,21 @@ export function ChatSidebar({
               to={`/agents/${a.id}`}
               onClick={closeMobile}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+                "flex items-start gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
                 a.id === agentId
                   ? "bg-white/10 text-white"
                   : "text-white/65 hover:bg-white/5 hover:text-white",
               )}
             >
-              <Icon.Bot size={15} />
-              <span className="truncate">{a.name}</span>
+              <Icon.Bot size={15} className="mt-0.5 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{a.name}</span>
+                {a.lastPreview ? (
+                  <span className="mt-0.5 block truncate text-[11px] text-white/35">
+                    {a.lastPreview}
+                  </span>
+                ) : null}
+              </span>
             </NavLink>
           ))
         )}

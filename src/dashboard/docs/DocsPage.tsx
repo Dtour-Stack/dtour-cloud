@@ -8,7 +8,7 @@ const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
   { title: "Agents", body: "Create lightweight agents — persona + model, no container.", to: "/agents" },
   { title: "Workflows & Design", body: "Compose generation + agent graphs visually.", to: "/design" },
   { title: "Coding sandboxes", body: "Real coding agents in isolated sandboxes, billed in credits.", to: "/coding" },
-  { title: "Affiliates", body: "Earn a share of the platform fee on referrals.", to: "/affiliates" },
+  { title: "Affiliates", body: "Earn a share of the platform fee on referrals.", to: "/profile/affiliates" },
   { title: "API", body: "Programmatic access — mint a key, call the Detour API.", to: "/api-keys" },
   { title: "elizaOS docs", body: "The underlying agent runtime documentation.", href: "https://docs.elizaos.ai" },
 ];
