@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { getDtourSessionToken } from "@/lib/session";
+import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { Button, cn, Icon, IconButton } from "@/ui";
 import {
   AiConversation,
@@ -120,7 +121,8 @@ function shortPubkey(value: string | null) {
 }
 
 export function AdminDetourAssistant() {
-  const token = getDtourSessionToken();
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? null : getDtourSessionToken();
   const overview = useQuery(
     anyApi.adminAssistant.overview,
     token ? { token } : "skip",

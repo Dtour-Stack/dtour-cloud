@@ -5,6 +5,10 @@ import { getDtourSessionToken } from "@/lib/session";
 import { useFlags } from "@/lib/useFlags";
 import { isRouteEnabled } from "@/lib/surfaceFlags";
 import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
+import {
   Badge,
   buttonClasses,
   Button,
@@ -59,12 +63,14 @@ function truncate(addr: string): string {
 }
 
 export function DashboardHome() {
-  const token = getDtourSessionToken();
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const flags = useFlags();
-  const me = useQuery(
+  const meQuery = useQuery(
     anyApi.users.me,
-    token ? { token } : "skip",
+    token && !testUser ? { token } : "skip",
   ) as Me | undefined;
+  const me = testUser ?? meQuery;
 
   const loading = me === undefined;
   const name = me?.username ? `@${me.username}` : me ? truncate(me.pubkey) : "";

@@ -2,6 +2,10 @@ import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { atLeast, type Role } from "@/lib/roles";
 import { getDtourSessionToken } from "@/lib/session";
 
@@ -14,11 +18,13 @@ export function RequireRole({
   min: Role;
   children: ReactNode;
 }) {
-  const token = getDtourSessionToken();
-  const me = useQuery(anyApi.users.me, token ? { token } : "skip") as
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
+  const meQuery = useQuery(anyApi.users.me, token && !testUser ? { token } : "skip") as
     | { username: string | null; role: Role }
     | null
     | undefined;
+  const me = testUser ?? meQuery;
 
   if (!token || me === null) return <Navigate to="/login" replace />;
   if (me === undefined) {

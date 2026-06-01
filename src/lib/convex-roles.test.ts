@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { atLeast, baseSwerveTag, ROLE_LABEL } from "../../convex/roles";
 
 describe("Convex role access", () => {

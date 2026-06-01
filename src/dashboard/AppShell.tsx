@@ -5,6 +5,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { usePublicConfig } from "@/lib/useConfig";
 import { useFlags } from "@/lib/useFlags";
 import { isRouteEnabled } from "@/lib/surfaceFlags";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { isAdmin, isPro, type Role } from "@/lib/roles";
 import { DTOUR_SESSION_KEY, getDtourSessionToken } from "@/lib/session";
 import { cn, Icon, IconButton } from "@/ui";
@@ -61,17 +65,20 @@ export function AppShell({
   sidebar?: (o: { collapsed: boolean; closeMobile: () => void }) => ReactNode;
 }) {
   const navigate = useNavigate();
-  const token = getDtourSessionToken();
-  const me = useQuery(anyApi.users.me, token ? { token } : "skip") as Me;
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
+  const meQuery = useQuery(anyApi.users.me, token && !testUser ? { token } : "skip") as Me;
+  const me = testUser ?? meQuery;
   // Early-access login pins the stored balance to 0; re-read the live on-chain
   // $DTOUR balance once on mount so every section shows the REAL number.
   const refreshBalance = useAction(anyApi.users.refreshBalance);
   useEffect(() => {
-    if (token) void refreshBalance({ token }).catch(() => {});
-  }, [token, refreshBalance]);
+    if (token && !testUser) void refreshBalance({ token }).catch(() => {});
+  }, [token, testUser, refreshBalance]);
   // Attribute a pending affiliate referral (captured from ?ref= at load) once.
   const attributeRef = useMutation(anyApi.affiliates.attribute);
   useEffect(() => {
+    if (testUser) return;
     if (!token) return;
     let ref: string | null = null;
     try {
@@ -87,21 +94,21 @@ export function AppShell({
         /* ignore */
       }
     });
-  }, [token, attributeRef]);
+  }, [token, testUser, attributeRef]);
   // Auto-provision the user's own affiliate code + invite link on first session,
   // so every signup can invite friends and earn $ELIZA from day one.
   const provisionAffiliate = useMutation(anyApi.affiliates.getOrCreateCode);
   useEffect(() => {
-    if (token) void provisionAffiliate({ token }).catch(() => {});
-  }, [token, provisionAffiliate]);
+    if (token && !testUser) void provisionAffiliate({ token }).catch(() => {});
+  }, [token, testUser, provisionAffiliate]);
   // One-time free starter credits so metered inference doesn't wall new users.
   const claimStarter = useAction(anyApi.credits.claimStarter);
   useEffect(() => {
-    if (token) void claimStarter({ token }).catch(() => {});
-  }, [token, claimStarter]);
+    if (token && !testUser) void claimStarter({ token }).catch(() => {});
+  }, [token, testUser, claimStarter]);
   const unread = useQuery(
     anyApi.messages.unreadCount,
-    token ? { token } : "skip",
+    token && !testUser ? { token } : "skip",
   ) as number | undefined;
   const cfg = usePublicConfig();
   const flags = useFlags();

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { atLeast, isAdmin, isPro, ROLE_LABEL } from "./roles";
 
 describe("role access", () => {
