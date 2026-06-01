@@ -83,6 +83,7 @@ services:
       - PORT=8787
       - CONVEX_URL=http://backend:3210
       - E2B_API_KEY=${E2B_API_KEY:-}
+      - E2B_TEMPLATE=${E2B_TEMPLATE:-}
       - CODING_SESSION_MS=${CODING_SESSION_MS:-900000}
 
 volumes:

@@ -427,4 +427,17 @@ export default defineSchema({
     amountEliza: v.optional(v.number()), // $ELIZA tokens at request-time price
     elizaPriceUsd: v.optional(v.number()),
   }).index("by_pubkey", ["pubkey"]),
+
+  // Per-user API keys for coding agents (OpenRouter / OpenAI Codex / Anthropic / Pi).
+  // Ciphertext only — decrypted in Node actions for the E2B relay bootstrap.
+  codingProviderSecrets: defineTable({
+    pubkey: v.string(),
+    provider: v.string(), // openrouter | openai | anthropic
+    ciphertext: v.string(),
+    iv: v.string(),
+    prefix: v.string(), // public hint, e.g. sk-or-v1
+    updatedAt: v.number(),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_pubkey_provider", ["pubkey", "provider"]),
 });

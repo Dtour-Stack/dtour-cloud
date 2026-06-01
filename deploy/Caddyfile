@@ -27,6 +27,9 @@ www.{$DOMAIN} {
 	handle /coding-ws* {
 		reverse_proxy coding-relay:8787
 	}
+	handle /coding-health {
+		reverse_proxy coding-relay:8787
+	}
 
 	# Frontend SPA — every other path falls back to index.html for client routing.
 	handle {
