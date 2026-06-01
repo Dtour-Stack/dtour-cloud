@@ -11,9 +11,10 @@ import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
 import { generateWorkflowGraph } from "./aiGenerate";
+import { NodeInspector } from "./NodeInspector";
 import { defaultValues, getDef, NODE_DEFS, PORT_COLOR } from "./registry";
 import { type Graph, TEMPLATES } from "./templates";
-import type { Edge, NodeInstance, PortType, Viewport, WidgetDef } from "./types";
+import type { Edge, NodeDef, NodeInstance, PortType, Viewport } from "./types";
 
 const NODE_W = 208;
 const HEADER_H = 38;
@@ -490,8 +491,9 @@ export function WorkflowEditor() {
           return (
             <div
               key={n.id}
+              onPointerDown={(e) => startMove(e, n.id)}
               className={cn(
-                "absolute rounded-2xl border bg-black/50 shadow-2xl backdrop-blur-md",
+                "absolute cursor-grab rounded-2xl border bg-black/50 shadow-2xl backdrop-blur-md active:cursor-grabbing",
                 selected ? "border-purple-400/70 ring-1 ring-purple-400/40" : "border-white/10",
               )}
               style={{ left: n.x, top: n.y, width: NODE_W, zIndex: selected ? 2 : 1 }}
@@ -536,21 +538,14 @@ export function WorkflowEditor() {
                 ))}
               </div>
 
-              {/* widgets */}
-              {def.widgets.length > 0 && (
-                <div className="space-y-2 px-3 pb-3 pt-1">
-                  {def.widgets.map((w) => (
-                    <Widget
-                      key={w.key}
-                      def={w}
-                      value={n.values[w.key]}
-                      onChange={(val) =>
-                        setNodes((ns) => ns.map((x) => (x.id === n.id ? { ...x, values: { ...x.values, [w.key]: val } } : x)))
-                      }
-                    />
-                  ))}
-                </div>
-              )}
+              {/* compact value summary — full editing lives in the Node Inspector */}
+              {def.widgets.length > 0 &&
+                (() => {
+                  const sum = summarize(def, n.values);
+                  return sum ? (
+                    <div className="truncate px-3 pb-2.5 pt-1 text-[11px] text-white/40">{sum}</div>
+                  ) : null;
+                })()}
 
               {/* run status / output */}
               {st?.status === "error" && (
@@ -609,6 +604,7 @@ export function WorkflowEditor() {
       >
         <button
           type="button"
+          data-tour="add-node"
           onClick={() => {
             const r = ref.current!.getBoundingClientRect();
             const cx = r.width / 2;
@@ -652,6 +648,7 @@ export function WorkflowEditor() {
         </button>
         <button
           type="button"
+          data-tour="generate"
           onClick={() => setShowGen((v) => !v)}
           className={cn(
             "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
@@ -681,6 +678,7 @@ export function WorkflowEditor() {
         </button>
         <button
           type="button"
+          data-tour="run"
           onClick={runGraph}
           disabled={running || nodes.length === 0}
           className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-40"
@@ -912,6 +910,30 @@ export function WorkflowEditor() {
         </div>
       )}
 
+      {/* node inspector — editing surface for the selected node */}
+      {sel?.kind === "node" &&
+        (() => {
+          const node = nodes.find((n) => n.id === sel.id);
+          if (!node) return null;
+          return (
+            <NodeInspector
+              node={node}
+              nodes={nodes}
+              edges={edges}
+              onChange={(key, val) =>
+                setNodes((ns) =>
+                  ns.map((x) => (x.id === node.id ? { ...x, values: { ...x.values, [key]: val } } : x)),
+                )
+              }
+              onDelete={() => {
+                removeNode(node.id);
+                setSel(null);
+              }}
+              onClose={() => setSel(null)}
+            />
+          );
+        })()}
+
       {/* AI generate */}
       {showGen && (
         <div
@@ -992,43 +1014,15 @@ function edgePath(sx: number, sy: number, tx: number, ty: number) {
   return `M ${sx} ${sy} C ${sx + dx} ${sy} ${tx - dx} ${ty} ${tx} ${ty}`;
 }
 
-function Widget({
-  def,
-  value,
-  onChange,
-}: {
-  def: WidgetDef;
-  value: string | number;
-  onChange: (v: string | number) => void;
-}) {
-  const stop = (e: RPointerEvent) => e.stopPropagation();
-  const field =
-    "w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[12px] text-white focus:border-purple-400/50 focus:outline-none";
-  return (
-    <label className="block" onPointerDown={stop}>
-      <span className="mb-1 block text-[9px] uppercase tracking-widest text-white/35">{def.label}</span>
-      {def.kind === "textarea" ? (
-        <textarea rows={2} value={String(value)} onChange={(e) => onChange(e.target.value)} className={`${field} resize-none`} />
-      ) : def.kind === "select" ? (
-        <select value={String(value)} onChange={(e) => onChange(e.target.value)} className={field}>
-          {def.options?.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      ) : def.kind === "slider" ? (
-        <div className="flex items-center gap-2">
-          <input type="range" min={def.min} max={def.max} step={def.step} value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} className="flex-1 accent-purple-500" />
-          <span className="w-8 text-right text-[11px] tabular-nums text-white/60">{Number(value)}</span>
-        </div>
-      ) : def.kind === "number" ? (
-        <input type="number" min={def.min} max={def.max} step={def.step} value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} className={`${field} tabular-nums`} />
-      ) : (
-        <input type="text" value={String(value)} onChange={(e) => onChange(e.target.value)} className={field} />
-      )}
-    </label>
-  );
+/** One-line node-body preview of the most salient values (full editing is in
+ *  the Node Inspector). Empty string → render nothing. */
+function summarize(def: NodeDef, values: Record<string, string | number>): string {
+  return def.widgets
+    .map((w) => values[w.key])
+    .filter((v) => v !== undefined && v !== "" && !(typeof v === "number" && Number.isNaN(v)))
+    .slice(0, 2)
+    .map((v) => String(v))
+    .join(" · ");
 }
 
 function AddMenu({

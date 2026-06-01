@@ -40,6 +40,9 @@ export interface NodeInstance {
   x: number;
   y: number;
   values: Record<string, string | number>;
+  /** Optional nested node-graph this node expands into (groundwork for a real
+   *  per-node sub-canvas, opened from the Node Inspector). Most nodes have none. */
+  subgraph?: { nodes: NodeInstance[]; edges: Edge[] };
 }
 
 export interface Edge {
