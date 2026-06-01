@@ -8,6 +8,7 @@ test.describe("login gate", () => {
 
     await expect(page.getByRole("heading", { name: "Detour Cloud" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Select Wallet|Connect Wallet/i })).toBeVisible();
+    await expect(page.getByText("Open beta — connect a Solana wallet to create your account.")).toBeVisible();
 
     await page.getByRole("button", { name: "Apply to be a tester / early dev" }).click();
 

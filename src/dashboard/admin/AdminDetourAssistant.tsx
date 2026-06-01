@@ -104,6 +104,10 @@ type IntegrationStatus = {
   agentMail: boolean;
   agentMailWebhook: boolean;
   inference: boolean;
+  openRouterConfigured?: boolean;
+  openRouterCreditsOk?: boolean;
+  openRouterFreeCreditsOk?: boolean;
+  openRouterRemainingUsd?: number | null;
 };
 
 const tabs = ["workflows", "chat", "applicants"] as const;
@@ -362,6 +366,16 @@ export function AdminDetourAssistant() {
                   label={status?.inference ? "inference ready" : "inference check"}
                   error={status ? !status.inference : false}
                 />
+                {status?.openRouterConfigured && (
+                  <AiStatusPill
+                    label={
+                      typeof status.openRouterRemainingUsd === "number"
+                        ? `OpenRouter $${status.openRouterRemainingUsd.toFixed(2)}`
+                        : "OpenRouter unlimited"
+                    }
+                    error={!status.openRouterCreditsOk}
+                  />
+                )}
                 <AiStatusPill
                   label={status?.agentMail ? "AgentMail ready" : "AgentMail"}
                   error={status ? !status.agentMail : false}

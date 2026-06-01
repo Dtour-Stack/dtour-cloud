@@ -1,30 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, query } from "./_generated/server";
-
-/** Public: is this wallet on the allowlist? The gate UI uses this to decide
- *  sign-in vs. waitlist. Returns membership only — no roles/notes exposed. */
-export const check = query({
-  args: { pubkey: v.string() },
-  handler: async (ctx, { pubkey }) => {
-    const row = await ctx.db
-      .query("whitelist")
-      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
-      .unique();
-    return row !== null;
-  },
-});
-
-/** Used by the gate to bypass the balance check. */
-export const isWhitelisted = internalQuery({
-  args: { pubkey: v.string() },
-  handler: async (ctx, { pubkey }) => {
-    const row = await ctx.db
-      .query("whitelist")
-      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
-      .unique();
-    return row !== null;
-  },
-});
+import { internalMutation, internalQuery } from "./_generated/server";
 
 // ── Admin management (internal — run via `bunx convex run` or the dashboard,
 //    NOT callable from the client) ──────────────────────────────────────────

@@ -59,6 +59,9 @@ const HOLDER_THRESHOLD = 0.005;
 const USD = 1_000_000;
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 const PRICE_TTL_MS = 60 * 60 * 1000; // refresh the OpenRouter price catalog hourly
+const OPENROUTER_KEY_STATUS_TTL_MS = 60 * 1000;
+const DEFAULT_OPENROUTER_PAID_RESERVE_USD = 5;
+const DEFAULT_OPENROUTER_FREE_RESERVE_USD = 25;
 
 // ── freetour: free OpenRouter models ($0), rate-limited ───────────────────────
 // Curated :free instruct models tried in priority order via OpenRouter's models[]
@@ -73,6 +76,19 @@ const PRICE_TTL_MS = 60 * 60 * 1000; // refresh the OpenRouter price catalog hou
 import { FREE_MODELS, FREETOUR_MODEL, freetourActive } from "./freeModels";
 import { FREETOUR_DAILY_CAP, rateLimiter } from "./rateLimits";
 import { requireRole } from "./rbac";
+import {
+  assessOpenRouterCredits,
+  normalizeOpenRouterKeyResponse,
+  openRouterRequestClass,
+  openRouterServiceTier,
+  type OpenRouterCreditDecision,
+  type OpenRouterCreditStatus,
+  type OpenRouterKeyResponse,
+  type OpenRouterPlan,
+  type OpenRouterRequestClass,
+  type OpenRouterServiceTier,
+} from "./openrouterPolicy";
+import { atLeast, type Role } from "./roles";
 function utcDay(): string {
   return new Date(Date.now()).toISOString().slice(0, 10);
 }
@@ -86,7 +102,110 @@ async function sessionPubkey(ctx: QueryCtx | MutationCtx, token: string): Promis
   return s.pubkey;
 }
 
+function envNumber(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+function openRouterReserve() {
+  return {
+    paidReserveUsd: envNumber(
+      "OPENROUTER_PAID_RESERVE_USD",
+      DEFAULT_OPENROUTER_PAID_RESERVE_USD,
+    ),
+    freeReserveUsd: envNumber(
+      "OPENROUTER_FREE_RESERVE_USD",
+      DEFAULT_OPENROUTER_FREE_RESERVE_USD,
+    ),
+  };
+}
+
+function parseOpenRouterCreditStatus(json: string): OpenRouterCreditStatus | null {
+  try {
+    return JSON.parse(json) as OpenRouterCreditStatus;
+  } catch {
+    return null;
+  }
+}
+
+function openRouterCreditMessage(decision: Exclude<OpenRouterCreditDecision, { ok: true }>) {
+  if (decision.reason === "negative_credits") {
+    return "OpenRouter credits are exhausted — top up the platform account before using this rail.";
+  }
+  return `OpenRouter is below the reserved platform balance ($${decision.remainingUsd.toFixed(
+    2,
+  )} remaining, $${decision.reserveUsd.toFixed(2)} reserved).`;
+}
+
 // ── OpenRouter price catalog (cached) ─────────────────────────────────────────
+
+export const _keyStatusCache = internalQuery({
+  args: {},
+  handler: async (ctx): Promise<{ json: string; fetchedAt: number } | null> => {
+    const row = await ctx.db.query("openrouterKeyStatus").first();
+    return row ? { json: row.json, fetchedAt: row.fetchedAt } : null;
+  },
+});
+
+export const _setKeyStatusCache = internalMutation({
+  args: { json: v.string(), fetchedAt: v.number() },
+  handler: async (ctx, { json, fetchedAt }) => {
+    const row = await ctx.db.query("openrouterKeyStatus").first();
+    if (row) await ctx.db.patch(row._id, { json, fetchedAt });
+    else await ctx.db.insert("openrouterKeyStatus", { json, fetchedAt });
+  },
+});
+
+async function getOpenRouterKeyStatus(
+  ctx: MeterCtx,
+  apiKey: string,
+): Promise<OpenRouterCreditStatus | null> {
+  const cached = (await ctx.runQuery(internal.inference._keyStatusCache, {})) as
+    | { json: string; fetchedAt: number }
+    | null;
+  if (cached && Date.now() - cached.fetchedAt < OPENROUTER_KEY_STATUS_TTL_MS) {
+    const parsed = parseOpenRouterCreditStatus(cached.json);
+    if (parsed) return parsed;
+  }
+  try {
+    const res = await fetch(`${OPENROUTER_BASE}/key`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) throw new Error(`OpenRouter key ${res.status}`);
+    const status = normalizeOpenRouterKeyResponse(
+      (await res.json()) as OpenRouterKeyResponse,
+      Date.now(),
+    );
+    await ctx.runMutation(internal.inference._setKeyStatusCache, {
+      json: JSON.stringify(status),
+      fetchedAt: status.fetchedAt,
+    });
+    return status;
+  } catch {
+    if (!cached) return null;
+    return parseOpenRouterCreditStatus(cached.json);
+  }
+}
+
+async function assessOpenRouterRequest(
+  ctx: MeterCtx,
+  apiKey: string,
+  requestClass: OpenRouterRequestClass,
+): Promise<{
+  serviceTier: OpenRouterServiceTier;
+  servedStatus: OpenRouterCreditStatus | null;
+}> {
+  const serviceTier = openRouterServiceTier(requestClass);
+  const servedStatus = await getOpenRouterKeyStatus(ctx, apiKey);
+  if (servedStatus) {
+    const decision = assessOpenRouterCredits(servedStatus, requestClass, openRouterReserve());
+    if (!decision.ok) throw new Error(openRouterCreditMessage(decision));
+  }
+  return { serviceTier, servedStatus };
+}
 
 export const _priceCache = internalQuery({
   args: {},
@@ -159,6 +278,8 @@ export const _charge = internalMutation({
     promptTokens: v.optional(v.number()),
     completionTokens: v.optional(v.number()),
     costMicroUsd: v.number(),
+    serviceTier: v.optional(v.string()),
+    servedServiceTier: v.optional(v.string()),
     routeVariant: v.optional(v.string()),
     gateway: v.optional(v.string()),
     fallbackUsed: v.optional(v.boolean()),
@@ -203,6 +324,8 @@ export const _charge = internalMutation({
       costMicroUsd: Math.round(a.costMicroUsd),
       priceMicroUsd: priceMicro,
       holderDiscount: qualifies,
+      serviceTier: a.serviceTier,
+      servedServiceTier: a.servedServiceTier,
       routeVariant: a.routeVariant,
       gateway: a.gateway,
       fallbackUsed: a.fallbackUsed,
@@ -228,6 +351,8 @@ export const _charge = internalMutation({
         routeVariant: a.routeVariant,
         gateway: a.gateway,
         fallbackUsed: a.fallbackUsed,
+        serviceTier: a.serviceTier,
+        servedServiceTier: a.servedServiceTier,
       },
     });
     await ctx.runMutation(internal.aggregates.recordInferenceSpend, {
@@ -263,6 +388,8 @@ export const _recordFree = internalMutation({
     promptTokens: v.optional(v.number()),
     completionTokens: v.optional(v.number()),
     costMicroUsd: v.number(),
+    serviceTier: v.optional(v.string()),
+    servedServiceTier: v.optional(v.string()),
     routeVariant: v.optional(v.string()),
     gateway: v.optional(v.string()),
     fallbackUsed: v.optional(v.boolean()),
@@ -285,6 +412,8 @@ export const _recordFree = internalMutation({
       priceMicroUsd: 0, // free — never charged (bypasses _charge's micro-USD floor)
       holderDiscount: false,
       free: true,
+      serviceTier: a.serviceTier,
+      servedServiceTier: a.servedServiceTier,
       routeVariant: a.routeVariant,
       gateway: a.gateway ?? "freetour",
       fallbackUsed: a.fallbackUsed,
@@ -344,6 +473,30 @@ export const status = action({
   },
 });
 
+export const openRouterCreditStatus = action({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const me = (await ctx.runQuery(api.users.me, { token })) as { role: Role } | null;
+    if (!me || !atLeast(me.role, "admin")) throw new Error("Forbidden");
+    const key = process.env.OPENROUTER_API_KEY;
+    if (!key) {
+      return {
+        configured: false,
+        status: null,
+        paid: { ok: false as const },
+        free: { ok: false as const },
+      };
+    }
+    const keyStatus = await getOpenRouterKeyStatus(ctx, key);
+    return {
+      configured: true,
+      status: keyStatus,
+      paid: keyStatus ? assessOpenRouterCredits(keyStatus, "paid", openRouterReserve()) : null,
+      free: keyStatus ? assessOpenRouterCredits(keyStatus, "free", openRouterReserve()) : null,
+    };
+  },
+});
+
 type ChatCoreResult = {
   text: string;
   source: "freetour" | "openrouter" | "elizacloud";
@@ -355,6 +508,8 @@ type ChatCoreResult = {
     completionTokens?: number;
     costUsd?: number;
     free?: boolean;
+    serviceTier?: OpenRouterServiceTier;
+    servedServiceTier?: string | null;
   };
   reasoning?: string;
   routeVariant: InferenceRouteVariant;
@@ -401,6 +556,8 @@ async function runOpenRouterChat(
     messages: Array<{ role: string; content: string }>;
     imageUrl?: string;
     refId: string;
+    role: Role;
+    plan: OpenRouterPlan;
     routeVariant: InferenceRouteVariant;
     fallbackUsed: boolean;
   },
@@ -411,16 +568,18 @@ async function runOpenRouterChat(
 
   const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
   const free = freetourActive(args.model);
+  const requestClass = openRouterRequestClass({ free, role: args.role, plan: args.plan });
+  let serviceTier: OpenRouterServiceTier;
   if (free) {
     if (!flags.freetour_enabled)
       throw new Error("Free inference is paused right now — try again later or use credits.");
+    ({ serviceTier } = await assessOpenRouterRequest(ctx, orKey, requestClass));
     if (!process.env.FREETOUR) {
       await ctx.runMutation(internal.rateLimits.consumeFreetour, { pubkey: args.pubkey });
     }
   } else {
     if (!flags.paid_inference_enabled)
       throw new Error("Inference is temporarily paused — please try again shortly.");
-    await ctx.runMutation(internal.rateLimits.consumePaidInference, { pubkey: args.pubkey });
     const gate = (await ctx.runQuery(api.inference.canInfer, { token: args.token })) as {
       ok: boolean;
       reason?: string;
@@ -431,6 +590,8 @@ async function runOpenRouterChat(
           ? "Out of credits — top up to keep chatting."
           : "Cannot run inference.",
       );
+    ({ serviceTier } = await assessOpenRouterRequest(ctx, orKey, requestClass));
+    await ctx.runMutation(internal.rateLimits.consumePaidInference, { pubkey: args.pubkey });
   }
 
   const { reqModel, reqMessages } = openRouterMessages(args.model, args.messages, args.imageUrl);
@@ -441,6 +602,7 @@ async function runOpenRouterChat(
   else if (free && args.model === FREETOUR_MODEL) body.models = FREE_MODELS;
   else if (free) body.model = modelForBody;
   else body.model = modelForBody;
+  body.service_tier = serviceTier;
 
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: "POST",
@@ -464,6 +626,7 @@ async function runOpenRouterChat(
     }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
     model?: string;
+    service_tier?: string | null;
   };
   const rawText = json.choices?.[0]?.message?.content;
   if (typeof rawText !== "string") throw new Error("No text returned");
@@ -486,6 +649,8 @@ async function runOpenRouterChat(
     routeVariant: args.routeVariant,
     gateway: free ? "freetour" : "openrouter",
     fallbackUsed: args.fallbackUsed,
+    serviceTier,
+    servedServiceTier: json.service_tier ?? null,
   };
   if (free) {
     await ctx.runMutation(internal.inference._recordFree, {
@@ -525,6 +690,8 @@ async function runOpenRouterChat(
       completionTokens: completion,
       costUsd: costMicroUsd / USD,
       free,
+      serviceTier,
+      servedServiceTier: json.service_tier ?? null,
     },
   };
 }
@@ -640,7 +807,11 @@ export const runChatCore = internalAction({
     refId: v.string(),
   },
   handler: async (ctx, { token, model, messages, imageUrl, refId }): Promise<ChatCoreResult> => {
-    const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
+    const me = (await ctx.runQuery(api.users.me, { token })) as {
+      pubkey: string;
+      role: Role;
+      plan: OpenRouterPlan;
+    } | null;
     if (!me) throw new Error("Not signed in");
     const pubkey = me.pubkey;
     const routeVariant = resolveRouteVariant(pubkey);
@@ -658,6 +829,8 @@ export const runChatCore = internalAction({
         messages,
         imageUrl,
         refId,
+        role: me.role,
+        plan: me.plan,
         routeVariant,
         fallbackUsed: false,
       });
@@ -687,6 +860,8 @@ export const runChatCore = internalAction({
             messages,
             imageUrl,
             refId,
+            role: me.role,
+            plan: me.plan,
             routeVariant,
             fallbackUsed,
           });
@@ -745,6 +920,27 @@ export const routeMonitor = query({
   },
 });
 
+async function runElizaImage(
+  prompt: string,
+  elizaKey: string | undefined,
+): Promise<{ url: string; source: string }> {
+  const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
+  if (!elizaKey) throw new Error("Image generation isn't configured.");
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/generate-image`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${elizaKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Image generation failed (${res.status})${t ? ` — ${t.slice(0, 120)}` : ""}`);
+  }
+  const j = (await res.json()) as { data?: Array<{ url?: string }>; url?: string; image?: string };
+  const url = j.data?.[0]?.url ?? j.url ?? j.image;
+  if (typeof url !== "string" || !url) throw new Error("No image returned");
+  return { url, source: "elizacloud" };
+}
+
 /**
  * Generate an image via OpenRouter (same /chat/completions endpoint, modalities
  * ["image","text"]). Returns a data URL. Metered from usage.cost like chat —
@@ -754,11 +950,15 @@ export const routeMonitor = query({
 export const runImage = action({
   args: { token: v.string(), model: v.optional(v.string()), prompt: v.string(), refId: v.string() },
   handler: async (ctx, { token, model, prompt, refId }): Promise<{ url: string; source: string }> => {
-    const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
+    const me = (await ctx.runQuery(api.users.me, { token })) as {
+      pubkey: string;
+      role: Role;
+      plan: OpenRouterPlan;
+    } | null;
     if (!me) throw new Error("Not signed in");
     const pubkey = me.pubkey;
     const orKey = process.env.OPENROUTER_API_KEY;
-
+    const elizaKey = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
     if (orKey) {
       const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
       if (!flags.image_generation_enabled)
@@ -767,7 +967,22 @@ export const runImage = action({
         throw new Error("Image generation is temporarily paused — please try again shortly.");
       const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
       if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to generate." : "Cannot run inference.");
+      const requestClass = openRouterRequestClass({
+        free: false,
+        role: me.role,
+        plan: me.plan,
+      });
+      let openRouterGate: { serviceTier: OpenRouterServiceTier } | null = null;
+      try {
+        openRouterGate = await assessOpenRouterRequest(ctx, orKey, requestClass);
+      } catch (e) {
+        if (!elizaKey) throw e;
+      }
+      if (!openRouterGate) {
+        return await runElizaImage(prompt, elizaKey);
+      }
       const usedModel = model && model !== "Auto" && model !== "auto" ? model : "google/gemini-2.5-flash-image";
+      const serviceTier = openRouterGate.serviceTier;
       const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
         method: "POST",
         headers: {
@@ -780,6 +995,7 @@ export const runImage = action({
           model: usedModel,
           messages: [{ role: "user", content: prompt }],
           modalities: ["image", "text"],
+          service_tier: serviceTier,
         }),
       });
       if (!res.ok) {
@@ -790,6 +1006,7 @@ export const runImage = action({
         choices?: Array<{ message?: { images?: Array<{ image_url?: { url?: string } }> } }>;
         usage?: { cost?: number };
         model?: string;
+        service_tier?: string | null;
       };
       const dataUrl = json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
       if (typeof dataUrl !== "string" || !dataUrl) throw new Error("No image returned");
@@ -822,6 +1039,8 @@ export const runImage = action({
         surface: "image",
         model: json.model || usedModel,
         costMicroUsd,
+        serviceTier,
+        servedServiceTier: json.service_tier ?? null,
       });
       return { url, source: "openrouter" };
     }
@@ -832,23 +1051,7 @@ export const runImage = action({
     if (!flags.paid_inference_enabled)
       throw new Error("Image generation is temporarily paused — please try again shortly.");
 
-    // Fallback: ElizaCloud (unmetered/free until the gateway key lands).
-    const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
-    const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
-    if (!key) throw new Error("Image generation isn't configured.");
-    const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/generate-image`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`Image generation failed (${res.status})${t ? ` — ${t.slice(0, 120)}` : ""}`);
-    }
-    const j = (await res.json()) as { data?: Array<{ url?: string }>; url?: string; image?: string };
-    const url = j.data?.[0]?.url ?? j.url ?? j.image;
-    if (typeof url !== "string" || !url) throw new Error("No image returned");
-    return { url, source: "elizacloud" };
+    return await runElizaImage(prompt, elizaKey);
   },
 });
 

@@ -5,8 +5,6 @@ import { requireRole } from "./rbac";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Join the waitlist. Public (no auth) — anyone without $DTOUR can sign up.
- *  Idempotent by email; backfills the wallet if one is connected this time. */
 export const join = mutation({
   args: { email: v.string(), pubkey: v.optional(v.string()) },
   handler: async (ctx, { email, pubkey }) => {
@@ -64,7 +62,6 @@ export const applyTester = mutation({
   },
 });
 
-/** Admin: list waitlist entries, newest first. */
 export const list = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
@@ -147,7 +144,6 @@ export const denyTester = mutation({
   },
 });
 
-/** Admin: remove a waitlist entry (e.g. after inviting them). */
 export const remove = mutation({
   args: { token: v.string(), email: v.string() },
   handler: async (ctx, { token, email }) => {

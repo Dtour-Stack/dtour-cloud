@@ -9,7 +9,7 @@ export default defineSchema({
     used: v.boolean(),
   }).index("by_nonce", ["nonce"]),
 
-  // Wallet identities that passed the $DTOUR gate.
+  // Wallet identities that signed in through the Solana wallet gate.
   users: defineTable({
     pubkey: v.string(),
     balance: v.number(),
@@ -26,8 +26,7 @@ export default defineSchema({
     expiresAt: v.number(),
   }).index("by_token", ["token"]),
 
-  // Prospective users who want in but don't hold $DTOUR / aren't whitelisted.
-  // Captured at the gate; deduped by email.
+  // Prospective users and tester applicants; deduped by email.
   waitlist: defineTable({
     email: v.string(),
     pubkey: v.optional(v.string()), // wallet they had connected, if any
@@ -37,8 +36,7 @@ export default defineSchema({
     at: v.number(),
   }).index("by_email", ["email"]),
 
-  // Wallets that always pass the gate regardless of $DTOUR balance.
-  // An optional admin role lives here (admins must be whitelisted).
+  // Elevated wallet roles for beta/admin access.
   whitelist: defineTable({
     pubkey: v.string(),
     role: v.optional(
@@ -422,6 +420,8 @@ export default defineSchema({
     holderDiscount: v.boolean(),
     // freetour: routed to a free OpenRouter model → $0, counts toward the daily cap.
     free: v.optional(v.boolean()),
+    serviceTier: v.optional(v.string()),
+    servedServiceTier: v.optional(v.string()),
     /** A/B bucket: eliza_first | openrouter_first (paid chat only). */
     routeVariant: v.optional(v.string()),
     /** Winning gateway: elizacloud | openrouter | freetour. */
@@ -447,6 +447,11 @@ export default defineSchema({
   // so inference metering doesn't refetch the full list every call. Single row.
   openrouterPrices: defineTable({
     json: v.string(), // JSON: Record<modelId, { prompt: number, completion: number }> (USD/token)
+    fetchedAt: v.number(),
+  }),
+
+  openrouterKeyStatus: defineTable({
+    json: v.string(),
     fetchedAt: v.number(),
   }),
 

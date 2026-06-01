@@ -475,6 +475,14 @@ export const integrationStatus = action({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
     await ctx.runQuery(internal.adminAssistant.adminContext, { token });
+    const openRouter = (await ctx.runAction(api.inference.openRouterCreditStatus, {
+      token,
+    })) as {
+      configured: boolean;
+      status: { remainingUsd: number | null } | null;
+      paid: { ok: boolean } | null;
+      free: { ok: boolean } | null;
+    };
     return {
       agentMail: !!(
         process.env.AGENTMAIL_API_KEY &&
@@ -486,6 +494,10 @@ export const integrationStatus = action({
         process.env.ELIZACLOUD_API_KEY ||
         process.env.ELIZAOS_CLOUD_API_KEY
       ),
+      openRouterConfigured: openRouter.configured,
+      openRouterCreditsOk: openRouter.paid?.ok === true,
+      openRouterFreeCreditsOk: openRouter.free?.ok === true,
+      openRouterRemainingUsd: openRouter.status?.remainingUsd ?? null,
     };
   },
 });

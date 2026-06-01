@@ -11,14 +11,6 @@ function nonceFromMessage(message: string): string | null {
   return line ? line.slice("Nonce: ".length).trim() : null;
 }
 
-/**
- * Early-access gate: validates the server-issued nonce, verifies the SIWS
- * signature, and issues a session token ONLY for allowlisted wallets. Every
- * other wallet is directed to the email waitlist (handled client-side).
- *
- * (When early access ends, restore the $DTOUR on-chain balance check here so
- * holders can sign in too — see git history of this file.)
- */
 export const verify = action({
   args: {
     pubkey: v.string(),
@@ -41,19 +33,6 @@ export const verify = action({
     );
     if (!verified) throw new Error("Signature verification failed");
 
-    // Early access: only allowlisted wallets may sign in.
-    const whitelisted = await ctx.runQuery(internal.whitelist.isWhitelisted, {
-      pubkey,
-    });
-    if (!whitelisted) {
-      throw new Error(
-        "Early access is limited to approved wallets. Join the waitlist for early access.",
-      );
-    }
-
-    // Read the real on-chain $DTOUR balance for DISPLAY (the access decision above
-    // is whitelist-only during early access — balance no longer gates entry, but
-    // the dashboard shows it). Never block login on an RPC hiccup → default 0.
     let balance = 0;
     try {
       balance = (await ctx.runAction(api.tokens.balanceOf, { pubkey })) as number;

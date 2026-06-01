@@ -108,9 +108,9 @@ export function AdminTeam() {
       <header className="fade-up">
         <h1 className="text-2xl font-semibold tracking-tight">Team &amp; Access</h1>
         <p className="mt-1 text-[13px] text-white/45">
-          Grant early access and assign roles. During early access, whitelisted
-          wallets can sign in; every other wallet joins the waitlist. Dev/tester
-          wallets get builder access and creator-reward eligibility without admin powers.
+          Assign elevated roles for the open beta. Every signed wallet can create
+          an account; dev/tester wallets get builder access and creator-reward
+          eligibility without admin powers.
         </p>
       </header>
 
