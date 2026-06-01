@@ -427,10 +427,127 @@ export function WorkflowEditor() {
     setSel({ kind: "node", id });
   }
 
+  function openAddMenuAtCenter() {
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    const cx = r.width / 2;
+    const cy = r.height / 2;
+    const p = screenToGraph(r.left + cx, r.top + cy);
+    setMenu({ sx: cx, sy: cy, gx: p.x, gy: p.y });
+  }
+
   const transform = `translate(${vp.panX}px, ${vp.panY}px) scale(${vp.scale})`;
 
   return (
-    <div
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0a0a0a]">
+      <div
+        data-studio-ui
+        data-tour="workflow-toolbar"
+        className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl"
+      >
+        <DesignProjectControls
+          saveState={saveState}
+          onSave={save}
+          onSaveAs={async (newName) => {
+            if (!token) return;
+            await saveProjectAs({
+              token,
+              kind: DESIGN_SURFACE.workflow,
+              fromProject: project,
+              toName: newName,
+              data: graphPayload(),
+            });
+          }}
+        />
+
+        <div className="hidden h-6 w-px bg-white/10 lg:block" />
+
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="toolbar" aria-label="Workflow tools">
+          <button
+            type="button"
+            aria-label="Add node"
+            data-tour="add-node"
+            onClick={openAddMenuAtCenter}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            <Icon.Plus size={14} />
+            <span className="hidden sm:inline">Add node</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Assets"
+            onClick={() => setShowAssets((v) => !v)}
+            className={cn(
+              "flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition hover:bg-white/10 hover:text-white",
+              showAssets ? "bg-white/10 text-white" : "text-white/70",
+            )}
+          >
+            <Icon.Image size={14} />
+            <span className="hidden sm:inline">Assets</span>
+          </button>
+          <button
+            type="button"
+            aria-label="History"
+            onClick={() => setShowHistory((v) => !v)}
+            className={cn(
+              "flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition hover:bg-white/10 hover:text-white",
+              showHistory ? "bg-white/10 text-white" : "text-white/70",
+            )}
+          >
+            <Icon.List size={14} />
+            <span className="hidden sm:inline">History</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Templates"
+            onClick={() => setShowTemplates((v) => !v)}
+            className={cn(
+              "flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition hover:bg-white/10 hover:text-white",
+              showTemplates ? "bg-white/10 text-white" : "text-white/70",
+            )}
+          >
+            <Icon.LayoutGrid size={14} />
+            <span className="hidden sm:inline">Templates</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Generate"
+            data-tour="generate"
+            onClick={() => setShowGen((v) => !v)}
+            className={cn(
+              "flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition hover:bg-white/10 hover:text-white",
+              showGen ? "bg-white/10 text-white" : "text-white/70",
+            )}
+          >
+            <Icon.Sparkles size={14} />
+            <span className="hidden sm:inline">Generate</span>
+          </button>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <GuidedTour id="workflow" heading="Workflows" steps={WORKFLOW_TOUR} />
+          <button
+            type="button"
+            aria-label="Reset view"
+            onClick={() => setVp({ panX: 80, panY: 80, scale: 1 })}
+            className="hidden h-8 rounded-lg px-2.5 text-[12px] tabular-nums text-white/55 transition hover:bg-white/10 hover:text-white sm:block"
+          >
+            {Math.round(vp.scale * 100)}%
+          </button>
+          <button
+            type="button"
+            data-tour="run"
+            onClick={runGraph}
+            disabled={running || nodes.length === 0}
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-white px-3 text-[12px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-40"
+          >
+            <Icon.Play size={12} />
+            <span className="hidden sm:inline">{running ? "Running…" : "Run"}</span>
+          </button>
+        </div>
+      </div>
+
+      <div
       ref={ref}
       onPointerDown={bgPointerDown}
       onPointerMove={onPointerMove}
@@ -440,7 +557,7 @@ export function WorkflowEditor() {
         const r = ref.current!.getBoundingClientRect();
         setMenu({ sx: e.clientX - r.left, sy: e.clientY - r.top, gx: p.x, gy: p.y });
       }}
-      className="relative h-full w-full touch-none overflow-hidden bg-[#0a0a0a]"
+      className="relative min-h-0 flex-1 touch-none overflow-hidden bg-[#0a0a0a]"
       style={{ cursor: gestureRef.current?.kind === "pan" ? "grabbing" : "default" }}
     >
       {/* dotted backdrop */}
@@ -634,103 +751,6 @@ export function WorkflowEditor() {
             </div>
           );
         })}
-      </div>
-
-      {/* toolbar */}
-      <div
-        onPointerDown={(e) => e.stopPropagation()}
-        className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/12 bg-[#0d0d0d]/90 p-1 shadow-2xl backdrop-blur-xl"
-      >
-        <button
-          type="button"
-          data-tour="add-node"
-          onClick={() => {
-            const r = ref.current!.getBoundingClientRect();
-            const cx = r.width / 2;
-            const cy = r.height / 2;
-            const p = screenToGraph(r.left + cx, r.top + cy);
-            setMenu({ sx: cx, sy: cy, gx: p.x, gy: p.y });
-          }}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
-        >
-          <Icon.Plus size={14} /> Add node
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowAssets((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
-            showAssets ? "bg-white/10 text-white" : "text-white/75",
-          )}
-        >
-          <Icon.Image size={14} /> Assets
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowHistory((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
-            showHistory ? "bg-white/10 text-white" : "text-white/75",
-          )}
-        >
-          <Icon.List size={14} /> History
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowTemplates((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
-            showTemplates ? "bg-white/10 text-white" : "text-white/75",
-          )}
-        >
-          <Icon.LayoutGrid size={14} /> Templates
-        </button>
-        <button
-          type="button"
-          data-tour="generate"
-          onClick={() => setShowGen((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
-            showGen ? "bg-white/10 text-white" : "text-white/75",
-          )}
-        >
-          <Icon.Sparkles size={14} /> Generate
-        </button>
-        <DesignProjectControls
-          saveState={saveState}
-          onSave={save}
-          onSaveAs={async (newName) => {
-            if (!token) return;
-            await saveProjectAs({
-              token,
-              kind: DESIGN_SURFACE.workflow,
-              fromProject: project,
-              toName: newName,
-              data: graphPayload(),
-            });
-          }}
-        />
-        <div className="mx-1 h-5 w-px bg-white/10" />
-        <GuidedTour id="workflow" heading="Workflows" steps={WORKFLOW_TOUR} />
-        <div className="mx-1 h-5 w-px bg-white/10" />
-        <button
-          type="button"
-          onClick={() => setVp({ panX: 80, panY: 80, scale: 1 })}
-          className="rounded-full px-3 py-1.5 text-[12px] tabular-nums text-white/55 transition hover:bg-white/10 hover:text-white"
-          title="Reset view"
-        >
-          {Math.round(vp.scale * 100)}%
-        </button>
-        <button
-          type="button"
-          data-tour="run"
-          onClick={runGraph}
-          disabled={running || nodes.length === 0}
-          className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-40"
-        >
-          <Icon.Play size={12} />
-          {running ? "Running…" : "Run"}
-        </button>
       </div>
 
       {/* add-node menu */}
@@ -1050,6 +1070,7 @@ export function WorkflowEditor() {
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }

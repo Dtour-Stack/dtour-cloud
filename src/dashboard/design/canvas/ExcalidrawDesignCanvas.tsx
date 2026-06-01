@@ -231,7 +231,7 @@ export function ExcalidrawDesignCanvas() {
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0a0a0a]">
       <div
         data-tour="sketch-toolbar"
-        className="z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl lg:flex-nowrap"
+        className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl"
       >
         <DesignProjectControls
           saveState={saveState}
@@ -249,24 +249,28 @@ export function ExcalidrawDesignCanvas() {
           }}
         />
         <div className="hidden h-6 w-px bg-white/10 sm:block" />
-        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <GuidedTour id="sketch" heading="Sketch" steps={SKETCH_TOUR} />
           <button
             type="button"
+            aria-label="Assets"
             onClick={() => setShowGallery(true)}
             className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/65 transition hover:bg-white/10 hover:text-white"
           >
-            <Icon.Image size={14} /> Assets
+            <Icon.Image size={14} />
+            <span className="hidden sm:inline">Assets</span>
           </button>
           <button
             type="button"
+            aria-label="AI diagram"
             onClick={() => setAiOpen((v) => !v)}
             className={cn(
               "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
               aiOpen ? "bg-white text-black" : "text-white/65 hover:bg-white/10 hover:text-white",
             )}
           >
-            <Icon.Wand size={14} /> AI diagram
+            <Icon.Wand size={14} />
+            <span className="hidden sm:inline">AI diagram</span>
           </button>
         </div>
       </div>

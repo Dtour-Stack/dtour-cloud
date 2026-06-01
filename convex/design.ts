@@ -6,6 +6,14 @@ import { resolveRole } from "./rbac";
 export const DEFAULT_PROJECT_NAME = "Untitled";
 
 const SURFACE_KINDS = ["studio", "sketch", "workflow"] as const;
+const DASHBOARD_KIND = "dashboard";
+const MAX_DASHBOARD_HTML = 60_000;
+
+type DashboardPayload = {
+  title?: string;
+  html?: string;
+  notes?: string[];
+};
 
 function normalizeProjectName(name: string): string {
   const trimmed = name.trim();
@@ -21,6 +29,49 @@ async function docRow(ctx: QueryCtx | MutationCtx, owner: string, kind: string, 
       q.eq("owner", owner).eq("kind", kind).eq("name", name),
     )
     .unique();
+}
+
+function normalizeDashboardHtml(html: string): string {
+  const trimmed = html.trim();
+  if (!trimmed) throw new Error("Dashboard HTML is required");
+  if (trimmed.length > MAX_DASHBOARD_HTML) {
+    throw new Error("Dashboard HTML is too large");
+  }
+  return trimmed;
+}
+
+function normalizeNotes(notes: string[]): string[] {
+  return notes
+    .map((note) => note.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function dashboardPayload(title: string, html: string, notes: string[]) {
+  return JSON.stringify({
+    title: normalizeProjectName(title),
+    html: normalizeDashboardHtml(html),
+    notes: normalizeNotes(notes),
+  });
+}
+
+function parseDashboardPayload(data: string, fallbackName: string) {
+  let parsed: DashboardPayload;
+  try {
+    parsed = JSON.parse(data) as DashboardPayload;
+  } catch {
+    throw new Error("Dashboard payload is invalid");
+  }
+  if (typeof parsed.html !== "string" || !parsed.html.trim()) {
+    throw new Error("Dashboard payload is missing HTML");
+  }
+  return {
+    title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : fallbackName,
+    html: parsed.html,
+    notes: Array.isArray(parsed.notes)
+      ? parsed.notes.filter((note): note is string => typeof note === "string").slice(0, 6)
+      : [],
+  };
 }
 
 /** Legacy Studio saves used kind "canvas" before sketch split. */
@@ -214,5 +265,84 @@ export const saveProjectAs = mutation({
       updatedAt: now,
     });
     return { ok: true as const, project };
+  },
+});
+
+export type CustomDashboardSummary = {
+  name: string;
+  title: string;
+  updatedAt: number;
+};
+
+export const listDashboards = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }): Promise<CustomDashboardSummary[] | null> => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) return null;
+
+    const rows = await ctx.db
+      .query("designDocs")
+      .withIndex("by_owner_kind", (q) =>
+        q.eq("owner", caller.pubkey).eq("kind", DASHBOARD_KIND),
+      )
+      .collect();
+
+    return rows
+      .map((row) => {
+        const parsed = parseDashboardPayload(row.data, row.name);
+        return { name: row.name, title: parsed.title, updatedAt: row.updatedAt };
+      })
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+});
+
+export const getDashboard = query({
+  args: { token: v.string(), name: v.string() },
+  handler: async (ctx, { token, name }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) return null;
+    const dashboardName = normalizeProjectName(name);
+    const row = await docRow(ctx, caller.pubkey, DASHBOARD_KIND, dashboardName);
+    if (!row) return null;
+    const parsed = parseDashboardPayload(row.data, row.name);
+    return {
+      name: row.name,
+      title: parsed.title,
+      html: parsed.html,
+      notes: parsed.notes,
+      updatedAt: row.updatedAt,
+    };
+  },
+});
+
+export const saveDashboard = mutation({
+  args: {
+    token: v.string(),
+    name: v.string(),
+    title: v.string(),
+    html: v.string(),
+    notes: v.array(v.string()),
+  },
+  handler: async (ctx, { token, name, title, html, notes }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) throw new Error("Not authenticated");
+    const dashboardName = normalizeProjectName(name);
+    const data = dashboardPayload(title || dashboardName, html, notes);
+    const now = Date.now();
+    const existing = await docRow(ctx, caller.pubkey, DASHBOARD_KIND, dashboardName);
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { data, updatedAt: now });
+    } else {
+      await ctx.db.insert("designDocs", {
+        owner: caller.pubkey,
+        kind: DASHBOARD_KIND,
+        name: dashboardName,
+        data,
+        updatedAt: now,
+      });
+    }
+
+    return { ok: true as const, name: dashboardName, updatedAt: now };
   },
 });

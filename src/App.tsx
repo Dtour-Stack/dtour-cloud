@@ -48,6 +48,7 @@ const AnalyticsPage = lazy(() => import("@/dashboard/analytics/AnalyticsPage"));
 const DevelopersPage = lazy(() => import("@/dashboard/developers/DevelopersPage"));
 const AccountHubPage = lazy(() => import("@/dashboard/account/AccountHubPage"));
 const GalleryPage = lazy(() => import("@/dashboard/gallery/GalleryPage"));
+const CustomDashboardPage = lazy(() => import("@/dashboard/custom/CustomDashboardPage"));
 
 export default function App() {
   return (
@@ -57,6 +58,14 @@ export default function App() {
         <Route path="/token" element={<DtourTokenPage />} />
         <Route path="/login" element={<DtourLoginPage />} />
         <Route path="/onboarding" element={<DtourOnboardingPage />} />
+        <Route
+          path="/dashboard/custom/:dashboardId"
+          element={
+            <RequireRole min="pro_user">
+              <CustomDashboardPage />
+            </RequireRole>
+          }
+        />
         <Route
           path="/dashboard"
           element={

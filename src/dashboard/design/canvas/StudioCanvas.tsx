@@ -456,7 +456,7 @@ export function StudioCanvas() {
       <div
         data-studio-ui
         data-tour="canvas-toolbar"
-        className="z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl lg:flex-nowrap"
+        className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl"
       >
         <DesignProjectControls
           saveState={saveState}
@@ -475,7 +475,7 @@ export function StudioCanvas() {
 
         <div className="hidden h-6 w-px bg-white/10 sm:block" />
 
-        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/25 p-1" role="toolbar" aria-label="Canvas tools">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-lg border border-white/10 bg-black/25 p-1" role="toolbar" aria-label="Canvas tools">
           <ToolButton active={tool === "select"} label="Select (V)" onClick={() => setTool("select")}>
             <Icon.MousePointer size={15} />
           </ToolButton>
@@ -496,16 +496,17 @@ export function StudioCanvas() {
           </ToolButton>
         </div>
 
-        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <button
             type="button"
             data-studio-ui
+            aria-label="Artboards"
             onClick={() => {
               setShowArtboards((v) => !v);
               setLayersOpen(false);
             }}
             className={cn(
-              "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
+              "hidden h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition md:flex",
               showArtboards ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/10 hover:text-white",
             )}
           >
@@ -514,21 +515,24 @@ export function StudioCanvas() {
           <button
             type="button"
             data-studio-ui
+            aria-label="Assets"
             onClick={() => setShowGallery(true)}
             className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/65 transition hover:bg-white/10 hover:text-white"
           >
-            <Icon.Image size={14} /> Assets
+            <Icon.Image size={14} />
+            <span className="hidden sm:inline">Assets</span>
           </button>
           <GuidedTour id="canvas" heading="Design Studio" steps={CANVAS_TOUR} />
           <button
             type="button"
             data-studio-ui
+            aria-label="Layers"
             onClick={() => {
               setLayersOpen((v) => !v);
               setShowArtboards(false);
             }}
             className={cn(
-              "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
+              "hidden h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition md:flex",
               layersOpen ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/10 hover:text-white",
             )}
           >
@@ -537,15 +541,17 @@ export function StudioCanvas() {
           <button
             type="button"
             data-studio-ui
+            aria-label="AI"
             onClick={() => setAiOpen((v) => !v)}
             className={cn(
               "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] transition",
               aiOpen ? "bg-white text-black" : "text-white/65 hover:bg-white/10 hover:text-white",
             )}
           >
-            <Icon.Wand size={14} /> AI
+            <Icon.Wand size={14} />
+            <span className="hidden sm:inline">AI</span>
           </button>
-          <div className="ml-1 hidden items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] text-white/45 md:flex">
+          <div className="ml-1 hidden h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-black/25 px-2.5 text-[11px] text-white/45 md:flex">
             <span
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
@@ -782,7 +788,6 @@ function ToolButton({
       type="button"
       aria-label={label}
       aria-pressed={active}
-      title={label}
       data-studio-ui
       onClick={onClick}
       className={cn(

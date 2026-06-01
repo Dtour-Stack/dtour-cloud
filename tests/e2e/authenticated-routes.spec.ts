@@ -43,9 +43,9 @@ test.describe("authenticated dashboard routes", () => {
 
     await page.goto("/design/generate");
 
-    await expect(page.getByRole("heading", { name: "Prototype" })).toBeVisible();
-    await expect(page.getByText("Artifact preview", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Copy code/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Generate dashboard UI" })).toBeVisible();
+    await expect(page.getByText("Live sandbox preview")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Use as dashboard/i })).toBeVisible();
     await expect(page.getByText("Copy HTML")).toHaveCount(0);
   });
 

@@ -360,9 +360,9 @@ export function DesignCanvas() {
         <div className="mx-1 h-5 w-px bg-white/10" />
         <button
           type="button"
+          aria-label="Reset view"
           onClick={() => setView({ panX: 120, panY: 80, zoom: 1 })}
           className="rounded-full px-3 py-1.5 text-[12px] tabular-nums text-white/55 transition hover:bg-white/10 hover:text-white"
-          title="Reset view"
         >
           {Math.round(view.zoom * 100)}%
         </button>
@@ -521,7 +521,6 @@ function ToolButton({
       type="button"
       aria-label={label}
       aria-pressed={active}
-      title={label}
       onClick={onClick}
       className={cn(
         "flex h-8 w-8 items-center justify-center rounded-full transition",

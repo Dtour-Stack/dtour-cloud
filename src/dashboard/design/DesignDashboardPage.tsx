@@ -358,14 +358,7 @@ function StyleLibrary() {
 // ── Generate (wired to the workflow execution pipeline) ──────────────────────
 
 function Generate() {
-  return (
-    <Section
-      title="Prototype"
-      description="Create Claude-style artifact previews with safe inline code, inspect them live, then move the result into Canvas."
-    >
-      <GeneratePanel />
-    </Section>
-  );
+  return <GeneratePanel />;
 }
 
 const SECTIONS: Record<string, ReactNode> = {
@@ -416,12 +409,16 @@ export default function DesignDashboardPage() {
   }
 
   // The canvas + workflow editor fill the whole main area (no scroll/padding).
-  if (key === "canvas" || key === "sketch" || key === "workflows") {
+  if (key === "generate" || key === "canvas" || key === "sketch" || key === "workflows") {
     return (
       <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
-        <DesignProjectProvider>
-          <DesignEditorSurface section={key} />
-        </DesignProjectProvider>
+        {key === "generate" ? (
+          <Generate />
+        ) : (
+          <DesignProjectProvider>
+            <DesignEditorSurface section={key} />
+          </DesignProjectProvider>
+        )}
       </AppShell>
     );
   }

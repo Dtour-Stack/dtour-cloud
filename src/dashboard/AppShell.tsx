@@ -1,7 +1,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { usePublicConfig } from "@/lib/useConfig";
 import { useFlags } from "@/lib/useFlags";
 import { isRouteEnabled } from "@/lib/surfaceFlags";
@@ -60,7 +60,7 @@ export function AppShell({
   /** Sidebar items. Defaults to the user-dashboard nav. */
   nav?: NavItem[];
   /** Which context this shell renders — drives the context switcher. */
-  context?: "user" | "admin" | "design" | "coding" | "profile";
+  context?: "user" | "admin" | "design" | "coding" | "profile" | "custom";
   /** Custom sidebar body (replaces the default nav) — e.g. the chat recents rail. */
   sidebar?: (o: { collapsed: boolean; closeMobile: () => void }) => ReactNode;
 }) {
@@ -361,12 +361,19 @@ function ContextSwitcher({
   context,
   role,
 }: {
-  context: "user" | "admin" | "design" | "coding" | "profile";
+  context: "user" | "admin" | "design" | "coding" | "profile" | "custom";
   role?: Role;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
+  const customDashboards = useQuery(
+    anyApi.design.listDashboards,
+    token && !testUser ? { token } : "skip",
+  ) as { name: string; title: string; updatedAt: number }[] | null | undefined;
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -383,6 +390,19 @@ function ContextSwitcher({
     };
   }, []);
 
+  const activeCustomName = location.pathname.startsWith("/dashboard/custom/")
+    ? decodeURIComponent(location.pathname.replace("/dashboard/custom/", ""))
+    : "";
+  const customItems =
+    isPro(role) && Array.isArray(customDashboards)
+      ? customDashboards.map((dashboard) => ({
+          key: `custom:${dashboard.name}`,
+          label: dashboard.title || dashboard.name,
+          to: `/dashboard/custom/${encodeURIComponent(dashboard.name)}`,
+          icon: <Icon.LayoutGrid size={14} />,
+        }))
+      : [];
+
   const items = [
     { key: "user", label: "User Dashboard", to: "/dashboard", icon: <Icon.Home size={14} /> },
     { key: "profile", label: "Profile", to: "/profile", icon: <Icon.User size={14} /> },
@@ -392,11 +412,20 @@ function ContextSwitcher({
           { key: "coding", label: "Coding", to: "/coding", icon: <Icon.Zap size={14} /> },
         ]
       : []),
+    ...customItems,
     ...(isAdmin(role)
       ? [{ key: "admin", label: "Admin", to: "/admin", icon: <Icon.Shield size={14} /> }]
       : []),
-  ] as const;
-  const current = items.find((i) => i.key === context) ?? items[0];
+  ];
+  const current =
+    context === "custom"
+      ? (items.find((i) => i.key === `custom:${activeCustomName}`) ?? {
+          key: `custom:${activeCustomName}`,
+          label: activeCustomName || "Custom dashboard",
+          to: location.pathname,
+          icon: <Icon.LayoutGrid size={14} />,
+        })
+      : (items.find((i) => i.key === context) ?? items[0]);
 
   return (
     <div ref={ref} className="relative">
@@ -427,14 +456,14 @@ function ContextSwitcher({
               }}
               className={cn(
                 "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition",
-                i.key === context
+                i.key === current.key
                   ? "bg-white/10 text-white"
                   : "text-white/70 hover:bg-white/5 hover:text-white",
               )}
             >
               {i.icon}
               <span className="flex-1">{i.label}</span>
-              {i.key === context && <Icon.Check size={14} />}
+              {i.key === current.key && <Icon.Check size={14} />}
             </button>
           ))}
         </div>

@@ -82,17 +82,19 @@ export function DesignProjectControls({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1",
+        "flex min-w-0 shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-black/25 p-1 max-sm:gap-0.5 max-sm:p-0.5",
         className,
       )}
     >
       <div className="relative">
         <button
           type="button"
+          aria-expanded={pickerOpen}
+          aria-haspopup="menu"
+          aria-label="Switch project"
           disabled={busy}
           onClick={() => setPickerOpen((v) => !v)}
-          className="flex max-w-[11rem] items-center gap-1.5 truncate rounded-full px-2.5 py-1.5 text-[12px] font-medium text-white transition hover:bg-white/10"
-          title="Switch project"
+          className="flex h-7 max-w-[11rem] items-center gap-1.5 truncate rounded-lg px-2.5 text-[12px] font-medium text-white transition hover:bg-white/10 max-sm:max-w-[7.5rem]"
         >
           <Icon.LayoutGrid size={14} className="shrink-0 text-violet-300/90" />
           <span className="truncate">{project}</span>
@@ -160,20 +162,22 @@ export function DesignProjectControls({
 
       <button
         type="button"
+        aria-label="Create new project"
         disabled={busy}
         onClick={() => void handleNew()}
-        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
+        className="flex h-7 shrink-0 items-center gap-1 rounded-lg px-2.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
       >
-        <Icon.Plus size={13} /> New
+        <Icon.Plus size={13} />
+        <span className="hidden sm:inline">New</span>
       </button>
 
       {onSave && (
         <button
           type="button"
+          aria-label={`Save ${project}`}
           disabled={busy || saveState === "saving"}
           onClick={onSave}
-          className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[12px] font-medium text-black transition hover:shadow-md disabled:opacity-50"
-          title={`Save to project “${project}”`}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-lg bg-white px-3 text-[12px] font-medium text-black transition hover:shadow-md disabled:opacity-50"
         >
           {saveState === "saved" ? <Icon.Check size={12} /> : null}
           {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
@@ -183,10 +187,10 @@ export function DesignProjectControls({
       {onSaveAs && (
         <button
           type="button"
+          aria-label="Save a copy"
           disabled={busy}
           onClick={() => void handleSaveAs()}
-          className="rounded-full px-2.5 py-1.5 text-[12px] text-white/60 transition hover:bg-white/10 hover:text-white"
-          title="Save a copy under a new project name"
+          className="hidden h-7 shrink-0 rounded-lg px-2.5 text-[12px] text-white/60 transition hover:bg-white/10 hover:text-white sm:inline-flex sm:items-center"
         >
           Save as…
         </button>

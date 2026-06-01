@@ -119,13 +119,15 @@ export function GuidedTour({
     <>
       <button
         type="button"
+        aria-label={label}
         onClick={() => {
           setI(0);
           setOpen(true);
         }}
-        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
+        className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/65 transition hover:bg-white/10 hover:text-white"
       >
-        <Icon.BookOpen size={14} /> {label}
+        <Icon.BookOpen size={14} />
+        <span className="hidden sm:inline">{label}</span>
       </button>
 
       {/* Portalled to <body>: the toolbar's backdrop-filter would otherwise make
