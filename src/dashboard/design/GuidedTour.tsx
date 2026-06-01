@@ -215,6 +215,18 @@ export const WORKFLOW_TOUR: TourStep[] = [
   },
 ];
 
+export const SKETCH_TOUR: TourStep[] = [
+  {
+    title: "Sketch",
+    body: "Excalidraw whiteboard for diagrams and flows. Detour adds gallery inserts, AI-generated shapes, and auto-save — without replacing Excalidraw's drawing tools.",
+  },
+  {
+    title: "Detour toolbar",
+    body: "Gallery drops images onto the board. AI adds labeled shapes from a prompt. Save persists to your account. Excalidraw's drawing tools stay in the canvas above this bottom bar.",
+    anchor: "sketch-toolbar",
+  },
+];
+
 export const CANVAS_TOUR: TourStep[] = [
   {
     title: "Design Studio",

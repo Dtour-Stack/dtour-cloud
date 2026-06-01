@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import "@excalidraw/excalidraw/index.css";
+import "./excalidrawSketch.css";
 import type {
   AppState,
   BinaryFiles,
@@ -19,7 +20,7 @@ import type {
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
-import { CANVAS_TOUR, GuidedTour } from "../GuidedTour";
+import { GuidedTour, SKETCH_TOUR } from "../GuidedTour";
 import { generateCanvasElements } from "./canvasAiGenerate";
 import { insertImageFromUrl } from "./canvasImageInsert";
 import {
@@ -188,120 +189,134 @@ export function ExcalidrawDesignCanvas() {
     );
   }
 
+  const excalidrawInitial =
+    initialData === undefined
+      ? undefined
+      : {
+          ...(initialData ?? {}),
+          appState: {
+            ...(initialData?.appState ?? {}),
+            showWelcomeScreen: false,
+          },
+        };
+
   return (
-    <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-[#0a0a0a]">
-      <div className="relative min-h-0 min-w-0 flex-1">
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-sm text-white/50">
-              Loading Excalidraw…
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0a0a0a]">
+      <div className="relative flex min-h-0 min-w-0 flex-1">
+        <div className="excalidraw-sketch-host relative min-h-0 min-w-0 flex-1">
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-white/50">
+                Loading Excalidraw…
+              </div>
+            }
+          >
+            <div className="h-full w-full">
+              <Excalidraw
+                theme="dark"
+                aiEnabled={false}
+                initialData={excalidrawInitial}
+                excalidrawAPI={(api) => {
+                  apiRef.current = api;
+                  api.updateScene({
+                    appState: { showWelcomeScreen: false },
+                  });
+                  handlePendingImages(api);
+                }}
+                onChange={onChange}
+                UIOptions={{
+                  canvasActions: {
+                    loadScene: false,
+                    saveToActiveFile: false,
+                    export: false,
+                  },
+                }}
+              />
             </div>
-          }
-        >
-          <div className="h-full w-full [&_.excalidraw]:h-full">
-            <Excalidraw
-              theme="dark"
-              aiEnabled
-              initialData={initialData ?? undefined}
-              excalidrawAPI={(api) => {
-                apiRef.current = api;
-                handlePendingImages(api);
-              }}
-              onChange={onChange}
-              UIOptions={{
-                canvasActions: {
-                  loadScene: false,
-                  saveToActiveFile: false,
-                  export: false,
-                },
-              }}
+          </Suspense>
+
+          {insertError && (
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 max-w-md -translate-x-1/2 rounded-xl border border-red-400/30 bg-red-950/90 px-4 py-2 text-[12px] text-red-200 shadow-lg">
+              {insertError}
+            </div>
+          )}
+        </div>
+
+        {aiOpen && (
+          <aside className="flex w-80 shrink-0 flex-col border-l border-white/10 bg-[#0d0d0d]/95 p-4 backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-white">AI diagram</h2>
+              <button
+                type="button"
+                onClick={() => setAiOpen(false)}
+                className="text-white/40 transition hover:text-white/80"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-white/45">
+              Describe a diagram or layout. Detour Cloud inference adds shapes and labels to your
+              canvas.
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              rows={6}
+              placeholder="e.g. A 3-box flow: user → API → database with arrows"
+              className="mt-4 w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white placeholder:text-white/30 focus:border-violet-400/50 focus:outline-none"
             />
-          </div>
-        </Suspense>
-
-        <div
-          data-tour="canvas-toolbar"
-          className="pointer-events-auto absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/12 bg-[#0d0d0d]/90 p-1 shadow-2xl backdrop-blur-xl"
-        >
-          <GuidedTour id="canvas" heading="Design Canvas" steps={CANVAS_TOUR} />
-          <div className="mx-1 h-5 w-px bg-white/10" />
-          <button
-            type="button"
-            onClick={() => setShowGallery(true)}
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
-          >
-            <Icon.Image size={14} /> Gallery
-          </button>
-          <button
-            type="button"
-            onClick={() => setAiOpen((v) => !v)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
-              aiOpen ? "bg-white/10 text-white" : "text-white/75",
+            {aiError && (
+              <p className="mt-2 text-[12px] text-red-400/90">{aiError}</p>
             )}
-          >
-            <Icon.Wand size={14} /> AI
-          </button>
-          <button
-            type="button"
-            onClick={() => void saveNow()}
-            disabled={saveState === "saving"}
-            className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-50"
-          >
-            {saveState === "saved" ? <Icon.Check size={13} /> : null}
-            {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
-          </button>
-        </div>
-
-        <div className="pointer-events-none absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0d0d0d]/80 px-3 py-1.5 text-[11px] text-white/55 backdrop-blur-xl">
-          <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
-          Excalidraw
-        </div>
-
-        {insertError && (
-          <div className="absolute bottom-4 left-1/2 z-10 max-w-md -translate-x-1/2 rounded-xl border border-red-400/30 bg-red-950/80 px-4 py-2 text-[12px] text-red-200">
-            {insertError}
-          </div>
+            <button
+              type="button"
+              onClick={() => void generateAi()}
+              disabled={aiBusy || !aiPrompt.trim()}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white py-2 text-[13px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-50"
+            >
+              <Icon.Wand size={14} />
+              {aiBusy ? "Generating…" : "Generate on canvas"}
+            </button>
+          </aside>
         )}
       </div>
 
-      {aiOpen && (
-        <aside className="flex w-80 shrink-0 flex-col border-l border-white/10 bg-[#0d0d0d]/95 p-4 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-white">AI diagram</h2>
-            <button
-              type="button"
-              onClick={() => setAiOpen(false)}
-              className="text-white/40 transition hover:text-white/80"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="mt-1 text-[12px] leading-relaxed text-white/45">
-            Describe a diagram or layout. Detour Cloud inference adds shapes and labels to your
-            canvas.
-          </p>
-          <textarea
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            rows={6}
-            placeholder="e.g. A 3-box flow: user → API → database with arrows"
-            className="mt-4 w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white placeholder:text-white/30 focus:border-violet-400/50 focus:outline-none"
-          />
-          {aiError && (
-            <p className="mt-2 text-[12px] text-red-400/90">{aiError}</p>
+      <div
+        data-tour="sketch-toolbar"
+        className="z-20 flex shrink-0 flex-wrap items-center justify-center gap-1 border-t border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl"
+      >
+        <span className="mr-1 hidden text-[11px] text-white/40 sm:inline">
+          Excalidraw tools above ↑
+        </span>
+        <GuidedTour id="sketch" heading="Sketch" steps={SKETCH_TOUR} />
+        <div className="mx-1 h-5 w-px bg-white/10" />
+        <button
+          type="button"
+          onClick={() => setShowGallery(true)}
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
+        >
+          <Icon.Image size={14} /> Gallery
+        </button>
+        <button
+          type="button"
+          onClick={() => setAiOpen((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
+            aiOpen ? "bg-white/10 text-white" : "text-white/75",
           )}
-          <button
-            type="button"
-            onClick={() => void generateAi()}
-            disabled={aiBusy || !aiPrompt.trim()}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white py-2 text-[13px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-50"
-          >
-            <Icon.Wand size={14} />
-            {aiBusy ? "Generating…" : "Generate on canvas"}
-          </button>
-        </aside>
-      )}
+        >
+          <Icon.Wand size={14} /> AI diagram
+        </button>
+        <button
+          type="button"
+          onClick={() => void saveNow()}
+          disabled={saveState === "saving"}
+          className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-50"
+        >
+          {saveState === "saved" ? <Icon.Check size={13} /> : null}
+          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
+        </button>
+      </div>
 
       {showGallery && token && (
         <GalleryPicker

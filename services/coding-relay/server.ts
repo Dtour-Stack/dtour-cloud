@@ -44,6 +44,7 @@ async function validSession(token: string | null): Promise<boolean> {
 
 type WSData = {
   token: string;
+  agent: string;
   sandbox: Sandbox | null;
   pid: number | null;
   closed: boolean;
@@ -51,6 +52,22 @@ type WSData = {
   sandboxId: string;
   saving: boolean;
 };
+
+const ENV_KEYS_FOR_AGENT: Record<string, string[]> = {
+  opencode: ["OPENROUTER_API_KEY"],
+  codex: ["OPENAI_API_KEY"],
+  claude: ["ANTHROPIC_API_KEY"],
+  pi: ["ANTHROPIC_API_KEY"],
+};
+
+function filterEnvForAgent(env: Record<string, string>, agent: string): Record<string, string> {
+  const keys = ENV_KEYS_FOR_AGENT[agent] ?? ENV_KEYS_FOR_AGENT.opencode ?? [];
+  const out: Record<string, string> = {};
+  for (const k of keys) {
+    if (env[k]) out[k] = env[k];
+  }
+  return out;
+}
 
 const enc = new TextEncoder();
 
@@ -69,10 +86,14 @@ Bun.serve<WSData>({
     if (!(await validSession(token))) {
       return new Response("unauthorized", { status: 401 });
     }
+    const rawAgent = url.searchParams.get("agent")?.trim() || "opencode";
+    const agent =
+      rawAgent in ENV_KEYS_FOR_AGENT ? rawAgent : "opencode";
     if (
       server.upgrade(req, {
         data: {
           token: token as string,
+          agent,
           sandbox: null,
           pid: null,
           closed: false,
@@ -150,9 +171,14 @@ Bun.serve<WSData>({
         ws.send(
           "\r\n  \x1b[32mconnected\x1b[0m — Detour Cloud sandbox (E2B · Firecracker microVM)\r\n",
         );
-        await bootstrapCodingSandbox(sandbox, userEnv, (msg) => {
-          if (!ws.data.closed) ws.send(msg);
-        });
+        await bootstrapCodingSandbox(
+          sandbox,
+          filterEnvForAgent(userEnv, ws.data.agent),
+          ws.data.agent,
+          (msg) => {
+            if (!ws.data.closed) ws.send(msg);
+          },
+        );
         // Reload env in the interactive shell.
         await sandbox.pty.sendInput(
           term.pid,

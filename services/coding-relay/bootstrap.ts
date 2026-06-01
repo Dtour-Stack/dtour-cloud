@@ -1,13 +1,33 @@
 /**
- * Post-create setup for E2B sandboxes: env vars + global coding-agent CLIs.
- * See e2b-template/README.md to bake these into a custom template (faster cold start).
+ * Post-create setup for E2B sandboxes: env vars + one selected coding-agent CLI.
+ * See e2b-template/README.md to bake CLIs into a custom template (faster cold start).
  */
 import type { Sandbox } from "e2b";
 
 const HOME_SETUP =
   'export HOME="${HOME:-/home/user}" && mkdir -p "$HOME" "$HOME/workspace" "$HOME/.detour" "$HOME/.detour/bin"';
 
-const GLOBAL_CLI_INSTALL = `${HOME_SETUP} && npm install -g --ignore-scripts opencode-ai @openai/codex @anthropic-ai/claude-code @earendil-works/pi-coding-agent`;
+/** UI provider id → global npm package (must match src/lib/codingProviders.ts). */
+const NPM_BY_AGENT: Record<string, string> = {
+  opencode: "opencode-ai",
+  codex: "@openai/codex",
+  claude: "@anthropic-ai/claude-code",
+  pi: "@earendil-works/pi-coding-agent",
+};
+
+const AGENT_LABEL: Record<string, string> = {
+  opencode: "OpenCode",
+  codex: "Codex",
+  claude: "Claude Code",
+  pi: "Pi",
+};
+
+const LAUNCH_CMD: Record<string, string> = {
+  opencode: "opencode",
+  codex: "codex",
+  claude: "claude",
+  pi: "pi",
+};
 
 export type SandboxEnv = Record<string, string>;
 
@@ -27,12 +47,17 @@ function shellQuote(v: string): string {
   return `'${v.replace(/'/g, `'\\''`)}'`;
 }
 
-/** Write ~/.detour/env and install CLIs (best-effort). */
+/** Write ~/.detour/env and install the chosen agent CLI (best-effort). */
 export async function bootstrapCodingSandbox(
   sandbox: Sandbox,
   env: SandboxEnv,
+  agentId: string,
   onProgress: (msg: string) => void,
 ): Promise<void> {
+  const id = agentId in NPM_BY_AGENT ? agentId : "opencode";
+  const label = AGENT_LABEL[id] ?? "OpenCode";
+  const pkg = NPM_BY_AGENT[id] ?? NPM_BY_AGENT.opencode;
+
   const script = buildEnvScript(env);
   await sandbox.commands.run(HOME_SETUP, { timeoutMs: 15_000 });
   await sandbox.commands.run(
@@ -44,29 +69,16 @@ export async function bootstrapCodingSandbox(
     { timeoutMs: 10_000 },
   );
 
-  onProgress("\r\n  installing coding agents (OpenCode, Codex, Claude, Pi)…\r\n");
-  const install = await sandbox.commands.run(GLOBAL_CLI_INSTALL, { timeoutMs: 180_000 });
+  const installCmd = `npm install -g --ignore-scripts ${pkg}`;
+  onProgress(`\r\n  installing \x1b[36m${label}\x1b[0m…\r\n`);
+  const install = await sandbox.commands.run(installCmd, { timeoutMs: 180_000 });
   if (install.exitCode !== 0) {
-    onProgress(
-      "\r\n  \x1b[33mwarning:\x1b[0m some CLIs failed to install — retry with: npm i -g opencode-ai @openai/codex @anthropic-ai/claude-code @earendil-works/pi-coding-agent\r\n",
-    );
+    onProgress(`\r\n  \x1b[33mwarning:\x1b[0m install failed — retry: ${installCmd}\r\n`);
   }
 
-  const draftHelp = `#!/usr/bin/env bash
-# Detour Draft lab — persona/prompt tests run in the Coding sidebar (Draft lab panel).
-# This sandbox is for plugins, workflows, and CLIs.
-echo "Use the Draft lab panel in Detour Coding to test your lightweight agent persona."
-echo "Here: opencode · codex · claude · pi — mkdir -p ~/workspace for saveable work."
-`;
-  await sandbox.commands.run(
-    `mkdir -p ~/.detour/bin && cat > ~/.detour/bin/detour-draft << 'DETOUR_DRAFT_EOF'\n${draftHelp}\nDETOUR_DRAFT_EOF
-chmod +x ~/.detour/bin/detour-draft
-grep -q 'detour/bin' ~/.bashrc 2>/dev/null || echo 'export PATH="$HOME/.detour/bin:$PATH"' >> ~/.bashrc`,
-    { timeoutMs: 15_000 },
-  );
-
+  const launch = LAUNCH_CMD[id] ?? "opencode";
   onProgress(
-    "\r\n  \x1b[32mready\x1b[0m — run: \x1b[36mopencode\x1b[0m · \x1b[36mcodex\x1b[0m · \x1b[36mclaude\x1b[0m · \x1b[36mpi\x1b[0m · \x1b[36mdetour-draft\x1b[0m\r\n" +
-      "  Draft lab (sidebar) = test agent persona · Save workspace = $0.05 (holder discount applies)\r\n\r\n",
+    `\r\n  \x1b[32mready\x1b[0m — run \x1b[36m${launch}\x1b[0m · work in ~/workspace\r\n` +
+      "  Draft lab (sidebar) tests persona · Save workspace = small flat fee\r\n\r\n",
   );
 }

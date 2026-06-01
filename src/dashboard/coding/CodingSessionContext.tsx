@@ -28,7 +28,8 @@ function readBackend(): CodingBackend {
 function readProvider(): CodingProviderId {
   try {
     const v = localStorage.getItem(PROVIDER_KEY);
-    if (v === "opencode" || v === "codex" || v === "claude" || v === "pi" || v === "openrouter") {
+    if (v === "openrouter") return "opencode";
+    if (v === "opencode" || v === "codex" || v === "claude" || v === "pi") {
       return v;
     }
   } catch {

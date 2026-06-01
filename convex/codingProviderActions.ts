@@ -51,13 +51,12 @@ export const setKey = action({
   },
 });
 
-/** Set key from UI provider tab id (openrouter | codex | claude | pi). */
+/** Set key from UI provider tab id (opencode | codex | claude | pi). */
 export const setKeyForUi = action({
   args: {
     token: v.string(),
     uiProvider: v.union(
       v.literal("opencode"),
-      v.literal("openrouter"),
       v.literal("codex"),
       v.literal("claude"),
       v.literal("pi"),

@@ -8,12 +8,12 @@ export const CODING_TOUR: TourStep[] = [
   },
   {
     title: "Coding sidebar",
-    body: "Terminal, Setup, Draft lab, and Saved work replace the normal dashboard nav. Each agent (OpenCode, Codex, Claude, Pi, OpenRouter) has its own page for API keys.",
+    body: "Terminal, Setup, Draft lab, and Saved work replace the normal dashboard nav. Each agent (OpenCode, Codex, Claude, Pi) has its own page for API keys.",
     anchor: "coding-setup",
   },
   {
     title: "Choose a backend",
-    body: "Setup → Detour Cloud (E2B) or in-browser Sandbox. Sessions mkdir ~/workspace and install all agent CLIs automatically.",
+    body: "Setup → Detour Cloud (E2B) or in-browser Sandbox. Pick an agent in the sidebar; each session mkdir ~/workspace and installs only that CLI.",
     anchor: "coding-backends",
   },
   {

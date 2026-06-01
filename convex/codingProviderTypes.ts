@@ -16,5 +16,4 @@ export const UI_PROVIDER_ROWS: {
   { id: "codex", storageKey: "openai" },
   { id: "claude", storageKey: "anthropic" },
   { id: "pi", storageKey: "anthropic" },
-  { id: "openrouter", storageKey: "openrouter" },
 ];

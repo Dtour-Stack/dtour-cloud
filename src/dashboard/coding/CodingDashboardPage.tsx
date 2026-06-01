@@ -8,7 +8,7 @@ import { anyApi } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
-import { providerById } from "@/lib/codingProviders";
+import { envForProvider, providerById } from "@/lib/codingProviders";
 import { runSandboxBootstrap } from "@/lib/codingSandboxBootstrap";
 import { envExportScript } from "@/lib/codingSandboxEnv";
 import { getDtourSessionToken } from "@/lib/session";
@@ -26,12 +26,13 @@ import { CodingSetupPage } from "./CodingSetupPage";
 import { CODING_NAV } from "./codingNav";
 import { TopUpModal } from "./TopUpModal";
 
-function wsEndpoint(backend: CodingBackend): string {
+function wsEndpoint(backend: CodingBackend, agent: string): string {
   if (backend === "runner" && typeof window !== "undefined") {
     const token = getDtourSessionToken();
     if (!token) return "";
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${window.location.host}/coding-ws?token=${encodeURIComponent(token)}`;
+    const q = new URLSearchParams({ token, agent });
+    return `${proto}://${window.location.host}/coding-ws?${q}`;
   }
   return "";
 }
@@ -117,7 +118,7 @@ function CodingTerminalView() {
       <div className="flex h-full flex-col bg-[#08080b]">
         <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2">
           <span className="text-xs text-white/50">
-            {provider.label} · OpenCode · Codex · Claude · Pi
+            {provider.label} — one CLI per sandbox session
           </span>
           <div className="ml-auto flex items-center gap-3">
             {backend === "runner" && (
@@ -166,7 +167,7 @@ function CodingTerminalView() {
 
         <div className="min-h-0 flex-1 p-3" data-tour="coding-terminal">
           <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
-            <CodingTerminal key={`${backend}-${token ?? "anon"}`} />
+            <CodingTerminal key={`${backend}-${activeProvider}-${token ?? "anon"}`} />
           </div>
         </div>
       </div>
@@ -214,8 +215,8 @@ function CodingTerminal() {
       const shell = new BashShell({
         env: { TERM: "xterm-256color", SHELL: "/bin/bash", HOME: "/home/user" },
         greeting: [
-          "Detour — in-browser Sandbox (WASM bash + npm CLIs).",
-          "Preparing ~/workspace and installing agents…",
+          `Detour — in-browser Sandbox (${provider.label}).`,
+          "Preparing ~/workspace and installing CLI…",
           "",
         ],
       });
@@ -230,17 +231,24 @@ function CodingTerminal() {
           userEnv = {};
         }
       }
-      const envScript = envExportScript(userEnv);
+      const scoped = envForProvider(userEnv, activeProvider);
+      const envScript = envExportScript(scoped);
       const bash = shell.bash;
       if (bash) {
-        await runSandboxBootstrap(bash, shell.cwd, envScript, (chunk) => write(chunk));
+        await runSandboxBootstrap(
+          bash,
+          shell.cwd,
+          envScript,
+          activeProvider,
+          (chunk) => write(chunk),
+        );
       }
       write(
         `\r\n  \x1b[32mready\x1b[0m — \x1b[36m${provider.label}\x1b[0m · run \x1b[36m${provider.launchCmd}\x1b[0m · work in ~/workspace\r\n\r\n`,
       );
       return;
     }
-    const url = wsEndpoint(backend);
+    const url = wsEndpoint(backend, activeProvider);
     if (!url) {
       write(
         "\r\n  \x1b[33mThis backend isn't connected yet.\x1b[0m\r\n" +
@@ -266,6 +274,7 @@ function CodingTerminal() {
   }, [
     backend,
     write,
+    activeProvider,
     provider.label,
     provider.launchCmd,
     token,

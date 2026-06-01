@@ -1,0 +1,14 @@
+/* Detour Sketch — keep host chrome above Excalidraw portals, not on top of its toolbar. */
+.excalidraw-sketch-host .excalidraw {
+  height: 100%;
+}
+
+.excalidraw-sketch-host .excalidraw .layer-ui__wrapper {
+  z-index: 1;
+}
+
+/* Welcome hints sit center-screen; hide when Detour owns onboarding via Guide. */
+.excalidraw-sketch-host .excalidraw .welcome-screen-center,
+.excalidraw-sketch-host .excalidraw .welcome-screen-decor {
+  display: none !important;
+}

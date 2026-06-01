@@ -1,6 +1,6 @@
 /** Coding-agent providers shown in the Coding dashboard sidebar. */
 
-export type CodingProviderId = "opencode" | "codex" | "claude" | "pi" | "openrouter";
+export type CodingProviderId = "opencode" | "codex" | "claude" | "pi";
 
 export type CodingProviderMeta = {
   id: CodingProviderId;
@@ -12,6 +12,8 @@ export type CodingProviderMeta = {
   storageKey: "openrouter" | "openai" | "anthropic";
   /** CLI launched inside an E2B sandbox after bootstrap. */
   launchCmd: string;
+  /** Global npm package installed when this agent is selected (null = key-only, no CLI). */
+  npmPackage: string | null;
   hint: string;
   docsUrl: string;
 };
@@ -24,7 +26,8 @@ export const CODING_PROVIDERS: CodingProviderMeta[] = [
     envVar: "OPENROUTER_API_KEY",
     storageKey: "openrouter",
     launchCmd: "opencode",
-    hint: "Open-source terminal agent (opencode-ai). Uses your OpenRouter key; Codex/Claude keys work inside OpenCode too.",
+    npmPackage: "opencode-ai",
+    hint: "Open-source terminal agent (opencode-ai). Save your OpenRouter key on this page before opening Terminal.",
     docsUrl: "https://open-code.ai/docs",
   },
   {
@@ -34,7 +37,8 @@ export const CODING_PROVIDERS: CodingProviderMeta[] = [
     envVar: "OPENAI_API_KEY",
     storageKey: "openai",
     launchCmd: "codex",
-    hint: "OpenAI Codex CLI — uses your ChatGPT/API key.",
+    npmPackage: "@openai/codex",
+    hint: "OpenAI Codex CLI — save your OpenAI API key here, then open Terminal.",
     docsUrl: "https://developers.openai.com/codex",
   },
   {
@@ -44,7 +48,8 @@ export const CODING_PROVIDERS: CodingProviderMeta[] = [
     envVar: "ANTHROPIC_API_KEY",
     storageKey: "anthropic",
     launchCmd: "claude",
-    hint: "Anthropic Claude Code agent in the terminal.",
+    npmPackage: "@anthropic-ai/claude-code",
+    hint: "Anthropic Claude Code — save your Anthropic API key here, then open Terminal.",
     docsUrl: "https://docs.anthropic.com/en/docs/claude-code",
   },
   {
@@ -54,18 +59,9 @@ export const CODING_PROVIDERS: CodingProviderMeta[] = [
     envVar: "ANTHROPIC_API_KEY",
     storageKey: "anthropic",
     launchCmd: "pi",
-    hint: "Minimal agent CLI — uses Anthropic/OpenRouter keys you saved.",
+    npmPackage: "@earendil-works/pi-coding-agent",
+    hint: "Minimal agent CLI — save your Anthropic key, then open Terminal.",
     docsUrl: "https://pi.dev/docs/latest/quickstart",
-  },
-  {
-    id: "openrouter",
-    label: "OpenRouter",
-    shortLabel: "OR",
-    envVar: "OPENROUTER_API_KEY",
-    storageKey: "openrouter",
-    launchCmd: "openrouter --help",
-    hint: "One key routes 400+ models. Use inside Pi or curl scripts.",
-    docsUrl: "https://openrouter.ai/docs",
   },
 ];
 
@@ -75,4 +71,22 @@ export function providerById(id: CodingProviderId): CodingProviderMeta {
   const p = CODING_PROVIDERS.find((x) => x.id === id);
   if (!p) throw new Error(`Unknown provider ${id}`);
   return p;
+}
+
+export function isCodingProviderId(id: string): id is CodingProviderId {
+  return CODING_PROVIDER_IDS.includes(id as CodingProviderId);
+}
+
+/** Env vars to inject for the selected agent only. */
+export function envForProvider(
+  all: Record<string, string>,
+  id: CodingProviderId,
+): Record<string, string> {
+  const { envVar } = providerById(id);
+  const v = all[envVar];
+  return v ? { [envVar]: v } : {};
+}
+
+export function npmInstallCommand(pkg: string): string {
+  return `npm install -g --ignore-scripts ${pkg} 2>/dev/null`;
 }

@@ -1,15 +1,22 @@
-import { CODING_CLI_PACKAGES } from "./codingCliInstall";
+import type { CodingProviderId } from "./codingProviders";
+import { providerById } from "./codingProviders";
+import { cliInstallCommandForProvider } from "./codingCliInstall";
 
-/** Commands run in order when a browser Sandbox session starts. */
-export function sandboxBootstrapCommands(envScript: string): string[] {
-  return [
+/** Commands run in order when a browser Sandbox session starts (one agent CLI). */
+export function sandboxBootstrapCommands(
+  envScript: string,
+  providerId: CodingProviderId,
+): string[] {
+  const install = cliInstallCommandForProvider(providerId);
+  const cmds = [
     'export HOME="${HOME:-/home/user}"',
     'mkdir -p "$HOME" "$HOME/workspace" "$HOME/.detour" "$HOME/.detour/bin"',
     `cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${envScript}\nDETOUR_ENV_EOF`,
     `grep -q 'detour/env' ~/.bashrc 2>/dev/null || echo '[ -f ~/.detour/env ] && . ~/.detour/env' >> ~/.bashrc`,
     ". ~/.detour/env 2>/dev/null",
-    `npm install -g --ignore-scripts ${CODING_CLI_PACKAGES.join(" ")} 2>/dev/null`,
   ];
+  if (install) cmds.push(install);
+  return cmds;
 }
 
 type BashExec = {
@@ -21,8 +28,12 @@ export async function runSandboxBootstrap(
   bash: BashExec,
   cwd: string,
   envScript: string,
+  providerId: CodingProviderId,
   onOutput: (chunk: string) => void,
 ): Promise<void> {
+  const p = providerById(providerId);
+  onOutput(`\r\n  \x1b[36m${p.label}\x1b[0m — preparing sandbox…\r\n`);
+
   const run = async (cmd: string) => {
     const result = await bash.exec(`cd ${JSON.stringify(cwd)} && ${cmd}`);
     if (result.stdout) {
@@ -36,11 +47,11 @@ export async function runSandboxBootstrap(
     return result.exitCode ?? 0;
   };
 
-  for (const cmd of sandboxBootstrapCommands(envScript)) {
+  for (const cmd of sandboxBootstrapCommands(envScript, providerId)) {
     const code = await run(cmd);
     if (code !== 0 && cmd.includes("npm install")) {
       onOutput(
-        "\r\n  \x1b[33mwarning:\x1b[0m some CLIs failed to install — retry: npm i -g opencode-ai @openai/codex @anthropic-ai/claude-code @earendil-works/pi-coding-agent\r\n",
+        `\r\n  \x1b[33mwarning:\x1b[0m install failed — retry: npm i -g ${p.npmPackage ?? "…"}\r\n`,
       );
     }
   }

@@ -72,9 +72,10 @@ export function CodingSetupPage() {
           >
             E2B
           </a>{" "}
-          microVMs. Sandbox runs the same CLIs in your browser. Each session creates{" "}
-          <span className="font-mono text-white/60">~/workspace</span> and installs OpenCode,
-          Codex, Claude Code, and Pi.
+          microVMs. Sandbox runs the same flow in your browser. Pick an agent in the sidebar
+          (OpenCode, Codex, Claude, or Pi); each session creates{" "}
+          <span className="font-mono text-white/60">~/workspace</span> and installs only that
+          agent&apos;s CLI.
         </p>
       </section>
 
