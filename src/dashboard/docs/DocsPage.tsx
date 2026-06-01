@@ -7,7 +7,11 @@ const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
   { title: "$DTOUR access & discount", body: "Holding ≥0.5% of supply waives the markup (20% off).", to: "/token" },
   { title: "Agents", body: "Create lightweight agents — persona + model, no container.", to: "/agents" },
   { title: "Workflows & Design", body: "Compose generation + agent graphs visually.", to: "/design" },
-  { title: "Coding sandboxes", body: "Real coding agents in isolated sandboxes, billed in credits.", to: "/coding" },
+  {
+    title: "Coding sandboxes",
+    body: "E2B ([open-source](https://github.com/e2b-dev/e2b)) + in-browser Sandbox. OpenCode, Codex, Claude, Pi — save keys in the left rail, open Guide on /coding.",
+    to: "/coding",
+  },
   { title: "Affiliates", body: "Earn a share of the platform fee on referrals.", to: "/profile/affiliates" },
   { title: "API", body: "Programmatic access — mint a key, call the Detour API.", to: "/api-keys" },
   { title: "elizaOS docs", body: "The underlying agent runtime documentation.", href: "https://docs.elizaos.ai" },

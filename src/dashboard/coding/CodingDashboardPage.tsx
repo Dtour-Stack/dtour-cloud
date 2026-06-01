@@ -1,58 +1,22 @@
 import { BashShell } from "@wterm/just-bash";
 import { Terminal, type TerminalHandle } from "@wterm/react";
 import "@wterm/react/css";
-// Explicit ?url so Vite emits + hashes the terminal-core WASM; without this the
-// library's default loader can't find it under our bundle.
-// @ts-expect-error — Vite ?url asset import (typed by vite/client at build time).
+// @ts-expect-error — Vite ?url asset import
 import coreWasmUrl from "@wterm/core/wasm?url";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/dashboard/AppShell";
+import { CODING_CLI_NPM_INSTALL } from "@/lib/codingCliInstall";
+import { providerById, type CodingProviderId } from "@/lib/codingProviders";
+import { envExportScript } from "@/lib/codingSandboxEnv";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, cn, Icon } from "@/ui";
+import { CodingSidebar } from "./CodingSidebar";
 import { TopUpModal } from "./TopUpModal";
 
-/**
- * Coding dashboard — an embedded web terminal (wterm). The primary backend is a
- * real E2B Firecracker sandbox bridged over WebSocket by the coding-relay
- * service (server holds the E2B key; goes live once E2B_API_KEY is set). Also a
- * zero-server in-browser sandbox, and a placeholder for a future self-host tier.
- */
 type Backend = "runner" | "sandbox" | "selfhost";
 
-const BACKENDS: {
-  key: Backend;
-  label: string;
-  desc: string;
-  live: boolean;
-  icon: React.ReactNode;
-}[] = [
-  {
-    key: "runner",
-    label: "Detour Cloud",
-    desc: "Real coding agent in an E2B Firecracker microVM (server-side, isolated).",
-    live: true,
-    icon: <Icon.Bot size={13} />,
-  },
-  {
-    key: "sandbox",
-    label: "Sandbox",
-    desc: "WASM bash, runs entirely in your browser — no server.",
-    live: true,
-    icon: <Icon.Shield size={13} />,
-  },
-  {
-    key: "selfhost",
-    label: "Self-host",
-    desc: "Your own gVisor/Firecracker container (DOKS) — future sovereign tier.",
-    live: false,
-    icon: <Icon.Plug size={13} />,
-  },
-];
-
-/** WebSocket PTY endpoint for a backend, or "" if none. The runner points at the
- *  same-origin coding-relay (/coding-ws), authenticated with the session token. */
 function wsEndpoint(backend: Backend): string {
   if (backend === "runner" && typeof window !== "undefined") {
     const token = getDtourSessionToken();
@@ -60,7 +24,7 @@ function wsEndpoint(backend: Backend): string {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
     return `${proto}://${window.location.host}/coding-ws?token=${encodeURIComponent(token)}`;
   }
-  return ""; // selfhost: pending its endpoint
+  return "";
 }
 
 type Credits = { balanceUsd: number; holder: boolean } | null | undefined;
@@ -70,7 +34,7 @@ type Pricing =
 
 export default function CodingDashboardPage() {
   const [backend, setBackend] = useState<Backend>("runner");
-  const active = BACKENDS.find((b) => b.key === backend)!;
+  const [activeProvider, setActiveProvider] = useState<CodingProviderId>("opencode");
   const token = getDtourSessionToken();
   const credits = useQuery(
     anyApi.coding.myCredits,
@@ -84,38 +48,20 @@ export default function CodingDashboardPage() {
     : null;
   const lowBalance = backend === "runner" && credits != null && credits.balanceUsd < 0.05;
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const injectRef = useRef<((cmd: string) => void) | null>(null);
+
+  const onLaunchInTerminal = useCallback((cmd: string) => {
+    injectRef.current?.(`${cmd}\r`);
+  }, []);
 
   return (
     <AppShell title="Coding" context="coding" bare>
       <div className="flex h-full flex-col bg-[#08080b]">
-        {/* backend selector */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
-          <span className="text-xs uppercase tracking-widest text-white/40">Backend</span>
-          {BACKENDS.map((b) => (
-            <button
-              key={b.key}
-              type="button"
-              onClick={() => setBackend(b.key)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition",
-                backend === b.key
-                  ? "border-violet-400/50 bg-violet-400/10 text-white"
-                  : "border-white/10 text-white/65 hover:bg-white/5 hover:text-white",
-              )}
-            >
-              {b.icon}
-              {b.label}
-              {b.live ? (
-                <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400" title="Live" />
-              ) : (
-                <span className="ml-0.5 rounded-full bg-white/10 px-1.5 text-[9px] uppercase text-white/45">
-                  soon
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2">
+          <span className="text-xs text-white/50">
+            OpenCode · Codex · Claude · Pi — E2B or in-browser Sandbox
+          </span>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-xs text-white/40 lg:block">{active.desc}</span>
             {backend === "runner" && (
               <div
                 className={cn(
@@ -124,20 +70,13 @@ export default function CodingDashboardPage() {
                     ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
                     : "border-white/10 bg-white/[0.03] text-white/70",
                 )}
-                title={
-                  rateUsd != null
-                    ? `Metered E2B cost × 2 (holders −20%) → ~$${rateUsd.toFixed(2)}/sandbox-hr`
-                    : undefined
-                }
               >
                 <Icon.Coins size={13} />
                 {credits === undefined ? (
                   "…"
                 ) : (
                   <>
-                    <span className="tabular-nums">
-                      ${(credits?.balanceUsd ?? 0).toFixed(2)}
-                    </span>
+                    <span className="tabular-nums">${(credits?.balanceUsd ?? 0).toFixed(2)}</span>
                     {rateUsd != null && (
                       <span className="text-white/40">
                         · ~${rateUsd.toFixed(2)}/hr{credits?.holder ? " · holder" : ""}
@@ -167,10 +106,25 @@ export default function CodingDashboardPage() {
           </div>
         )}
 
-        {/* terminal — keyed by backend so switching cleanly remounts */}
-        <div className="min-h-0 flex-1 p-3">
-          <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
-            <CodingTerminal key={backend} backend={backend} />
+        <div className="flex min-h-0 flex-1">
+          <CodingSidebar
+            backend={backend}
+            onBackend={setBackend}
+            activeProvider={activeProvider}
+            onProvider={setActiveProvider}
+            token={token}
+            onLaunchInTerminal={onLaunchInTerminal}
+          />
+          <div className="min-h-0 flex-1 p-3" data-tour="coding-terminal">
+            <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
+              <CodingTerminal
+                key={`${backend}-${token ?? "anon"}`}
+                backend={backend}
+                activeProvider={activeProvider}
+                token={token}
+                injectRef={injectRef}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -181,34 +135,80 @@ export default function CodingDashboardPage() {
   );
 }
 
-function CodingTerminal({ backend }: { backend: Backend }) {
+function CodingTerminal({
+  backend,
+  activeProvider,
+  token,
+  injectRef,
+}: {
+  backend: Backend;
+  activeProvider: CodingProviderId;
+  token: string | null;
+  injectRef: React.MutableRefObject<((cmd: string) => void) | null>;
+}) {
   const termRef = useRef<TerminalHandle>(null);
   const shellRef = useRef<BashShell | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const provider = providerById(activeProvider);
+  const sessionEnv = useAction(anyApi.codingProviderActions.sessionEnvForSandbox);
 
   const write = useCallback((d: string | Uint8Array) => {
     termRef.current?.write(d);
   }, []);
 
+  useEffect(() => {
+    injectRef.current = (cmd: string) => {
+      if (backend === "sandbox") {
+        void shellRef.current?.handleInput(cmd);
+      } else if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send("d" + cmd);
+      }
+    };
+    return () => {
+      injectRef.current = null;
+    };
+  }, [backend, injectRef]);
+
   const onReady = useCallback(async () => {
     if (backend === "sandbox") {
       const shell = new BashShell({
+        env: { TERM: "xterm-256color", SHELL: "/bin/bash" },
         greeting: [
-          "Detour Cloud — sandboxed bash (in-browser WASM).",
-          "Everything here runs in your browser. Try: ls, echo hi, help",
+          "Detour — in-browser Sandbox (WASM bash + npm CLIs).",
+          "Installing OpenCode, Codex, Claude Code, Pi (first connect may take ~1 min)…",
           "",
         ],
       });
       await shell.attach((out) => write(out));
       shellRef.current = shell;
+
+      let userEnv: Record<string, string> = {};
+      if (token) {
+        try {
+          userEnv = ((await sessionEnv({ token })) as Record<string, string> | null) ?? {};
+        } catch {
+          userEnv = {};
+        }
+      }
+      const envScript = envExportScript(userEnv);
+      await shell.handleInput(
+        `mkdir -p ~/.detour && cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${envScript}\nDETOUR_ENV_EOF\n`,
+      );
+      await shell.handleInput(
+        `grep -q 'detour/env' ~/.bashrc 2>/dev/null || echo '[ -f ~/.detour/env ] && . ~/.detour/env' >> ~/.bashrc\n`,
+      );
+      await shell.handleInput(". ~/.detour/env 2>/dev/null\n");
+      await shell.handleInput(`${CODING_CLI_NPM_INSTALL}\n`);
+      write(
+        `\r\n  \x1b[32mready\x1b[0m — agent tab: \x1b[36m${provider.label}\x1b[0m · run \x1b[36m${provider.launchCmd}\x1b[0m\r\n\r\n`,
+      );
       return;
     }
     const url = wsEndpoint(backend);
     if (!url) {
       write(
         "\r\n  \x1b[33mThis backend isn't connected yet.\x1b[0m\r\n" +
-          "  The self-host (DOKS) tier is future work — use Detour Cloud or the\r\n" +
-          "  in-browser Sandbox meanwhile.\r\n",
+          "  Self-host is future work — use Detour Cloud or Sandbox.\r\n",
       );
       return;
     }
@@ -219,14 +219,14 @@ function CodingTerminal({ backend }: { backend: Backend }) {
     ws.onerror = () => write("\r\n  \x1b[31mconnection error\x1b[0m\r\n");
     ws.onclose = () => write("\r\n  session closed.\r\n");
     wsRef.current = ws;
-  }, [backend, write]);
+  }, [backend, write, provider.label, provider.launchCmd, token, sessionEnv]);
 
   const onData = useCallback(
     (data: string) => {
       if (backend === "sandbox") {
         void shellRef.current?.handleInput(data);
       } else if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send("d" + data); // "d" = PTY input (see relay wire protocol)
+        wsRef.current.send("d" + data);
       }
     },
     [backend],

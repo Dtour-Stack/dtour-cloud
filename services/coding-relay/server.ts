@@ -13,8 +13,10 @@
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { Sandbox } from "e2b";
+import { bootstrapCodingSandbox } from "./bootstrap";
 
 const PORT = Number(process.env.PORT ?? 8787);
+const E2B_TEMPLATE = process.env.E2B_TEMPLATE?.trim() || undefined;
 const E2B_API_KEY = process.env.E2B_API_KEY ?? "";
 const CONVEX_URL = process.env.CONVEX_URL ?? "http://backend:3210";
 // Hard cap on a single sandbox's lifetime — bounds E2B cost per session.
@@ -53,7 +55,13 @@ Bun.serve<WSData>({
   port: PORT,
   async fetch(req, server) {
     const url = new URL(req.url);
-    if (url.pathname.endsWith("/health")) return new Response("ok");
+    if (url.pathname.endsWith("/health") || url.pathname.endsWith("/coding-health")) {
+      return Response.json({
+        ok: true,
+        e2b: !!E2B_API_KEY,
+        template: E2B_TEMPLATE ?? "default",
+      });
+    }
     const token = url.searchParams.get("token");
     if (!(await validSession(token))) {
       return new Response("unauthorized", { status: 401 });
@@ -105,9 +113,19 @@ Bun.serve<WSData>({
       }
       try {
         ws.send("\r\n  spinning up a Firecracker sandbox…\r\n");
+        let userEnv: Record<string, string> = {};
+        try {
+          userEnv =
+            ((await convex.action(anyApi.codingProviderActions.sessionEnvForRelay, {
+              token: ws.data.token,
+            })) as Record<string, string> | null) ?? {};
+        } catch {
+          userEnv = {};
+        }
         const sandbox = await Sandbox.create({
           apiKey: E2B_API_KEY,
           timeoutMs: SESSION_MS,
+          ...(E2B_TEMPLATE ? { template: E2B_TEMPLATE } : {}),
         });
         if (ws.data.closed) {
           await sandbox.kill().catch(() => {});
@@ -126,7 +144,15 @@ Bun.serve<WSData>({
         });
         ws.data.pid = term.pid;
         ws.send(
-          "\r\n  \x1b[32mconnected\x1b[0m — Detour Cloud sandbox (E2B · Firecracker microVM)\r\n\r\n",
+          "\r\n  \x1b[32mconnected\x1b[0m — Detour Cloud sandbox (E2B · Firecracker microVM)\r\n",
+        );
+        await bootstrapCodingSandbox(sandbox, userEnv, (msg) => {
+          if (!ws.data.closed) ws.send(msg);
+        });
+        // Reload env in the interactive shell.
+        await sandbox.pty.sendInput(
+          term.pid,
+          new TextEncoder().encode("source ~/.detour/env 2>/dev/null || true\r"),
         );
       } catch (e) {
         ws.send(`\r\n  \x1b[31mcouldn't start sandbox:\x1b[0m ${String(e).slice(0, 240)}\r\n`);
