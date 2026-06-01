@@ -55,7 +55,8 @@ export default function BillingPage() {
             <li>• Coding sandboxes are metered per second at E2B's real cost × markup.</li>
             <li>• Holders of ≥0.5% $DTOUR get 20% off coding sandboxes, applied automatically.</li>
             <li>• A small minimum charge per session covers overhead.</li>
-            <li>• Inference (chat, media, models) isn't metered yet — billing for it is coming soon.</li>
+            <li>• Chat and image generation are metered at the gateway's real cost × markup (holder discount applies).</li>
+            <li>• Prefer the “Free — rate-limited” model for zero-cost inference (no credits used, daily cap).</li>
           </ul>
         </div>
       </div>

@@ -55,11 +55,11 @@ const PRICE_TTL_MS = 60 * 60 * 1000; // refresh the OpenRouter price catalog hou
 // limits (20/min; 50–1000/day) are ACCOUNT-WIDE on our one key, so we also keep a
 // per-user daily cap. Two triggers: the FREETOUR env flag (dev — route everything
 // free, no per-user cap) and the user-selectable "freetour" model (prod — capped).
+// OpenRouter caps the models[] fallback array at 3 entries, so: 2 curated :free
+// instruct models + openrouter/free (their own all-free router) as the catch-all.
 const FREE_MODELS = [
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "z-ai/glm-4.5-air:free",
   "openrouter/free",
 ];
 const FREETOUR_DAILY_CAP = 50; // per-user free calls/day (soft; the pool is shared)
@@ -339,8 +339,13 @@ export const runChat = action({
     const orKey = process.env.OPENROUTER_API_KEY;
 
     if (orKey) {
+      // Admin kill-switches (toggle without redeploy): paid_inference_enabled,
+      // freetour_enabled. Absent row → default on (only an explicit false blocks).
+      const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
       const free = freetourActive(model);
       if (free) {
+        if (flags.freetour_enabled === false)
+          throw new Error("Free inference is paused right now — try again later or use credits.");
         // freetour: the dev env flag routes everything free with no per-user cap;
         // the user-facing "Free" option is capped (the OpenRouter pool is shared).
         if (!process.env.FREETOUR) {
@@ -351,6 +356,8 @@ export const runChat = action({
             );
         }
       } else {
+        if (flags.paid_inference_enabled === false)
+          throw new Error("Inference is temporarily paused — please try again shortly.");
         // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
         const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
         if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to keep chatting." : "Cannot run inference.");
@@ -484,6 +491,9 @@ export const runImage = action({
     const orKey = process.env.OPENROUTER_API_KEY;
 
     if (orKey) {
+      const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
+      if (flags.paid_inference_enabled === false)
+        throw new Error("Image generation is temporarily paused — please try again shortly.");
       const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
       if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to generate." : "Cannot run inference.");
       const usedModel = model && model !== "Auto" && model !== "auto" ? model : "google/gemini-2.5-flash-image";
@@ -589,6 +599,12 @@ export const runSpeech = action({
     if (!me) throw new Error("Not signed in");
     const pubkey = me.pubkey;
     if (!text.trim()) throw new Error("No text to speak");
+
+    // TTS is OFF by default (the ElizaCloud ElevenLabs endpoint 404s in prod). An
+    // admin flips tts_enabled on once it's live — this returns a clean message
+    // instead of letting users hit a raw gateway 404.
+    const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
+    if (flags.tts_enabled !== true) throw new Error("Voice / text-to-speech is temporarily unavailable.");
 
     // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
     const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };

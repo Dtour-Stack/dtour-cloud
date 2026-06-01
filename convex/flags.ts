@@ -73,6 +73,10 @@ export const seed = internalMutation({
       { key: "agent_linking", enabled: false, description: "Link agents (builders phase)" },
       { key: "github_linking", enabled: false, description: "Link GitHub (builders phase)" },
       { key: "admin_debug_panel", enabled: true, description: "Show debug log in admin" },
+      // Operational kill-switches for the inference rails (toggle without redeploy).
+      { key: "paid_inference_enabled", enabled: true, description: "Metered paid inference (chat/image) — kill-switch" },
+      { key: "freetour_enabled", enabled: true, description: "Free-tier inference (rate-limited) — kill-switch" },
+      { key: "tts_enabled", enabled: false, description: "Text-to-speech — off until the ElizaCloud endpoint is live" },
     ];
     for (const f of defaults) {
       const existing = await ctx.db
