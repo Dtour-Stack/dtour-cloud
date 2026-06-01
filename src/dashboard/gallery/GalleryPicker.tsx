@@ -1,10 +1,12 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ChangeEvent, useRef, useState } from "react";
+import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { Button, Icon } from "@/ui";
 import { useGalleryUpload } from "./useGalleryUpload";
 
 type Asset = { id: string; name: string; url: string | null };
+const EMPTY_ASSETS: Asset[] = [];
 
 /** Click-to-pick gallery modal — shows the user's images; click one → onPick(url).
  *  No URLs to copy/paste. Used by agent chat + workflow image input. */
@@ -20,10 +22,12 @@ export function GalleryPicker({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const testUser = readDtourPlaywrightUser();
   const { uploadImage } = useGalleryUpload(token);
-  const assets = useQuery(anyApi.assets.myGallery, token ? { token } : "skip") as
+  const queryAssets = useQuery(anyApi.assets.myGallery, token && !testUser ? { token } : "skip") as
     | Asset[]
     | undefined;
+  const assets = testUser ? EMPTY_ASSETS : queryAssets;
 
   async function onUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

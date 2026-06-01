@@ -9,7 +9,7 @@ import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
 } from "@/lib/playwright-dtour-auth";
-import { isAdmin, isPro, type Role } from "@/lib/roles";
+import { isAdmin, type Role } from "@/lib/roles";
 import { DTOUR_SESSION_KEY, getDtourSessionToken } from "@/lib/session";
 import { Badge, cn, Icon, IconButton } from "@/ui";
 import { AdminDetourAssistant } from "./admin/AdminDetourAssistant";
@@ -292,11 +292,7 @@ export function AppShell({
             <IconButton label="Open navigation" onClick={() => setMobileNavOpen(true)} className="md:hidden">
               <Icon.PanelLeft />
             </IconButton>
-            {isPro(me?.role) ? (
-              <ContextSwitcher context={context} role={me?.role} flags={flags} />
-            ) : (
-              <span className="text-sm text-white/40">{title ?? "Dashboard"}</span>
-            )}
+            <ContextSwitcher context={context} role={me?.role} flags={flags} />
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-white/60 sm:inline">
@@ -359,15 +355,15 @@ export function AppShell({
             <Icon.X />
           </IconButton>
         </div>
-        <div className="flex-1 overflow-auto p-4">{panel ?? <InboxPanel />}</div>
+        <div className="flex-1 overflow-auto p-4">
+          {panelOpen ? (panel ?? <InboxPanel />) : null}
+        </div>
       </aside>
       {context === "admin" && isAdmin(me?.role) && <AdminDetourAssistant />}
     </div>
   );
 }
 
-/** Dropdown to switch dashboards. User Dashboard for everyone; Design for
- *  Pro tier and above; Admin for admins. Only shown when there's more than one. */
 function ContextSwitcher({
   context,
   role,
@@ -407,7 +403,7 @@ function ContextSwitcher({
     ? decodeURIComponent(location.pathname.replace("/dashboard/custom/", ""))
     : "";
   const customItems =
-    isPro(role) && Array.isArray(customDashboards)
+    Array.isArray(customDashboards)
       ? customDashboards.map((dashboard) => ({
           key: `custom:${dashboard.name}`,
           label: dashboard.title || dashboard.name,
@@ -419,12 +415,8 @@ function ContextSwitcher({
   const items = [
     { key: "user", label: "User Dashboard", to: "/dashboard", icon: <Icon.Home size={14} /> },
     { key: "profile", label: "Profile", to: "/profile", icon: <Icon.User size={14} /> },
-    ...(isPro(role)
-      ? [
-          { key: "design", label: "Design Studio", to: "/design", icon: <Icon.Palette size={14} /> },
-          { key: "coding", label: "Coding", to: "/coding", icon: <Icon.Zap size={14} /> },
-        ]
-      : []),
+    { key: "design", label: "Design Studio", to: "/design", icon: <Icon.Palette size={14} /> },
+    { key: "coding", label: "Coding", to: "/coding", icon: <Icon.Zap size={14} /> },
     ...customItems,
     ...(isAdmin(role)
       ? [{ key: "admin", label: "Admin", to: "/admin", icon: <Icon.Shield size={14} /> }]

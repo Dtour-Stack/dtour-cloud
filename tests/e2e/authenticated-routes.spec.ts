@@ -18,6 +18,27 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("Coming soon").first()).toBeVisible();
   });
 
+  test("open beta users can reach beta dashboards", async ({ page }) => {
+    await installDtourTestSession(page, "user");
+
+    await page.goto("/dashboard");
+
+    await expect(page.getByRole("button", { name: "User Dashboard" })).toBeVisible();
+    await page.getByRole("button", { name: "User Dashboard" }).click({ force: true });
+    await expect(page.getByRole("menuitem", { name: /Design Studio/i })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /Coding/i })).toBeVisible();
+
+    await page.goto("/design");
+    await expect(page).toHaveURL(/\/design$/);
+    await expect(page.getByRole("button", { name: "Design Studio" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Design Studio" })).toBeVisible();
+
+    await page.goto("/coding/setup");
+    await expect(page).toHaveURL(/\/coding\/setup$/);
+    await expect(page.getByRole("button", { name: "Coding" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Detour Cloud \(E2B\)/i })).toBeVisible();
+  });
+
   test("design studio exposes generate preview and removes AI components inventory", async ({
     page,
   }) => {

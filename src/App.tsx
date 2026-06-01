@@ -62,9 +62,9 @@ export default function App() {
         <Route
           path="/dashboard/custom/:dashboardId"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <CustomDashboardPage />
-            </RequireRole>
+            </RequireSession>
           }
         />
         <Route
@@ -310,65 +310,65 @@ export default function App() {
         <Route
           path="/design/projects/:projectId"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <SurfaceGate path="/design">
                 <DesignDashboardPage />
               </SurfaceGate>
-            </RequireRole>
+            </RequireSession>
           }
         />
         <Route
           path="/design/projects"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <SurfaceGate path="/design">
                 <DesignDashboardPage />
               </SurfaceGate>
-            </RequireRole>
+            </RequireSession>
           }
         />
         <Route
           path="/design"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <SurfaceGate path="/design">
                 <DesignDashboardPage />
               </SurfaceGate>
-            </RequireRole>
+            </RequireSession>
           }
         />
         <Route
           path="/design/:section"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <SurfaceGate path="/design">
                 <DesignDashboardPage />
               </SurfaceGate>
-            </RequireRole>
+            </RequireSession>
           }
         />
         <Route
           path="/coding"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <SurfaceGate path="/coding">
                 <SolanaWalletProvider>
                   <CodingDashboardPage />
                 </SolanaWalletProvider>
               </SurfaceGate>
-            </RequireRole>
+            </RequireSession>
           }
         />
         <Route
           path="/coding/:section"
           element={
-            <RequireRole min="pro_user">
+            <RequireSession>
               <SurfaceGate path="/coding">
                 <SolanaWalletProvider>
                   <CodingDashboardPage />
                 </SolanaWalletProvider>
               </SurfaceGate>
-            </RequireRole>
+            </RequireSession>
           }
         />
       </Routes>

@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { Badge, Button, Icon, Panel } from "@/ui";
 import { designPath } from "../designProject";
@@ -144,12 +145,13 @@ function BuiltinCard({
   description: string;
   to: string;
 }) {
+  const testUser = readDtourPlaywrightUser();
   const token = getDtourSessionToken();
   const assets = useQuery(
     anyApi.assets.myGallery,
-    token && id === GALLERY_PROJECT_ID ? { token } : "skip",
+    token && !testUser && id === GALLERY_PROJECT_ID ? { token } : "skip",
   ) as { id: string }[] | undefined;
-  const imageCount = assets?.length ?? 0;
+  const imageCount = testUser ? 0 : (assets?.length ?? 0);
 
   return (
     <Link

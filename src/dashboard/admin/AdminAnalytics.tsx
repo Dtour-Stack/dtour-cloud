@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
+import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { Icon, StatCard } from "@/ui";
 
@@ -23,16 +24,32 @@ type InferenceRollup =
   | null
   | undefined;
 
+const TEST_SUMMARY: Exclude<Summary, null | undefined> = {
+  totalUsers: 0,
+  totalProfiles: 0,
+  whitelisted: 0,
+  admins: 0,
+  eventsLast24h: 0,
+};
+
+const TEST_ROLLUP: Exclude<InferenceRollup, null | undefined> = {
+  platform: { spendUsd: 0, paidCalls: 0 },
+  topSpenders: [],
+};
+
 export function AdminAnalytics() {
+  const testUser = readDtourPlaywrightUser();
   const token = getDtourSessionToken();
-  const s = useQuery(
+  const summary = useQuery(
     anyApi.events.summary,
-    token ? { token } : "skip",
+    token && !testUser ? { token } : "skip",
   ) as Summary;
-  const rollup = useQuery(
+  const inferenceRollup = useQuery(
     anyApi.adminUsage.inferenceRollup,
-    token ? { token } : "skip",
+    token && !testUser ? { token } : "skip",
   ) as InferenceRollup;
+  const s = testUser ? TEST_SUMMARY : summary;
+  const rollup = testUser ? TEST_ROLLUP : inferenceRollup;
   const loading = s === undefined;
   const rollupLoading = rollup === undefined;
 

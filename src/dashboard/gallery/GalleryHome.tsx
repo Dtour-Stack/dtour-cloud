@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useRef, useState } from "react";
+import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, Icon } from "@/ui";
 import { useGalleryUpload } from "./useGalleryUpload";
@@ -13,6 +14,8 @@ export type GalleryAsset = {
   createdAt: number;
 };
 
+const EMPTY_GALLERY: GalleryAsset[] = [];
+
 /** Gallery grid + upload — embeddable in Design Studio or standalone AppShell. */
 export function GalleryHome({
   title = "Gallery",
@@ -21,11 +24,13 @@ export function GalleryHome({
   title?: string;
   description?: string;
 }) {
+  const testUser = readDtourPlaywrightUser();
   const token = getDtourSessionToken();
-  const assets = useQuery(
+  const queryAssets = useQuery(
     anyApi.assets.myGallery,
-    token ? { token } : "skip",
+    token && !testUser ? { token } : "skip",
   ) as GalleryAsset[] | undefined;
+  const assets = testUser ? EMPTY_GALLERY : queryAssets;
 
   const removeAsset = useMutation(anyApi.assets.removeAsset);
   const { uploadImage } = useGalleryUpload(token);

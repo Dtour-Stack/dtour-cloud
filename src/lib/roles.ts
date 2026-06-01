@@ -23,7 +23,6 @@ export function isAdmin(role: Role | null | undefined): boolean {
   return atLeast(role, "admin");
 }
 
-/** Pro tier and above — gates the Design dashboard. */
 export function isPro(role: Role | null | undefined): boolean {
   return atLeast(role, "pro_user");
 }

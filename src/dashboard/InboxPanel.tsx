@@ -1,6 +1,10 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useEffect, useRef, useState } from "react";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, EmptyState, Icon, Skeleton } from "@/ui";
 
@@ -14,14 +18,18 @@ type Msg = {
   at: number;
 };
 
+const EMPTY_MESSAGES: Msg[] = [];
+
 export function InboxPanel() {
-  const token = getDtourSessionToken();
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const messages = useQuery(
     anyApi.messages.inbox,
-    token ? { token } : "skip",
+    token && !testUser ? { token } : "skip",
   ) as Msg[] | undefined;
   const markRead = useMutation(anyApi.messages.markRead);
   const markAllRead = useMutation(anyApi.messages.markAllRead);
+  const visibleMessages = testUser ? EMPTY_MESSAGES : messages;
 
   const seen = useRef<Set<string>>(new Set());
   const primed = useRef(false);
@@ -31,13 +39,13 @@ export function InboxPanel() {
 
   // Fire a browser notification for newly-arrived push messages.
   useEffect(() => {
-    if (!messages) return;
+    if (!visibleMessages) return;
     if (!primed.current) {
-      for (const m of messages) seen.current.add(m.id);
+      for (const m of visibleMessages) seen.current.add(m.id);
       primed.current = true;
       return;
     }
-    for (const m of messages) {
+    for (const m of visibleMessages) {
       if (seen.current.has(m.id)) continue;
       seen.current.add(m.id);
       if (
@@ -51,9 +59,9 @@ export function InboxPanel() {
         });
       }
     }
-  }, [messages]);
+  }, [visibleMessages]);
 
-  const hasUnread = messages?.some((m) => !m.read);
+  const hasUnread = visibleMessages?.some((m) => !m.read);
 
   return (
     <div className="flex h-full flex-col">
@@ -78,12 +86,12 @@ export function InboxPanel() {
         )}
       </div>
 
-      {messages === undefined ? (
+      {visibleMessages === undefined ? (
         <div className="space-y-2">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
         </div>
-      ) : messages.length === 0 ? (
+      ) : visibleMessages.length === 0 ? (
         <EmptyState
           icon={<Icon.Activity size={20} />}
           title="No messages"
@@ -91,7 +99,7 @@ export function InboxPanel() {
         />
       ) : (
         <ul className="space-y-2 overflow-auto">
-          {messages.map((m) => (
+          {visibleMessages.map((m) => (
             <li key={m.id}>
               <button
                 type="button"
