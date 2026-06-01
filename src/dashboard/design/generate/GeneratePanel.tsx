@@ -1,4 +1,4 @@
-import { useAction, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useState } from "react";
 import { getDtourSessionToken } from "@/lib/session";
@@ -13,7 +13,7 @@ const isImg = (s?: string) => !!s && /^(https?:|data:)/.test(s);
  *  a Prompt → Image Generate → Output graph and submits it via runWorkflow. */
 export function GeneratePanel() {
   const token = getDtourSessionToken();
-  const runWorkflow = useAction(anyApi.workflow.runWorkflow);
+  const runWorkflow = useMutation(anyApi.workflow.runWorkflow);
   const saveAsset = useAction(anyApi.assets.saveAsset);
   const [prompt, setPrompt] = useState("a serene mountain at dawn, cinematic");
   const [runId, setRunId] = useState<string | null>(null);

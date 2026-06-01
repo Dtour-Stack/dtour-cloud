@@ -5,7 +5,14 @@ import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, Icon } from "@/ui";
 
-type Key = { id: string; label: string; masked: string; createdAt: number; lastUsedAt: number | null };
+type Key = {
+  id: string;
+  label: string;
+  masked: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+  legacy?: boolean;
+};
 
 export default function ApiKeysPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
@@ -37,22 +44,22 @@ export default function ApiKeysPage({ embedded = false }: { embedded?: boolean }
           </p>
         </div>
 
-        <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-4 py-2.5 text-xs text-amber-200/90">
-          ⓘ Programmatic API access is <span className="font-medium">coming soon</span>. The API
-          today authenticates with your dashboard session (see the API Explorer "Try it"); standalone
-          keys aren't accepted for auth yet — key creation is disabled until they are.
+        <div className="rounded-lg border border-violet-400/25 bg-violet-400/[0.06] px-4 py-2.5 text-xs text-violet-100/90">
+          Keys use the <span className="font-mono">sk_</span> prefix. Use{" "}
+          <span className="font-mono">Authorization: Bearer &lt;key&gt;</span> for MCP at{" "}
+          <span className="font-mono">/mcp</span> and future HTTP APIs. Legacy{" "}
+          <span className="font-mono">dt_live_*</span> keys remain valid until revoked.
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 opacity-60">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <div className="flex gap-2">
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Key label (e.g. production)"
-              disabled
-              className="flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none disabled:cursor-not-allowed"
+              className="flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
             />
-            <Button onClick={add} disabled title="Coming soon">
+            <Button onClick={add} disabled={busy || !label.trim()}>
               <Icon.Plus size={14} /> Create
             </Button>
           </div>
@@ -90,7 +97,12 @@ export default function ApiKeysPage({ embedded = false }: { embedded?: boolean }
                   <div className="text-sm text-white">{k.label}</div>
                   <code className="font-mono text-xs text-white/40">{k.masked}</code>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => token && revoke({ token, id: k.id })}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => token && revoke({ token, id: k.id })}
+                  title={k.legacy ? "Revoke legacy key" : "Revoke"}
+                >
                   <Icon.Trash size={13} /> Revoke
                 </Button>
               </div>

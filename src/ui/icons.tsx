@@ -44,6 +44,12 @@ export const Bot = (p: { size?: number }) => (
 export const Activity = (p: { size?: number }) => (
   <Icon {...p}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></Icon>
 );
+export const Brain = (p: { size?: number }) => (
+  <Icon {...p}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" /><path d="M17.599 6.5A3 3 0 0 0 20 9v1" /><path d="M6.401 6.5A3 3 0 0 1 4 9v1" /></Icon>
+);
+export const Globe = (p: { size?: number }) => (
+  <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></Icon>
+);
 export const ArrowUpRight = (p: { size?: number }) => (
   <Icon {...p}><path d="M7 7h10v10" /><path d="M7 17 17 7" /></Icon>
 );
@@ -106,6 +112,9 @@ export const Frame = (p: { size?: number }) => (
 );
 export const Square = (p: { size?: number }) => (
   <Icon {...p}><rect width="18" height="18" x="3" y="3" rx="2" /></Icon>
+);
+export const Circle = (p: { size?: number }) => (
+  <Icon {...p}><circle cx="12" cy="12" r="9" /></Icon>
 );
 export const Type = (p: { size?: number }) => (
   <Icon {...p}><path d="M12 4v16" /><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /><path d="M9 20h6" /></Icon>

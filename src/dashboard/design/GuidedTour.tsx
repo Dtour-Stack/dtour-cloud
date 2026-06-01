@@ -217,17 +217,17 @@ export const WORKFLOW_TOUR: TourStep[] = [
 
 export const CANVAS_TOUR: TourStep[] = [
   {
-    title: "The design canvas",
-    body: "An Excalidraw-powered surface for hand-drawn diagrams, annotations, and workflow outputs — with Detour Cloud AI on the side.",
+    title: "Design Studio",
+    body: "A Canva-style canvas — artboards, shapes, text, images, and AI-generated graphics or website mockups. WebGPU accelerates shape rendering when your browser supports it.",
   },
   {
-    title: "1 · Draw & arrange",
-    body: "Use Excalidraw's native tools for shapes, arrows, text, and frames. Your scene auto-saves every few seconds.",
+    title: "1 · Layout tools",
+    body: "Add artboards (presets in the toolbar), rectangles, ellipses, and text. Drag to move, scroll to zoom, drag empty space to pan. Auto-save runs every few seconds.",
     anchor: "canvas-toolbar",
   },
   {
-    title: "2 · Gallery & workflows",
-    body: "Insert images from Gallery, or send workflow preview outputs to the canvas. Open the AI panel to generate diagram layouts from a prompt.",
+    title: "2 · AI & assets",
+    body: "Open AI to generate graphic layouts, images, or HTML website mockups. Gallery and workflow outputs land on the canvas too. Excalidraw diagrams live under Sketch in the sidebar.",
     anchor: "canvas-toolbar",
   },
 ];

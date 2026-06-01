@@ -1,20 +1,13 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { AppShell } from "@/dashboard/AppShell";
+import { MCP_CATALOG } from "@/lib/mcpCatalog";
 import { getDtourSessionToken } from "@/lib/session";
+import { useFlag } from "@/lib/useFlags";
 import { Button, Icon } from "@/ui";
 
-const MCPS: { id: string; name: string; category: string; desc: string }[] = [
-  { id: "web-search", name: "Web Search", category: "Knowledge", desc: "Live web results for your agents." },
-  { id: "crypto", name: "Crypto", category: "Knowledge", desc: "Token prices + on-chain data." },
-  { id: "weather", name: "Weather", category: "Knowledge", desc: "Current + forecast weather." },
-  { id: "time", name: "Time", category: "Utility", desc: "Timezones + scheduling helpers." },
-  { id: "asana", name: "Asana", category: "Productivity", desc: "Tasks + projects." },
-  { id: "jira", name: "Jira", category: "Productivity", desc: "Issues + sprints." },
-  { id: "zoom", name: "Zoom", category: "Productivity", desc: "Meetings + recordings." },
-];
-
 export default function McpsPage() {
+  const mcpsEnabled = useFlag("surface_mcps");
   const token = getDtourSessionToken();
   const connected = useQuery(anyApi.mcps.connected, token ? { token } : "skip") as string[] | undefined;
   const connect = useMutation(anyApi.mcps.connect);
@@ -35,8 +28,14 @@ export default function McpsPage() {
           ⓘ <span className="font-medium">Coming soon.</span> "Connect" saves the server to your
           account so it's ready to wire — agents don't execute MCP tools yet.
         </div>
+        {!mcpsEnabled && (
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/50">
+            MCP servers are disabled by an admin feature flag. Enable{" "}
+            <code className="text-white/70">surface_mcps</code> to use this surface.
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
-          {MCPS.map((m) => {
+          {MCP_CATALOG.map((m) => {
             const on = isOn(m.id);
             return (
               <div
@@ -56,7 +55,7 @@ export default function McpsPage() {
                 <Button
                   size="sm"
                   variant={on ? "ghost" : "secondary"}
-                  disabled={!token}
+                  disabled={!token || !mcpsEnabled}
                   onClick={() =>
                     token && (on ? disconnect({ token, mcp: m.id }) : connect({ token, mcp: m.id }))
                   }

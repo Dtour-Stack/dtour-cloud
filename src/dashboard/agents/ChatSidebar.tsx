@@ -1,7 +1,7 @@
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 
@@ -11,6 +11,13 @@ type Agent = {
   createdAt: number;
   lastChatAt: number;
   lastPreview: string | null;
+};
+
+type AgentChat = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 /** ChatGPT-style chat rail: New agent + search at top, a scrollable "Recents"
@@ -24,11 +31,18 @@ export function ChatSidebar({
 }) {
   const navigate = useNavigate();
   const { agentId } = useParams();
+  const [searchParams] = useSearchParams();
+  const activeChatId = searchParams.get("chat");
   const token = getDtourSessionToken();
   const agents = useQuery(
     anyApi.agents.list,
     token ? { token } : "skip",
   ) as Agent[] | undefined;
+  const chats = useQuery(
+    anyApi.agents.listChats,
+    token && agentId ? { token, agentId } : "skip",
+  ) as AgentChat[] | undefined;
+  const createChat = useMutation(anyApi.agents.createChat);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
 
@@ -39,6 +53,12 @@ export function ChatSidebar({
   function go(to: string) {
     closeMobile();
     navigate(to);
+  }
+
+  async function startNewChat() {
+    if (!token || !agentId) return;
+    const { chatId } = (await createChat({ token, agentId })) as { chatId: string };
+    go(`/agents/${agentId}?chat=${chatId}`);
   }
 
   // Collapsed rail: icon-only quick actions, no recents list.
@@ -79,6 +99,43 @@ export function ChatSidebar({
           placeholder="Filter agents…"
           className="mt-2 w-full rounded-lg border border-white/12 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
         />
+      )}
+
+      {agentId && (
+        <>
+          <div className="mb-1 mt-4 px-2 text-[10px] uppercase tracking-widest text-white/35">
+            Chats
+          </div>
+          <div className="space-y-0.5">
+            <Row
+              icon={<Icon.SquarePen size={16} />}
+              label="New chat"
+              onClick={() => void startNewChat()}
+            />
+            {chats === undefined ? (
+              <div className="mx-1 h-8 animate-pulse rounded-md bg-white/[0.04]" />
+            ) : chats.length === 0 ? (
+              <p className="px-2 py-2 text-[12px] text-white/35">No chats yet.</p>
+            ) : (
+              chats.map((c) => (
+                <NavLink
+                  key={c.id}
+                  to={`/agents/${agentId}?chat=${c.id}`}
+                  onClick={closeMobile}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-2.5 py-2 text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+                    c.id === activeChatId
+                      ? "bg-white/10 text-white"
+                      : "text-white/65 hover:bg-white/5 hover:text-white",
+                  )}
+                >
+                  <Icon.List size={14} className="shrink-0 opacity-60" />
+                  <span className="truncate">{c.title}</span>
+                </NavLink>
+              ))
+            )}
+          </div>
+        </>
       )}
 
       <div className="mb-1 mt-4 px-2 text-[10px] uppercase tracking-widest text-white/35">

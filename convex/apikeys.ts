@@ -1,6 +1,11 @@
 import { v } from "convex/values";
+import { type Id } from "./_generated/dataModel";
 import { type MutationCtx, type QueryCtx, mutation, query } from "./_generated/server";
+import { apiTokens } from "./componentApiTokens";
 import { logEvent } from "./events";
+import { legacyApiKeyHash } from "./mcpAuth";
+
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 async function sessionPubkey(ctx: QueryCtx | MutationCtx, token: string): Promise<string | null> {
   const s = await ctx.db
@@ -11,69 +16,124 @@ async function sessionPubkey(ctx: QueryCtx | MutationCtx, token: string): Promis
   return s.pubkey;
 }
 
-// Non-reversible lookup hash for the stored secret (never store plaintext). djb2
-// — adequate for "can't recover the key from the row"; a future hardening could
-// swap to SHA-256 via crypto.subtle in an action.
-function hash(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return h.toString(16);
-}
+export type ApiKeyRow = {
+  id: string;
+  label: string;
+  masked: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+  legacy: boolean;
+};
 
-/** List the user's API keys (masked — the secret is shown only once at create). */
+/** List API keys: component tokens (`sk_*`) + legacy `dt_live_*` rows (revoke-only). */
 export const list = query({
   args: { token: v.string() },
-  handler: async (ctx, { token }) => {
+  handler: async (ctx, { token }): Promise<ApiKeyRow[]> => {
     const pubkey = await sessionPubkey(ctx, token);
     if (!pubkey) return [];
-    const rows = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
-      .collect();
-    return rows
-      .filter((r) => !r.revoked)
-      .map((r) => ({
+
+    const [modern, legacy] = await Promise.all([
+      apiTokens.list(ctx, { namespace: pubkey, includeRevoked: false }),
+      ctx.db
+        .query("apiKeys")
+        .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+        .collect(),
+    ]);
+
+    const rows: ApiKeyRow[] = modern
+      .filter((t) => !t.revoked)
+      .map((t) => ({
+        id: t.tokenId,
+        label: t.name ?? "API key",
+        masked: t.tokenPrefix,
+        createdAt: t.createdAt,
+        lastUsedAt: t.lastUsedAt ?? null,
+        legacy: false,
+      }));
+
+    for (const r of legacy.filter((x) => !x.revoked)) {
+      rows.push({
         id: r._id,
-        label: r.label,
+        label: `${r.label} (legacy)`,
         masked: `${r.prefix}••••••••`,
         createdAt: r.createdAt,
         lastUsedAt: r.lastUsedAt ?? null,
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt);
+        legacy: true,
+      });
+    }
+
+    return rows.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
-/** Mint a new key. Returns the FULL secret ONCE — only a hash is stored. */
+/** Mint a component API token (`sk_*`). Plaintext shown once. */
 export const create = mutation({
   args: { token: v.string(), label: v.string() },
   handler: async (ctx, { token, label }) => {
     const pubkey = await sessionPubkey(ctx, token);
     if (!pubkey) throw new Error("Not signed in");
-    const rand = crypto.randomUUID().replace(/-/g, "");
-    const key = `dt_live_${rand}`;
-    const prefix = `dt_live_${rand.slice(0, 4)}`;
-    await ctx.db.insert("apiKeys", {
-      pubkey,
-      label: label.trim() || "API key",
-      keyHash: hash(key),
-      prefix,
-      createdAt: Date.now(),
+    if (!process.env.API_TOKENS_ENCRYPTION_KEY) {
+      throw new Error(
+        "API token encryption is not configured. Run scripts/generate-api-tokens-key.sh and set API_TOKENS_ENCRYPTION_KEY on the deployment.",
+      );
+    }
+    const result = await apiTokens.create(ctx, {
+      namespace: pubkey,
+      name: label.trim() || "API key",
+      metadata: { scopes: ["api", "mcp"] },
+      expiresAt: Date.now() + NINETY_DAYS_MS,
+      maxIdleMs: 30 * 24 * 60 * 60 * 1000,
     });
-    await logEvent(ctx, "apikey.create", { pubkey, data: { prefix } });
-    return { key }; // shown once, never returned again
+    await logEvent(ctx, "apikey.create", { pubkey, data: { prefix: result.tokenPrefix } });
+    return { key: result.token };
   },
 });
 
-/** Revoke a key (only the owner's). */
+/** Revoke a modern (`tokenId`) or legacy (`apiKeys` id) key. */
 export const revoke = mutation({
-  args: { token: v.string(), id: v.id("apiKeys") },
+  args: { token: v.string(), id: v.string() },
   handler: async (ctx, { token, id }) => {
     const pubkey = await sessionPubkey(ctx, token);
     if (!pubkey) throw new Error("Not signed in");
-    const row = await ctx.db.get(id);
-    if (!row || row.pubkey !== pubkey) throw new Error("Not found");
-    await ctx.db.patch(id, { revoked: true });
-    await logEvent(ctx, "apikey.revoke", { pubkey, data: { prefix: row.prefix } });
+
+    const legacy = await ctx.db.get(id as Id<"apiKeys">);
+    if (legacy) {
+      if (legacy.pubkey !== pubkey) throw new Error("Not found");
+      await ctx.db.patch(legacy._id, { revoked: true });
+      await logEvent(ctx, "apikey.revoke", { pubkey, data: { prefix: legacy.prefix, legacy: true } });
+      return { ok: true };
+    }
+
+    const tokens = await apiTokens.list(ctx, { namespace: pubkey, includeRevoked: true });
+    if (!tokens.some((t) => t.tokenId === id)) throw new Error("Not found");
+    await apiTokens.invalidateById(ctx, { tokenId: id });
+    await logEvent(ctx, "apikey.revoke", { pubkey, data: { tokenId: id } });
     return { ok: true };
   },
 });
+
+/** @internal Validate programmatic access (HTTP/MCP). */
+export async function validateProgrammaticBearer(
+  ctx: QueryCtx | MutationCtx,
+  bearer: string,
+): Promise<string | null> {
+  if (bearer.startsWith("sk_")) {
+    const validated = await apiTokens.validate(ctx, { token: bearer });
+    return validated.ok && validated.namespace ? String(validated.namespace) : null;
+  }
+  if (bearer.startsWith("dt_live_")) {
+    const body = bearer.slice("dt_live_".length);
+    const prefix = `dt_live_${body.slice(0, 4)}`;
+    const hash = legacyApiKeyHash(bearer);
+    const candidates = await ctx.db
+      .query("apiKeys")
+      .withIndex("by_prefix", (q) => q.eq("prefix", prefix))
+      .collect();
+    const row = candidates.find((r) => !r.revoked && r.keyHash === hash);
+    if (row) {
+      await ctx.db.patch(row._id, { lastUsedAt: Date.now() });
+      return row.pubkey;
+    }
+  }
+  return null;
+}

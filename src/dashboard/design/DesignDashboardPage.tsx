@@ -3,6 +3,7 @@ import { Navigate, useMatch, useNavigate, useParams } from "react-router-dom";
 import { Badge, Button, Icon, Panel, SectionHeading } from "@/ui";
 import { GalleryHome } from "../gallery/GalleryHome";
 import { AppShell, type NavItem } from "../AppShell";
+import { StudioCanvas } from "./canvas/StudioCanvas";
 import { ExcalidrawDesignCanvas } from "./canvas/ExcalidrawDesignCanvas";
 import { GeneratePanel } from "./generate/GeneratePanel";
 import { ProjectsOverview } from "./projects/ProjectsOverview";
@@ -12,7 +13,8 @@ const DESIGN_NAV: NavItem[] = [
   { to: "/design", label: "Overview", icon: <Icon.Home />, end: true },
   { to: "/design/system", label: "Design System", icon: <Icon.Palette /> },
   { to: "/design/library", label: "Style Library", icon: <Icon.LayoutGrid /> },
-  { to: "/design/canvas", label: "Canvas", icon: <Icon.Frame /> },
+  { to: "/design/canvas", label: "Studio", icon: <Icon.Frame /> },
+  { to: "/design/sketch", label: "Sketch", icon: <Icon.SquarePen /> },
   { to: "/design/workflows", label: "Workflows", icon: <Icon.Plug /> },
   { to: "/design/generate", label: "Generate", icon: <Icon.Wand /> },
   { to: "/design/projects", label: "All projects", icon: <Icon.LayoutGrid />, group: "Projects", end: true },
@@ -62,10 +64,10 @@ function Overview() {
       desc: "Curated aesthetic directions to start a project from.",
     },
     {
-      to: "/design/generate",
-      icon: <Icon.Wand size={18} />,
-      title: "Generate",
-      desc: "Describe it; get web, mobile, and slide designs.",
+      to: "/design/canvas",
+      icon: <Icon.Frame size={18} />,
+      title: "Studio",
+      desc: "Canva-style artboards — shapes, text, AI graphics, images, websites.",
     },
     {
       to: "/design/projects",
@@ -98,21 +100,14 @@ function Overview() {
 
       <Panel className="fade-up p-6">
         <SectionHeading
-          title="Excalidraw + Detour Cloud"
-          description="Hand-drawn diagrams on an embedded Excalidraw canvas, with AI generation through Detour inference."
+          title="Studio + Sketch"
+          description="Canva-style layout on WebGPU, Excalidraw for diagrams, AI for graphics, images, and websites."
         />
         <p className="mt-3 text-[13px] leading-relaxed text-white/55">
-          Sketch wireframes, annotate workflow outputs, and generate diagram layouts with AI.
-          Workflow images land on the canvas in one click; everything auto-saves to your account.
+          Design → Studio is the main artboard editor: frames, shapes, text, gallery assets, and three AI modes
+          (graphic layout, image, website mockup). Workflows send outputs to the canvas in one click. Sketch keeps
+          Excalidraw for whiteboard-style diagrams.
         </p>
-        <a
-          href="https://github.com/excalidraw/excalidraw"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] text-white/60 underline-offset-4 transition hover:text-white hover:underline"
-        >
-          github.com/excalidraw/excalidraw <Icon.ArrowUpRight size={13} />
-        </a>
       </Panel>
     </Section>
   );
@@ -288,6 +283,13 @@ export default function DesignDashboardPage() {
 
   // The canvas + workflow editor fill the whole main area (no scroll/padding).
   if (key === "canvas") {
+    return (
+      <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
+        <StudioCanvas />
+      </AppShell>
+    );
+  }
+  if (key === "sketch") {
     return (
       <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
         <ExcalidrawDesignCanvas />

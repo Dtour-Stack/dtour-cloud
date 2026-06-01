@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { queueCanvasImage } from "../canvas/canvasStorage";
+import { queueCanvasImage } from "../canvas/studioDoc";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
@@ -138,7 +138,7 @@ export function WorkflowEditor() {
   }
 
   // ── execution ──
-  const runWorkflow = useAction(anyApi.workflow.runWorkflow);
+  const runWorkflow = useMutation(anyApi.workflow.runWorkflow);
   const [running, setRunning] = useState(false);
   const run = useQuery(
     anyApi.workflow.getRun,

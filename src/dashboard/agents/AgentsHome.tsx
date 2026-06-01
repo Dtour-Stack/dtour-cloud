@@ -46,7 +46,7 @@ export function AgentsHome() {
   const flags = useFlags();
   const showFreetourOption = flags.freetour_user_visible && flags.freetour_enabled;
   const freetourPaused = !flags.freetour_enabled;
-  const [models, setModels] = useState<{ id: string; source: string }[]>([]);
+  const [models, setModels] = useState<{ id: string; free?: boolean }[]>([]);
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -61,15 +61,12 @@ export function AgentsHome() {
   useEffect(() => {
     if (!token) return;
     listModels({ token })
-      .then((r: { id: string; source: string }[]) => setModels(r))
+      .then((r: { id: string; free?: boolean }[]) => setModels(r))
       .catch(() => {});
   }, [token, listModels]);
 
-  // Real ElizaCloud catalog, grouped by source (later: "Your agents" / "HuggingFace").
-  const groups = models.reduce<Record<string, string[]>>((acc, m) => {
-    (acc[m.source] ??= []).push(m.id);
-    return acc;
-  }, {});
+  const freeModelIds = models.filter((m) => m.free && m.id !== "freetour").map((m) => m.id);
+  const paidModelIds = models.filter((m) => !m.free && m.id !== "freetour").map((m) => m.id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -190,17 +187,24 @@ export function AgentsHome() {
                 Model
               </label>
               <select id="agent-model" value={model} onChange={(e) => setModel(e.target.value)} className={field}>
-                <option value="auto">Auto — let Detour Cloud route the best model (recommended)</option>
+                <option value="auto">Auto (recommended)</option>
                 {showFreetourOption && (
                   <option value="freetour">Free — rate-limited (no credits used)</option>
                 )}
-                {Object.entries(groups).map(([source, list]) => (
-                  <optgroup key={source} label={source}>
-                    {list.map((id) => (
+                {freeModelIds.length > 0 && (
+                  <optgroup label="Free">
+                    {freeModelIds.map((id) => (
                       <option key={id} value={id}>{id}</option>
                     ))}
                   </optgroup>
-                ))}
+                )}
+                {paidModelIds.length > 0 && (
+                  <optgroup label="Models">
+                    {paidModelIds.map((id) => (
+                      <option key={id} value={id}>{id}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               <p className="mt-1.5 text-[11px] text-white/35">
                 {model === "freetour" ? (

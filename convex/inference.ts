@@ -4,17 +4,30 @@ import {
   type MutationCtx,
   type QueryCtx,
   action,
+  internalAction,
   internalMutation,
   internalQuery,
   query,
 } from "./_generated/server";
-import { logEvent } from "./events";
+import { retrier } from "./retrier";
+import {
+  extractReasoning,
+  type AgentTurnTrace,
+  serializeTrace,
+  stripReasoningTags,
+} from "./agentTrace";
+import {
+  gatewayAttemptOrder,
+  resolveRouteVariant,
+  type InferenceGateway,
+  type InferenceRouteVariant,
+} from "./inferenceRouting";
 
 // ── direct-gateway inference + metering ───────────────────────────────────────
-// Strategy (docs/COMPETE.md): under Model 1 we pay ElizaCloud FULL price (no
-// reseller discount), so routing chat DIRECT to OpenRouter (our key) skips
-// ElizaCloud's +20% — we end up cheaper than ElizaCloud AND finally have margin.
-// We meter the real OpenRouter token cost, mark it up, and debit USD-credits.
+// Paid chat: try gateways in per-user A/B order (INFERENCE_ROUTE_MODE=ab default)
+// — eliza_first or openrouter_first — then failover to the other. Gateway/source
+// is recorded on inferenceUsage + turn traces (admin); the UI lists models only.
+// OpenRouter wins are metered; ElizaCloud path is unmetered fallback today.
 //
 // Markup/holder-discount are COUPLED (the math in COMPETE.md §2): to stay cheaper
 // than ElizaCloud (×1.2 over OpenRouter) for non-holders AND keep holders above
@@ -57,18 +70,9 @@ const PRICE_TTL_MS = 60 * 60 * 1000; // refresh the OpenRouter price catalog hou
 // free, no per-user cap) and the user-selectable "freetour" model (prod — capped).
 // OpenRouter caps the models[] fallback array at 3 entries, so: 2 curated :free
 // instruct models + openrouter/free (their own all-free router) as the catch-all.
-const FREE_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "openrouter/free",
-];
-const FREETOUR_DAILY_CAP = 50; // per-user free calls/day (soft; the pool is shared)
-
-/** freetour is on when the dev env flag is set OR the user picked the "Free"
- *  option (model "freetour" / OpenRouter's own "openrouter/free" router). */
-function freetourActive(model: string): boolean {
-  return !!process.env.FREETOUR || model === "freetour" || model === "openrouter/free";
-}
+import { FREE_MODELS, FREETOUR_MODEL, freetourActive } from "./freeModels";
+import { FREETOUR_DAILY_CAP, rateLimiter } from "./rateLimits";
+import { requireRole } from "./rbac";
 function utcDay(): string {
   return new Date(Date.now()).toISOString().slice(0, 10);
 }
@@ -155,6 +159,9 @@ export const _charge = internalMutation({
     promptTokens: v.optional(v.number()),
     completionTokens: v.optional(v.number()),
     costMicroUsd: v.number(),
+    routeVariant: v.optional(v.string()),
+    gateway: v.optional(v.string()),
+    fallbackUsed: v.optional(v.boolean()),
   },
   handler: async (ctx, a): Promise<{ chargedMicro: number }> => {
     // Idempotency: one charge per logical call (refId). A retry inserts nothing.
@@ -196,6 +203,9 @@ export const _charge = internalMutation({
       costMicroUsd: Math.round(a.costMicroUsd),
       priceMicroUsd: priceMicro,
       holderDiscount: qualifies,
+      routeVariant: a.routeVariant,
+      gateway: a.gateway,
+      fallbackUsed: a.fallbackUsed,
       at: Date.now(),
     });
     if (priceMicro > 0) {
@@ -209,7 +219,21 @@ export const _charge = internalMutation({
     }
     await logEvent(ctx, "inference.charge", {
       pubkey: a.pubkey,
-      data: { surface: a.surface, model: a.model, costMicro: a.costMicroUsd, priceMicro, lifetime },
+      data: {
+        surface: a.surface,
+        model: a.model,
+        costMicro: a.costMicroUsd,
+        priceMicro,
+        lifetime,
+        routeVariant: a.routeVariant,
+        gateway: a.gateway,
+        fallbackUsed: a.fallbackUsed,
+      },
+    });
+    await ctx.runMutation(internal.aggregates.recordInferenceSpend, {
+      pubkey: a.pubkey,
+      refId: a.refId,
+      priceMicroUsd: priceMicro,
     });
     return { chargedMicro: priceMicro };
   },
@@ -239,6 +263,9 @@ export const _recordFree = internalMutation({
     promptTokens: v.optional(v.number()),
     completionTokens: v.optional(v.number()),
     costMicroUsd: v.number(),
+    routeVariant: v.optional(v.string()),
+    gateway: v.optional(v.string()),
+    fallbackUsed: v.optional(v.boolean()),
   },
   handler: async (ctx, a) => {
     const existing = await ctx.db
@@ -258,6 +285,9 @@ export const _recordFree = internalMutation({
       priceMicroUsd: 0, // free — never charged (bypasses _charge's micro-USD floor)
       holderDiscount: false,
       free: true,
+      routeVariant: a.routeVariant,
+      gateway: a.gateway ?? "freetour",
+      fallbackUsed: a.fallbackUsed,
       at: Date.now(),
     });
     const day = utcDay();
@@ -276,11 +306,7 @@ export const freetourStatus = query({
   handler: async (ctx, { token }) => {
     const pubkey = await sessionPubkey(ctx, token);
     if (!pubkey) return { used: 0, cap: FREETOUR_DAILY_CAP, remaining: 0 };
-    const row = await ctx.db
-      .query("freetourUsage")
-      .withIndex("by_pubkey_day", (q) => q.eq("pubkey", pubkey).eq("day", utcDay()))
-      .unique();
-    const used = row?.count ?? 0;
+    const { value: used } = await rateLimiter.getValue(ctx, "freetourDaily", { key: pubkey });
     return { used, cap: FREETOUR_DAILY_CAP, remaining: Math.max(0, FREETOUR_DAILY_CAP - used) };
   },
 });
@@ -318,11 +344,279 @@ export const status = action({
   },
 });
 
+type ChatCoreResult = {
+  text: string;
+  source: "freetour" | "openrouter" | "elizacloud";
+  modelUsed: string;
+  modelRequested: string;
+  durationMs: number;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    costUsd?: number;
+    free?: boolean;
+  };
+  reasoning?: string;
+  routeVariant: InferenceRouteVariant;
+  fallbackUsed: boolean;
+};
+
+type MeterCtx = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  runQuery: (ref: any, args: any) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  runMutation: (ref: any, args: any) => Promise<any>;
+};
+
+/** Build OpenRouter multimodal messages when an image is attached. */
+function openRouterMessages(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  imageUrl?: string,
+): { reqModel: string; reqMessages: unknown[] } {
+  if (!imageUrl) return { reqModel: model, reqMessages: messages };
+  const reqModel = "google/gemini-2.5-flash";
+  const out = messages.map((m) => ({ role: m.role, content: m.content as unknown }));
+  for (let i = out.length - 1; i >= 0; i--) {
+    if (out[i].role === "user") {
+      out[i] = {
+        role: "user",
+        content: [
+          { type: "text", text: messages[i].content || "Describe this image." },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ],
+      };
+      break;
+    }
+  }
+  return { reqModel, reqMessages: out };
+}
+
+async function runOpenRouterChat(
+  ctx: MeterCtx,
+  args: {
+    pubkey: string;
+    token: string;
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    imageUrl?: string;
+    refId: string;
+    routeVariant: InferenceRouteVariant;
+    fallbackUsed: boolean;
+  },
+): Promise<ChatCoreResult> {
+  const started = Date.now();
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (!orKey) throw new Error("OpenRouter not configured");
+
+  const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
+  const free = freetourActive(args.model);
+  if (free) {
+    if (!flags.freetour_enabled)
+      throw new Error("Free inference is paused right now — try again later or use credits.");
+    if (!process.env.FREETOUR) {
+      await ctx.runMutation(internal.rateLimits.consumeFreetour, { pubkey: args.pubkey });
+    }
+  } else {
+    if (!flags.paid_inference_enabled)
+      throw new Error("Inference is temporarily paused — please try again shortly.");
+    await ctx.runMutation(internal.rateLimits.consumePaidInference, { pubkey: args.pubkey });
+    const gate = (await ctx.runQuery(api.inference.canInfer, { token: args.token })) as {
+      ok: boolean;
+      reason?: string;
+    };
+    if (!gate.ok)
+      throw new Error(
+        gate.reason === "out of credits"
+          ? "Out of credits — top up to keep chatting."
+          : "Cannot run inference.",
+      );
+  }
+
+  const { reqModel, reqMessages } = openRouterMessages(args.model, args.messages, args.imageUrl);
+  const modelForBody =
+    args.model === "auto" || !args.model || args.model === FREETOUR_MODEL ? reqModel : args.model;
+  const body: Record<string, unknown> = { messages: reqMessages };
+  if (free && args.imageUrl) body.model = "openrouter/free";
+  else if (free && args.model === FREETOUR_MODEL) body.models = FREE_MODELS;
+  else if (free) body.model = modelForBody;
+  else body.model = modelForBody;
+
+  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${orKey}`,
+      "content-type": "application/json",
+      "http-referer": "https://detour.ninja",
+      "x-title": "Detour Cloud",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    if (free && (res.status === 429 || res.status === 402))
+      throw new Error("Free models are busy right now — wait a few seconds and try again.");
+    throw new Error(`Inference failed (${res.status}): ${t.slice(0, 160)}`);
+  }
+  const json = (await res.json()) as {
+    choices?: Array<{
+      message?: { content?: string; reasoning?: string; reasoning_content?: string };
+    }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+    model?: string;
+  };
+  const rawText = json.choices?.[0]?.message?.content;
+  if (typeof rawText !== "string") throw new Error("No text returned");
+  const reasoning = extractReasoning(rawText, json.choices?.[0]?.message);
+  const text = stripReasoningTags(rawText) || rawText;
+
+  const usedModel = json.model || args.model;
+  const prompt = json.usage?.prompt_tokens ?? 0;
+  const completion = json.usage?.completion_tokens ?? 0;
+  let costMicroUsd: number;
+  if (typeof json.usage?.cost === "number") {
+    costMicroUsd = json.usage.cost * USD;
+  } else {
+    const prices = await getPrices(ctx);
+    const rate = prices[usedModel] ?? prices[args.model] ?? { prompt: 0, completion: 0 };
+    costMicroUsd = (prompt * rate.prompt + completion * rate.completion) * USD;
+  }
+
+  const routeMeta = {
+    routeVariant: args.routeVariant,
+    gateway: free ? "freetour" : "openrouter",
+    fallbackUsed: args.fallbackUsed,
+  };
+  if (free) {
+    await ctx.runMutation(internal.inference._recordFree, {
+      pubkey: args.pubkey,
+      refId: args.refId,
+      surface: "chat",
+      model: usedModel,
+      promptTokens: prompt,
+      completionTokens: completion,
+      costMicroUsd,
+      ...routeMeta,
+    });
+  } else {
+    await ctx.runMutation(internal.inference._charge, {
+      pubkey: args.pubkey,
+      refId: args.refId,
+      surface: "chat",
+      model: usedModel,
+      promptTokens: prompt,
+      completionTokens: completion,
+      costMicroUsd,
+      ...routeMeta,
+    });
+  }
+
+  return {
+    text,
+    source: free ? "freetour" : "openrouter",
+    modelUsed: usedModel,
+    modelRequested: args.model,
+    durationMs: Date.now() - started,
+    reasoning,
+    routeVariant: args.routeVariant,
+    fallbackUsed: args.fallbackUsed,
+    usage: {
+      promptTokens: prompt,
+      completionTokens: completion,
+      costUsd: costMicroUsd / USD,
+      free,
+    },
+  };
+}
+
+/** Paid Eliza path — no credit charge; still logged for A/B monitoring. */
+export const _recordGatewayProbe = internalMutation({
+  args: {
+    pubkey: v.string(),
+    refId: v.string(),
+    model: v.string(),
+    routeVariant: v.string(),
+    gateway: v.string(),
+    fallbackUsed: v.boolean(),
+  },
+  handler: async (ctx, a) => {
+    const existing = await ctx.db
+      .query("inferenceUsage")
+      .withIndex("by_ref", (q) => q.eq("refId", a.refId))
+      .unique();
+    if (existing) return;
+    await ctx.db.insert("inferenceUsage", {
+      pubkey: a.pubkey,
+      refId: a.refId,
+      surface: "chat",
+      model: a.model,
+      costMicroUsd: 0,
+      priceMicroUsd: 0,
+      holderDiscount: false,
+      routeVariant: a.routeVariant,
+      gateway: a.gateway,
+      fallbackUsed: a.fallbackUsed,
+      at: Date.now(),
+    });
+  },
+});
+
+async function runElizaChat(
+  ctx: MeterCtx,
+  args: {
+    pubkey: string;
+    refId: string;
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    routeVariant: InferenceRouteVariant;
+    fallbackUsed: boolean;
+  },
+): Promise<ChatCoreResult> {
+  const started = Date.now();
+  const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
+  const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
+  if (!key) throw new Error("ElizaCloud not configured");
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/chat/completions`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify({ model: args.model, messages: args.messages }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Inference failed (${res.status}): ${t.slice(0, 160)}`);
+  }
+  const json = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string; reasoning?: string; reasoning_content?: string } }>;
+    model?: string;
+  };
+  const rawText = json.choices?.[0]?.message?.content;
+  if (typeof rawText !== "string") throw new Error("No text returned");
+  const reasoning = extractReasoning(rawText, json.choices?.[0]?.message);
+  const text = stripReasoningTags(rawText) || rawText;
+  const usedModel = json.model || args.model;
+  await ctx.runMutation(internal.inference._recordGatewayProbe, {
+    pubkey: args.pubkey,
+    refId: args.refId,
+    model: usedModel,
+    routeVariant: args.routeVariant,
+    gateway: "elizacloud",
+    fallbackUsed: args.fallbackUsed,
+  });
+  return {
+    text,
+    source: "elizacloud",
+    modelUsed: usedModel,
+    modelRequested: args.model,
+    durationMs: Date.now() - started,
+    reasoning,
+    routeVariant: args.routeVariant,
+    fallbackUsed: args.fallbackUsed,
+  };
+}
+
 /**
- * Run a chat completion + meter it. If OPENROUTER_API_KEY is set: call OpenRouter
- * DIRECT (cheaper than ElizaCloud, with margin) and charge the metered cost.
- * Otherwise fall back to ElizaCloud (current free behavior) — no charge. Charging
- * is idempotent by refId. Returns the assistant text.
+ * Run a chat completion + meter it. Paid routes use A/B gateway order with failover.
+ * Charging is idempotent by refId. Returns the assistant text.
  */
 export const runChat = action({
   args: {
@@ -332,154 +626,122 @@ export const runChat = action({
     imageUrl: v.optional(v.string()),
     refId: v.string(),
   },
-  handler: async (ctx, { token, model, messages, imageUrl, refId }): Promise<{ text: string; source: string }> => {
+  handler: async (ctx, args): Promise<ChatCoreResult> => {
+    return (await retrier.run(ctx, internal.inference.runChatCore, args)) as ChatCoreResult;
+  },
+});
+
+export const runChatCore = internalAction({
+  args: {
+    token: v.string(),
+    model: v.string(),
+    messages: v.array(v.object({ role: v.string(), content: v.string() })),
+    imageUrl: v.optional(v.string()),
+    refId: v.string(),
+  },
+  handler: async (ctx, { token, model, messages, imageUrl, refId }): Promise<ChatCoreResult> => {
     const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
     if (!me) throw new Error("Not signed in");
     const pubkey = me.pubkey;
-    const orKey = process.env.OPENROUTER_API_KEY;
+    const routeVariant = resolveRouteVariant(pubkey);
+    const orKey = !!process.env.OPENROUTER_API_KEY;
+    const elizaKey = !!(process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY);
+    const free = freetourActive(model);
 
-    if (orKey) {
-      const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
-      const free = freetourActive(model);
-      if (free) {
-        if (!flags.freetour_enabled)
-          throw new Error("Free inference is paused right now — try again later or use credits.");
-        // freetour: the dev env flag routes everything free with no per-user cap;
-        // the user-facing "Free" option is capped (the OpenRouter pool is shared).
-        if (!process.env.FREETOUR) {
-          const used = (await ctx.runQuery(internal.inference._freetourUsed, { pubkey })) as number;
-          if (used >= FREETOUR_DAILY_CAP)
-            throw new Error(
-              `Free daily limit reached (${FREETOUR_DAILY_CAP}/day). Add credits for unlimited inference, or try again tomorrow.`,
-            );
-        }
-      } else {
-        if (!flags.paid_inference_enabled)
-          throw new Error("Inference is temporarily paused — please try again shortly.");
-        // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
-        const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
-        if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to keep chatting." : "Cannot run inference.");
-      }
-
-      // Vision: when an image is attached, attach it to the last user message as
-      // OpenRouter multimodal content + force a multimodal model (the agent's
-      // chosen model may be text-only). The image is a public Convex-storage URL.
-      let reqModel = model;
-      let reqMessages: unknown[] = messages;
-      if (imageUrl) {
-        reqModel = "google/gemini-2.5-flash";
-        const out = messages.map((m) => ({ role: m.role, content: m.content as unknown }));
-        for (let i = out.length - 1; i >= 0; i--) {
-          if (out[i].role === "user") {
-            out[i] = {
-              role: "user",
-              content: [
-                { type: "text", text: (messages[i].content as string) || "Describe this image." },
-                { type: "image_url", image_url: { url: imageUrl } },
-              ],
-            };
-            break;
-          }
-        }
-        reqMessages = out;
-      }
-
-      // freetour routes to free models: the curated models[] fallback for text, or
-      // openrouter/free for vision (it filters for image-capable free models).
-      // Otherwise send the requested model as-is.
-      const body: Record<string, unknown> = { messages: reqMessages };
-      if (free && imageUrl) body.model = "openrouter/free";
-      else if (free) body.models = FREE_MODELS;
-      else body.model = reqModel;
-
-      const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${orKey}`,
-          "content-type": "application/json",
-          "http-referer": "https://detour.ninja",
-          "x-title": "Detour Cloud",
-        },
-        body: JSON.stringify(body),
+    // Free tier always uses OpenRouter's free pool.
+    if (free) {
+      if (!orKey) throw new Error("Inference isn't configured.");
+      return runOpenRouterChat(ctx, {
+        pubkey,
+        token,
+        model,
+        messages,
+        imageUrl,
+        refId,
+        routeVariant,
+        fallbackUsed: false,
       });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        // Free pool exhausted: 429 = per-minute, 402 = daily account cap. Tell the
-        // user to wait/retry rather than surfacing a raw gateway error.
-        if (free && (res.status === 429 || res.status === 402))
-          throw new Error("Free models are busy right now — wait a few seconds and try again.");
-        throw new Error(`Inference failed (${res.status}): ${t.slice(0, 160)}`);
-      }
-      const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
-        model?: string;
-      };
-      const text = json.choices?.[0]?.message?.content;
-      if (typeof text !== "string") throw new Error("No text returned");
-
-      const usedModel = json.model || model;
-      const prompt = json.usage?.prompt_tokens ?? 0;
-      const completion = json.usage?.completion_tokens ?? 0;
-      // OpenRouter returns the AUTHORITATIVE per-request USD cost inline
-      // (usage.cost) — exactly what we pay (incl. provider variance + cache
-      // discounts). Use it; fall back to the per-token catalog only if absent.
-      let costMicroUsd: number;
-      if (typeof json.usage?.cost === "number") {
-        costMicroUsd = json.usage.cost * USD;
-      } else {
-        const prices = await getPrices(ctx);
-        const rate = prices[usedModel] ?? prices[model] ?? { prompt: 0, completion: 0 };
-        costMicroUsd = (prompt * rate.prompt + completion * rate.completion) * USD;
-      }
-      if (free) {
-        // Free models bill $0 — record usage (dashboard + daily cap) but never charge.
-        await ctx.runMutation(internal.inference._recordFree, {
-          pubkey,
-          refId,
-          surface: "chat",
-          model: usedModel,
-          promptTokens: prompt,
-          completionTokens: completion,
-          costMicroUsd,
-        });
-      } else {
-        await ctx.runMutation(internal.inference._charge, {
-          pubkey,
-          refId,
-          surface: "chat",
-          model: usedModel,
-          promptTokens: prompt,
-          completionTokens: completion,
-          costMicroUsd,
-        });
-      }
-      return { text, source: free ? "freetour" : "openrouter" };
     }
 
     const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
-    const free = freetourActive(model);
-    if (free) {
-      if (!flags.freetour_enabled)
-        throw new Error("Free inference is paused right now — try again later or use credits.");
-    } else if (!flags.paid_inference_enabled) {
+    if (!flags.paid_inference_enabled)
       throw new Error("Inference is temporarily paused — please try again shortly.");
-    }
 
-    // Fallback: ElizaCloud (unmetered/free until the gateway key lands).
-    const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
-    const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
-    if (!key) throw new Error("Inference isn't configured.");
-    const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ model, messages }),
-    });
-    if (!res.ok) throw new Error(`Inference failed (${res.status})`);
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const text = json.choices?.[0]?.message?.content;
-    if (typeof text !== "string") throw new Error("No text returned");
-    return { text, source: "elizacloud" };
+    // Vision: prefer OpenRouter (multimodal); Eliza text-only fallback is weak here.
+    const order: InferenceGateway[] = imageUrl
+      ? gatewayAttemptOrder("openrouter_first", { elizacloud: elizaKey, openrouter: orKey })
+      : gatewayAttemptOrder(routeVariant, { elizacloud: elizaKey, openrouter: orKey });
+
+    if (order.length === 0) throw new Error("Inference isn't configured.");
+
+    let lastError: Error | null = null;
+    for (let i = 0; i < order.length; i++) {
+      const gw = order[i];
+      const fallbackUsed = i > 0;
+      try {
+        if (gw === "openrouter") {
+          return await runOpenRouterChat(ctx, {
+            pubkey,
+            token,
+            model,
+            messages,
+            imageUrl,
+            refId,
+            routeVariant,
+            fallbackUsed,
+          });
+        }
+        return await runElizaChat(ctx, {
+          pubkey,
+          refId,
+          model,
+          messages,
+          routeVariant,
+          fallbackUsed,
+        });
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e));
+      }
+    }
+    throw lastError ?? new Error("Inference failed");
+  },
+});
+
+/** Admin: A/B gateway monitoring from inferenceUsage (chat surface). */
+export const routeMonitor = query({
+  args: { token: v.string(), sinceMs: v.optional(v.number()) },
+  handler: async (ctx, { token, sinceMs }) => {
+    await requireRole(ctx, token, "admin");
+    const since = sinceMs ?? Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const rows = await ctx.db
+      .query("inferenceUsage")
+      .withIndex("by_pubkey")
+      .collect();
+    const chat = rows.filter((r) => r.surface === "chat" && r.at >= since);
+
+    type Bucket = {
+      calls: number;
+      fallbacks: number;
+      byGateway: Record<string, number>;
+    };
+    const byVariant: Record<string, Bucket> = {};
+    const bump = (variant: string, gateway: string | undefined, fallback: boolean) => {
+      const v = variant || "unknown";
+      byVariant[v] ??= { calls: 0, fallbacks: 0, byGateway: {} };
+      byVariant[v].calls += 1;
+      if (fallback) byVariant[v].fallbacks += 1;
+      const g = gateway ?? "unknown";
+      byVariant[v].byGateway[g] = (byVariant[v].byGateway[g] ?? 0) + 1;
+    };
+    for (const r of chat) {
+      bump(r.routeVariant ?? "unknown", r.gateway, r.fallbackUsed === true);
+    }
+    return {
+      since,
+      total: chat.length,
+      mode: process.env.INFERENCE_ROUTE_MODE ?? "ab",
+      byVariant,
+    };
   },
 });
 

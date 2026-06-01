@@ -119,17 +119,43 @@ export default defineSchema({
     at: v.number(),
   }).index("by_pubkey", ["pubkey"]),
 
+  // Per-agent chat sessions — maps dtour chat id → @convex-dev/agent thread.
+  agentChats: defineTable({
+    agentId: v.id("agents"),
+    owner: v.string(),
+    title: v.string(),
+    /** Component thread id (`components.agent`). Backfilled on first open. */
+    threadId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_agent_owner", ["agentId", "owner"]),
+
+  // Co-work panel traces keyed by durable-agent message id (not dtour chat id).
+  agentTurnTraces: defineTable({
+    messageId: v.string(),
+    trace: v.string(),
+  }).index("by_message", ["messageId"]),
+
+  // Vision attachments for user turns (component message id).
+  agentMessageExtras: defineTable({
+    messageId: v.string(),
+    imageUrl: v.optional(v.string()),
+  }).index("by_message", ["messageId"]),
+
+  /** @deprecated Legacy chat rows — read-only fallback until threads are backfilled. */
   agentMessages: defineTable({
     agentId: v.id("agents"),
     owner: v.string(),
-    role: v.string(), // "user" | "assistant"
+    chatId: v.optional(v.id("agentChats")),
+    role: v.string(),
     content: v.string(),
-    // Optional gallery image attached to a user message (vision chat).
     imageUrl: v.optional(v.string()),
+    trace: v.optional(v.string()),
     at: v.number(),
   })
     .index("by_agent", ["agentId"])
-    .index("by_agent_owner", ["agentId", "owner"]),
+    .index("by_agent_owner", ["agentId", "owner"])
+    .index("by_chat", ["chatId"]),
 
   // User inbox — admin/system messages + push notifications.
   messages: defineTable({
@@ -318,6 +344,12 @@ export default defineSchema({
     holderDiscount: v.boolean(),
     // freetour: routed to a free OpenRouter model → $0, counts toward the daily cap.
     free: v.optional(v.boolean()),
+    /** A/B bucket: eliza_first | openrouter_first (paid chat only). */
+    routeVariant: v.optional(v.string()),
+    /** Winning gateway: elizacloud | openrouter | freetour. */
+    gateway: v.optional(v.string()),
+    /** True when the primary gateway failed and the secondary succeeded. */
+    fallbackUsed: v.optional(v.boolean()),
     at: v.number(),
   })
     .index("by_pubkey", ["pubkey"])

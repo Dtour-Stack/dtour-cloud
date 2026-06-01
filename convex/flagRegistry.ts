@@ -97,6 +97,25 @@ export const FLAG_REGISTRY: readonly FlagDef[] = [
     description: "Agent chat vision, workflow image nodes, and gallery AI picks.",
   },
 
+  // ── Agent chat composer (+ menu) ────────────────────────────────────────────
+  {
+    key: "chat_eliza_plugins",
+    category: "inference",
+    kind: "product",
+    defaultEnabled: true,
+    label: "Chat: elizaOS plugins",
+    description: "Attach elizaOS plugin ids to an agent from the chat composer menu.",
+  },
+  {
+    key: "chat_auto_run_tools",
+    category: "inference",
+    kind: "opt_in",
+    defaultEnabled: false,
+    label: "Chat: auto-run tools",
+    description:
+      "Per-chat preference to auto-execute MCP/tool calls without confirmation (UI only until execution ships).",
+  },
+
   // ── Surfaces (ElizaCloud map → Detour routes) ─────────────────────────────
   {
     key: "surface_agents",

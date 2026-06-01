@@ -1,5 +1,5 @@
 /// <reference types="@webgpu/types" />
-import { ACCENT, CANVAS_BG, type Renderer, type Scene, type View } from "./types";
+import { ACCENT, CANVAS_BG, IMAGE_PLACEHOLDER, isGpuNode, type Renderer, type Scene, type View } from "./types";
 
 const FLOATS_PER_VERT = 6; // x, y, r, g, b, a
 const VERTS_PER_QUAD = 6;
@@ -126,10 +126,11 @@ export async function createWebGPURenderer(
       };
 
       for (const n of scene.nodes) {
-        if (n.type === "text") continue; // text drawn on the 2D overlay
+        if (!isGpuNode(n.type) && n.type !== "image") continue;
         const sx = n.x * view.zoom + view.panX;
         const sy = n.y * view.zoom + view.panY;
-        pushRect(sx, sy, n.w * view.zoom, n.h * view.zoom, n.fill);
+        const fill = n.type === "image" ? IMAGE_PLACEHOLDER : n.fill;
+        pushRect(sx, sy, n.w * view.zoom, n.h * view.zoom, fill);
       }
 
       // Selection outline = four thin border quads.

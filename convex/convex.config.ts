@@ -1,0 +1,26 @@
+import actionRetrier from "@convex-dev/action-retrier/convex.config.js";
+import agent from "@convex-dev/agent/convex.config.js";
+import aggregate from "@convex-dev/aggregate/convex.config.js";
+import crons from "@convex-dev/crons/convex.config.js";
+import migrations from "@convex-dev/migrations/convex.config.js";
+import rag from "@convex-dev/rag/convex.config.js";
+import rateLimiter from "@convex-dev/rate-limiter/convex.config.js";
+import workflow from "@convex-dev/workflow/convex.config.js";
+import apiTokens from "convex-api-tokens/convex.config";
+import mcpGateway from "convex-mcp-gateway/convex.config";
+import timeline from "convex-timeline/convex.config.js";
+import { defineApp } from "convex/server";
+
+const app = defineApp();
+app.use(workflow);
+app.use(rag);
+app.use(agent);
+app.use(rateLimiter);
+app.use(migrations);
+app.use(actionRetrier);
+app.use(crons);
+app.use(aggregate);
+app.use(mcpGateway);
+app.use(apiTokens);
+app.use(timeline);
+export default app;

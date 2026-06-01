@@ -21,35 +21,12 @@ export type CanvasSavePayload = {
   files: BinaryFiles;
 };
 
-const PENDING_IMAGES_KEY = "dtour-canvas-pending-images";
-
-export function readPendingImageUrls(): string[] {
-  try {
-    const raw = sessionStorage.getItem(PENDING_IMAGES_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-export function clearPendingImageUrls() {
-  try {
-    sessionStorage.removeItem(PENDING_IMAGES_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function queueCanvasImage(url: string) {
-  const existing = readPendingImageUrls();
-  try {
-    sessionStorage.setItem(PENDING_IMAGES_KEY, JSON.stringify([...existing, url]));
-  } catch {
-    /* ignore */
-  }
-}
+// Pending workflow → canvas handoff (shared with Studio + legacy Excalidraw paths).
+export {
+  clearPendingImageUrls,
+  queueCanvasImage,
+  readPendingImageUrls,
+} from "./studioDoc";
 
 async function migrateLegacyNodes(nodes: LegacyNode[]): Promise<ExcalidrawInitialDataState> {
   const { convertToExcalidrawElements } = await import("@excalidraw/excalidraw");
@@ -83,6 +60,8 @@ export async function hydrateCanvasSave(raw: string): Promise<ExcalidrawInitialD
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") return null;
     const data = parsed as Record<string, unknown>;
+
+    if (data.version === 3) return null;
 
     if (data.version === 2 && Array.isArray(data.elements)) {
       return {

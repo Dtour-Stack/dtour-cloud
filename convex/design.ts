@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { designScope, designTimeline } from "./designTimeline";
 import { resolveRole } from "./rbac";
 
 const DEFAULT_NAME = "Untitled";
@@ -44,6 +45,7 @@ export const saveDoc = mutation({
         updatedAt: now,
       });
     }
+    await designTimeline.push(ctx, designScope(caller.pubkey, kind), { data });
     return { ok: true, updatedAt: now };
   },
 });
