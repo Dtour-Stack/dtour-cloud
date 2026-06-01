@@ -189,7 +189,9 @@ export default defineSchema({
     name: v.string(),
     data: v.string(),
     updatedAt: v.number(),
-  }).index("by_owner_kind", ["owner", "kind", "name"]),
+  })
+    .index("by_owner_kind", ["owner", "kind", "name"])
+    .index("by_owner", ["owner"]),
 
   // Workflow execution runs — node-by-node status patched reactively.
   workflowRuns: defineTable({

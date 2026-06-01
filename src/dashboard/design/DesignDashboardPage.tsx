@@ -6,6 +6,7 @@ import { AppShell, type NavItem } from "../AppShell";
 import { StudioCanvas } from "./canvas/StudioCanvas";
 import { ExcalidrawDesignCanvas } from "./canvas/ExcalidrawDesignCanvas";
 import { GeneratePanel } from "./generate/GeneratePanel";
+import { DesignProjectProvider, useDesignProject } from "./DesignProjectContext";
 import { ProjectsOverview } from "./projects/ProjectsOverview";
 import { WorkflowEditor } from "./workflow/WorkflowEditor";
 
@@ -256,6 +257,19 @@ const SECTIONS: Record<string, ReactNode> = {
   generate: <Generate />,
 };
 
+function DesignEditorSurface({ section }: { section: "canvas" | "sketch" | "workflows" }) {
+  const { project } = useDesignProject();
+  const surface =
+    section === "canvas" ? (
+      <StudioCanvas />
+    ) : section === "sketch" ? (
+      <ExcalidrawDesignCanvas />
+    ) : (
+      <WorkflowEditor />
+    );
+  return <div key={project} className="flex h-full min-h-0 flex-col">{surface}</div>;
+}
+
 export default function DesignDashboardPage() {
   const { section } = useParams();
   const projectMatch = useMatch("/design/projects/:projectId");
@@ -282,24 +296,12 @@ export default function DesignDashboardPage() {
   }
 
   // The canvas + workflow editor fill the whole main area (no scroll/padding).
-  if (key === "canvas") {
+  if (key === "canvas" || key === "sketch" || key === "workflows") {
     return (
       <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
-        <StudioCanvas />
-      </AppShell>
-    );
-  }
-  if (key === "sketch") {
-    return (
-      <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
-        <ExcalidrawDesignCanvas />
-      </AppShell>
-    );
-  }
-  if (key === "workflows") {
-    return (
-      <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
-        <WorkflowEditor />
+        <DesignProjectProvider>
+          <DesignEditorSurface section={key} />
+        </DesignProjectProvider>
       </AppShell>
     );
   }

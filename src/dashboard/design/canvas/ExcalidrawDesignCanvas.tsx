@@ -20,6 +20,9 @@ import type {
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
+import { DESIGN_SURFACE } from "../designProject";
+import { DesignProjectControls } from "../DesignProjectControls";
+import { useDesignProject } from "../DesignProjectContext";
 import { GuidedTour, SKETCH_TOUR } from "../GuidedTour";
 import { generateCanvasElements } from "./canvasAiGenerate";
 import { insertImageFromUrl } from "./canvasImageInsert";
@@ -38,11 +41,13 @@ const AUTO_SAVE_MS = 2500;
 
 export function ExcalidrawDesignCanvas() {
   const token = getDtourSessionToken();
+  const { project } = useDesignProject();
   const saved = useQuery(
     anyApi.design.getDoc,
-    token ? { token, kind: "canvas" } : "skip",
+    token ? { token, kind: DESIGN_SURFACE.sketch, project } : "skip",
   ) as { data: string; updatedAt: number } | null | undefined;
   const saveDoc = useMutation(anyApi.design.saveDoc);
+  const saveProjectAs = useMutation(anyApi.design.saveProjectAs);
   const runChat = useAction(anyApi.inference.runChat);
 
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -80,6 +85,14 @@ export function ExcalidrawDesignCanvas() {
   const [insertError, setInsertError] = useState<string | null>(null);
 
   useEffect(() => {
+    hydrated.current = false;
+    pendingHandled.current = false;
+    setInitialData(undefined);
+    setReady(false);
+    setSaveState("idle");
+  }, [project]);
+
+  useEffect(() => {
     if (saved === undefined || hydrated.current) return;
     hydrated.current = true;
     void (async () => {
@@ -90,7 +103,7 @@ export function ExcalidrawDesignCanvas() {
       }
       setReady(true);
     })();
-  }, [saved]);
+  }, [saved, project]);
 
   const persist = useCallback(
     async (
@@ -104,7 +117,8 @@ export function ExcalidrawDesignCanvas() {
       try {
         await saveDoc({
           token,
-          kind: "canvas",
+          kind: DESIGN_SURFACE.sketch,
+          project,
           data: serializeCanvasSave(elements, appState, files),
         });
         setSaveState("saved");
@@ -115,7 +129,7 @@ export function ExcalidrawDesignCanvas() {
         setSaveState("idle");
       }
     },
-    [saveDoc, token],
+    [saveDoc, token, project],
   );
 
   const scheduleSave = useCallback(
@@ -285,9 +299,22 @@ export function ExcalidrawDesignCanvas() {
         data-tour="sketch-toolbar"
         className="z-20 flex shrink-0 flex-wrap items-center justify-center gap-1 border-t border-white/10 bg-[#0d0d0d]/95 px-3 py-2 backdrop-blur-xl"
       >
-        <span className="mr-1 hidden text-[11px] text-white/40 sm:inline">
-          Excalidraw tools above ↑
-        </span>
+        <DesignProjectControls
+          saveState={saveState}
+          onSave={() => void saveNow()}
+          onSaveAs={async (newName) => {
+            const api = apiRef.current;
+            if (!api || !token) return;
+            await saveProjectAs({
+              token,
+              kind: DESIGN_SURFACE.sketch,
+              fromProject: project,
+              toName: newName,
+              data: serializeCanvasSave(api.getSceneElements(), api.getAppState(), api.getFiles()),
+            });
+          }}
+        />
+        <div className="mx-1 h-5 w-px bg-white/10" />
         <GuidedTour id="sketch" heading="Sketch" steps={SKETCH_TOUR} />
         <div className="mx-1 h-5 w-px bg-white/10" />
         <button
@@ -306,15 +333,6 @@ export function ExcalidrawDesignCanvas() {
           )}
         >
           <Icon.Wand size={14} /> AI diagram
-        </button>
-        <button
-          type="button"
-          onClick={() => void saveNow()}
-          disabled={saveState === "saving"}
-          className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-50"
-        >
-          {saveState === "saved" ? <Icon.Check size={13} /> : null}
-          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
         </button>
       </div>
 

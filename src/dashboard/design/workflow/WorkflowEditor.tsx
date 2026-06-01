@@ -9,6 +9,9 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { queueCanvasImage } from "../canvas/studioDoc";
+import { DESIGN_SURFACE } from "../designProject";
+import { DesignProjectControls } from "../DesignProjectControls";
+import { useDesignProject } from "../DesignProjectContext";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
@@ -61,13 +64,26 @@ export function WorkflowEditor() {
 
   // ── persistence ──
   const token = getDtourSessionToken();
+  const { project } = useDesignProject();
   const saved = useQuery(
     anyApi.design.getDoc,
-    token ? { token, kind: "workflow" } : "skip",
+    token ? { token, kind: DESIGN_SURFACE.workflow, project } : "skip",
   ) as { data: string; updatedAt: number } | null | undefined;
   const saveDoc = useMutation(anyApi.design.saveDoc);
+  const saveProjectAs = useMutation(anyApi.design.saveProjectAs);
   const hydrated = useRef(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
+  useEffect(() => {
+    hydrated.current = false;
+    setNodes([]);
+    setEdges([]);
+    setVp({ panX: 80, panY: 80, scale: 1 });
+    setSel(null);
+    setRunId(null);
+    ids.current = { n: 0, e: 0 };
+    setSaveState("idle");
+  }, [project]);
 
   useEffect(() => {
     if (saved === undefined || hydrated.current) return;
@@ -84,7 +100,11 @@ export function WorkflowEditor() {
         /* ignore corrupt save */
       }
     }
-  }, [saved]);
+  }, [saved, project]);
+
+  function graphPayload() {
+    return JSON.stringify({ nodes, edges, vp, counters: ids.current, lastRunId: runId });
+  }
 
   async function save() {
     if (!token) return;
@@ -92,8 +112,9 @@ export function WorkflowEditor() {
     try {
       await saveDoc({
         token,
-        kind: "workflow",
-        data: JSON.stringify({ nodes, edges, vp, counters: ids.current, lastRunId: runId }),
+        kind: DESIGN_SURFACE.workflow,
+        project,
+        data: graphPayload(),
       });
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 1500);
@@ -675,6 +696,21 @@ export function WorkflowEditor() {
         >
           <Icon.Sparkles size={14} /> Generate
         </button>
+        <DesignProjectControls
+          saveState={saveState}
+          onSave={save}
+          onSaveAs={async (newName) => {
+            if (!token) return;
+            await saveProjectAs({
+              token,
+              kind: DESIGN_SURFACE.workflow,
+              fromProject: project,
+              toName: newName,
+              data: graphPayload(),
+            });
+          }}
+        />
+        <div className="mx-1 h-5 w-px bg-white/10" />
         <GuidedTour id="workflow" heading="Workflows" steps={WORKFLOW_TOUR} />
         <div className="mx-1 h-5 w-px bg-white/10" />
         <button
@@ -684,15 +720,6 @@ export function WorkflowEditor() {
           title="Reset view"
         >
           {Math.round(vp.scale * 100)}%
-        </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saveState === "saving"}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-[12px] text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-        >
-          {saveState === "saved" ? <Icon.Check size={13} /> : null}
-          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
         </button>
         <button
           type="button"

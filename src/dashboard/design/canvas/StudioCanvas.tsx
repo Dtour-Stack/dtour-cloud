@@ -11,6 +11,9 @@ import {
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
+import { DESIGN_SURFACE } from "../designProject";
+import { DesignProjectControls } from "../DesignProjectControls";
+import { useDesignProject } from "../DesignProjectContext";
 import { CANVAS_TOUR, GuidedTour } from "../GuidedTour";
 import { createCanvas2DRenderer } from "./canvas2dRenderer";
 import { DomNodeLayer } from "./DomNodeLayer";
@@ -70,15 +73,26 @@ export function StudioCanvas() {
   toolRef.current = tool;
 
   const token = getDtourSessionToken();
+  const { project } = useDesignProject();
   const saved = useQuery(
     anyApi.design.getDoc,
-    token ? { token, kind: "canvas" } : "skip",
+    token ? { token, kind: DESIGN_SURFACE.studio, project } : "skip",
   ) as { data: string; updatedAt: number } | null | undefined;
   const saveDoc = useMutation(anyApi.design.saveDoc);
+  const saveProjectAs = useMutation(anyApi.design.saveProjectAs);
   const hydrated = useRef(false);
   const pendingHandled = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
+  useEffect(() => {
+    hydrated.current = false;
+    pendingHandled.current = false;
+    setScene({ nodes: [] });
+    setView({ panX: 120, panY: 80, zoom: 0.55 });
+    setSelection(null);
+    setSaveState("idle");
+  }, [project]);
 
   useEffect(() => {
     if (saved === undefined || hydrated.current) return;
@@ -90,7 +104,7 @@ export function StudioCanvas() {
         setView(doc.view);
       }
     }
-  }, [saved]);
+  }, [saved, project]);
 
   const persist = useCallback(
     async (manual = false) => {
@@ -99,7 +113,8 @@ export function StudioCanvas() {
       try {
         await saveDoc({
           token,
-          kind: "canvas",
+          kind: DESIGN_SURFACE.studio,
+          project,
           data: serializeStudioDoc(sceneRef.current, viewRef.current),
         });
         setSaveState("saved");
@@ -108,7 +123,7 @@ export function StudioCanvas() {
         setSaveState("idle");
       }
     },
-    [saveDoc, token],
+    [saveDoc, token, project],
   );
 
   const scheduleSave = useCallback(() => {
@@ -501,6 +516,21 @@ export function StudioCanvas() {
           >
             Gallery
           </button>
+          <DesignProjectControls
+            saveState={saveState}
+            onSave={() => void persist(true)}
+            onSaveAs={async (newName) => {
+              if (!token) return;
+              await saveProjectAs({
+                token,
+                kind: DESIGN_SURFACE.studio,
+                fromProject: project,
+                toName: newName,
+                data: serializeStudioDoc(sceneRef.current, viewRef.current),
+              });
+            }}
+          />
+          <div className="mx-1 h-5 w-px bg-white/10" />
           <GuidedTour id="canvas" heading="Design Studio" steps={CANVAS_TOUR} />
           <div className="mx-1 h-5 w-px bg-white/10" />
           <button
@@ -524,16 +554,6 @@ export function StudioCanvas() {
             )}
           >
             AI
-          </button>
-          <button
-            type="button"
-            data-studio-ui
-            onClick={() => void persist(true)}
-            disabled={saveState === "saving"}
-            className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-black disabled:opacity-50"
-          >
-            {saveState === "saved" ? <Icon.Check size={13} /> : null}
-            {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
           </button>
         </div>
 
