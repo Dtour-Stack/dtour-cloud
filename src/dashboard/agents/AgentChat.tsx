@@ -11,10 +11,11 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Streamdown } from "streamdown";
+import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 
-type Msg = { id: string; role: string; content: string; at: number };
+type Msg = { id: string; role: string; content: string; imageUrl?: string | null; at: number };
 type Agent =
   | { id: string; name: string; description: string | null; systemPrompt: string; model: string }
   | null
@@ -55,6 +56,8 @@ export function AgentChat({ agentId }: { agentId: string }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [attachUrl, setAttachUrl] = useState<string | null>(null); // gallery image
+  const [pickerOpen, setPickerOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -73,12 +76,14 @@ export function AgentChat({ agentId }: { agentId: string }) {
   async function send(e?: FormEvent) {
     e?.preventDefault();
     const text = input.trim();
-    if (!token || !text || sending) return;
+    if (!token || (!text && !attachUrl) || sending) return;
+    const img = attachUrl;
     setInput("");
+    setAttachUrl(null);
     if (taRef.current) taRef.current.style.height = "auto";
     setSending(true);
     try {
-      await chat({ token, agentId, message: text });
+      await chat({ token, agentId, message: text, imageUrl: img ?? undefined });
     } finally {
       setSending(false);
     }
@@ -143,10 +148,19 @@ export function AgentChat({ agentId }: { agentId: string }) {
             <div className="space-y-7">
               {messages.map((m) =>
                 m.role === "user" ? (
-                  <div key={m.id} className="flex justify-end">
-                    <div className="max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-white px-4 py-2.5 text-[14.5px] leading-relaxed text-black">
-                      {m.content}
-                    </div>
+                  <div key={m.id} className="flex flex-col items-end gap-1.5">
+                    {m.imageUrl && (
+                      <img
+                        src={m.imageUrl}
+                        alt="attachment"
+                        className="max-h-56 max-w-[60%] rounded-2xl rounded-br-md border border-white/10 object-cover"
+                      />
+                    )}
+                    {m.content && (
+                      <div className="max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-white px-4 py-2.5 text-[14.5px] leading-relaxed text-black">
+                        {m.content}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div key={m.id} className="flex gap-3">
@@ -180,6 +194,9 @@ export function AgentChat({ agentId }: { agentId: string }) {
             input={input}
             sending={sending}
             taRef={taRef}
+            attachUrl={attachUrl}
+            onAttachClick={() => setPickerOpen(true)}
+            onClearAttach={() => setAttachUrl(null)}
             onChange={(v) => {
               setInput(v);
               autoGrow();
@@ -202,6 +219,17 @@ export function AgentChat({ agentId }: { agentId: string }) {
           onClose={() => setShowInstructions(false)}
         />
       )}
+
+      {pickerOpen && token && (
+        <GalleryPicker
+          token={token}
+          onPick={(url) => {
+            setAttachUrl(url);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -214,6 +242,9 @@ function Composer({
   input,
   sending,
   taRef,
+  attachUrl,
+  onAttachClick,
+  onClearAttach,
   onChange,
   onKeyDown,
   onSubmit,
@@ -225,6 +256,9 @@ function Composer({
   input: string;
   sending: boolean;
   taRef: RefObject<HTMLTextAreaElement | null>;
+  attachUrl: string | null;
+  onAttachClick: () => void;
+  onClearAttach: () => void;
   onChange: (v: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (e?: FormEvent) => void;
@@ -236,6 +270,25 @@ function Composer({
       onSubmit={onSubmit}
       className="rounded-[1.5rem] border border-white/12 bg-white/[0.04] transition focus-within:border-purple-400/40"
     >
+      {attachUrl && (
+        <div className="px-3 pt-3">
+          <div className="relative inline-block">
+            <img
+              src={attachUrl}
+              alt="attachment"
+              className="h-16 w-16 rounded-lg border border-white/15 object-cover"
+            />
+            <button
+              type="button"
+              aria-label="Remove image"
+              onClick={onClearAttach}
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-black text-white/80 transition hover:text-white"
+            >
+              <Icon.X size={11} />
+            </button>
+          </div>
+        </div>
+      )}
       <textarea
         ref={taRef}
         value={input}
@@ -247,6 +300,9 @@ function Composer({
       />
       <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-1">
         <ToolsMenu onOpenInstructions={onOpenInstructions} />
+        <RoundButton label="Attach image from gallery" onClick={onAttachClick}>
+          <Icon.Image size={17} />
+        </RoundButton>
         <ModelMenu agentId={agentId} model={model} />
         <div className="flex-1" />
         <RoundButton label="Voice input (coming soon)" disabled>
@@ -254,7 +310,7 @@ function Composer({
         </RoundButton>
         <button
           type="submit"
-          disabled={sending || !input.trim()}
+          disabled={sending || (!input.trim() && !attachUrl)}
           aria-label="Send"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:shadow-lg hover:shadow-white/10 disabled:cursor-not-allowed disabled:opacity-30"
         >

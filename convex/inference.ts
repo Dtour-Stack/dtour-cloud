@@ -233,9 +233,10 @@ export const runChat = action({
     token: v.string(),
     model: v.string(),
     messages: v.array(v.object({ role: v.string(), content: v.string() })),
+    imageUrl: v.optional(v.string()),
     refId: v.string(),
   },
-  handler: async (ctx, { token, model, messages, refId }): Promise<{ text: string; source: string }> => {
+  handler: async (ctx, { token, model, messages, imageUrl, refId }): Promise<{ text: string; source: string }> => {
     const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
     if (!me) throw new Error("Not signed in");
     const pubkey = me.pubkey;
@@ -246,6 +247,29 @@ export const runChat = action({
       const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
       if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to keep chatting." : "Cannot run inference.");
 
+      // Vision: when an image is attached, attach it to the last user message as
+      // OpenRouter multimodal content + force a multimodal model (the agent's
+      // chosen model may be text-only). The image is a public Convex-storage URL.
+      let reqModel = model;
+      let reqMessages: unknown[] = messages;
+      if (imageUrl) {
+        reqModel = "google/gemini-2.5-flash";
+        const out = messages.map((m) => ({ role: m.role, content: m.content as unknown }));
+        for (let i = out.length - 1; i >= 0; i--) {
+          if (out[i].role === "user") {
+            out[i] = {
+              role: "user",
+              content: [
+                { type: "text", text: (messages[i].content as string) || "Describe this image." },
+                { type: "image_url", image_url: { url: imageUrl } },
+              ],
+            };
+            break;
+          }
+        }
+        reqMessages = out;
+      }
+
       const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
         method: "POST",
         headers: {
@@ -254,7 +278,7 @@ export const runChat = action({
           "http-referer": "https://detour.ninja",
           "x-title": "Detour Cloud",
         },
-        body: JSON.stringify({ model, messages }),
+        body: JSON.stringify({ model: reqModel, messages: reqMessages }),
       });
       if (!res.ok) {
         const t = await res.text().catch(() => "");

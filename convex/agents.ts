@@ -155,7 +155,7 @@ export const messages = query({
       .withIndex("by_agent", (q) => q.eq("agentId", agentId))
       .order("asc")
       .collect();
-    return rows.map((m) => ({ id: m._id, role: m.role, content: m.content, at: m.at }));
+    return rows.map((m) => ({ id: m._id, role: m.role, content: m.content, imageUrl: m.imageUrl ?? null, at: m.at }));
   },
 });
 
@@ -232,6 +232,7 @@ export const addMessage = internalMutation({
     owner: v.string(),
     role: v.string(),
     content: v.string(),
+    imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("agentMessages", { ...args, at: Date.now() });
@@ -276,9 +277,14 @@ export const modelEnv = internalQuery({
  *  ElizaCloud's OpenAI-compatible endpoint: the assistant message doc is
  *  patched as tokens arrive, so the reactive query renders them live. */
 export const chat = action({
-  args: { token: v.string(), agentId: v.id("agents"), message: v.string() },
-  handler: async (ctx, { token, agentId, message }) => {
-    if (!message.trim()) throw new Error("Empty message");
+  args: {
+    token: v.string(),
+    agentId: v.id("agents"),
+    message: v.string(),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, { token, agentId, message, imageUrl }) => {
+    if (!message.trim() && !imageUrl) throw new Error("Empty message");
     const data = await ctx.runQuery(internal.agents.forChat, { token, agentId });
     if (!data) throw new Error("Agent not found");
 
@@ -287,6 +293,7 @@ export const chat = action({
       owner: data.owner,
       role: "user",
       content: message.trim(),
+      imageUrl,
     });
     const asstId = await ctx.runMutation(internal.agents.startAssistantMessage, {
       agentId,
@@ -297,7 +304,7 @@ export const chat = action({
       // Route through inference.runChat: DIRECT to OpenRouter (cheaper than
       // ElizaCloud + metered/charged) when OPENROUTER_API_KEY is set, else falls
       // back to ElizaCloud (free, current behavior). Charging is idempotent by
-      // refId = the assistant message id.
+      // refId = the assistant message id. An attached image → vision message.
       const model = data.model && data.model !== "auto" ? data.model : "openrouter/auto";
       const { text } = (await ctx.runAction(api.inference.runChat, {
         token,
@@ -305,8 +312,9 @@ export const chat = action({
         messages: [
           { role: "system", content: data.systemPrompt },
           ...data.history,
-          { role: "user", content: message.trim() },
+          { role: "user", content: message.trim() || "What's in this image?" },
         ],
+        imageUrl,
         refId: asstId,
       })) as { text: string };
       await ctx.runMutation(internal.agents.setMessageContent, {

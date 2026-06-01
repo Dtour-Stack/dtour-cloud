@@ -124,6 +124,8 @@ export default defineSchema({
     owner: v.string(),
     role: v.string(), // "user" | "assistant"
     content: v.string(),
+    // Optional gallery image attached to a user message (vision chat).
+    imageUrl: v.optional(v.string()),
     at: v.number(),
   }).index("by_agent", ["agentId"]),
 
