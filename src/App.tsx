@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { RequireRole } from "@/dashboard/RequireRole";
 import { RequireSession } from "@/dashboard/RequireSession";
+import { SurfaceGate } from "@/dashboard/SurfaceGate";
 import DtourLandingPage from "@/pages/dtour-landing-page";
 import DtourTokenPage from "@/pages/dtour-token-page";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
@@ -78,9 +79,11 @@ export default function App() {
           path="/profile"
           element={
             <RequireSession>
-              <SolanaWalletProvider>
-                <ProfileDashboardPage />
-              </SolanaWalletProvider>
+              <SurfaceGate path="/profile">
+                <SolanaWalletProvider>
+                  <ProfileDashboardPage />
+                </SolanaWalletProvider>
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -88,9 +91,11 @@ export default function App() {
           path="/profile/:section"
           element={
             <RequireSession>
-              <SolanaWalletProvider>
-                <ProfileDashboardPage />
-              </SolanaWalletProvider>
+              <SurfaceGate path="/profile">
+                <SolanaWalletProvider>
+                  <ProfileDashboardPage />
+                </SolanaWalletProvider>
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -98,7 +103,9 @@ export default function App() {
           path="/agents"
           element={
             <RequireSession>
-              <AgentsPage />
+              <SurfaceGate path="/agents">
+                <AgentsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -106,7 +113,9 @@ export default function App() {
           path="/agents/:agentId"
           element={
             <RequireSession>
-              <AgentsPage />
+              <SurfaceGate path="/agents">
+                <AgentsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -116,7 +125,9 @@ export default function App() {
           path="/api-explorer"
           element={
             <RequireSession>
-              <ApiExplorerPage />
+              <SurfaceGate path="/api-explorer">
+                <ApiExplorerPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -124,7 +135,9 @@ export default function App() {
           path="/api-keys"
           element={
             <RequireSession>
-              <ApiKeysPage />
+              <SurfaceGate path="/api-keys">
+                <ApiKeysPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -132,7 +145,9 @@ export default function App() {
           path="/docs"
           element={
             <RequireSession>
-              <DocsPage />
+              <SurfaceGate path="/docs">
+                <DocsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -140,7 +155,9 @@ export default function App() {
           path="/instances"
           element={
             <RequireSession>
-              <InstancesPage />
+              <SurfaceGate path="/instances">
+                <InstancesPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -148,7 +165,9 @@ export default function App() {
           path="/mcps"
           element={
             <RequireSession>
-              <McpsPage />
+              <SurfaceGate path="/mcps">
+                <McpsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -156,7 +175,9 @@ export default function App() {
           path="/settings"
           element={
             <RequireSession>
-              <SettingsPage />
+              <SurfaceGate path="/settings">
+                <SettingsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -164,7 +185,9 @@ export default function App() {
           path="/account"
           element={
             <RequireSession>
-              <AccountPage />
+              <SurfaceGate path="/account">
+                <AccountPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -172,7 +195,9 @@ export default function App() {
           path="/security"
           element={
             <RequireSession>
-              <SecurityPage />
+              <SurfaceGate path="/security">
+                <SecurityPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -180,7 +205,9 @@ export default function App() {
           path="/apps"
           element={
             <RequireSession>
-              <AppsPage />
+              <SurfaceGate path="/apps">
+                <AppsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -188,7 +215,9 @@ export default function App() {
           path="/earnings"
           element={
             <RequireSession>
-              <EarningsPage />
+              <SurfaceGate path="/earnings">
+                <EarningsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -196,7 +225,9 @@ export default function App() {
           path="/affiliates"
           element={
             <RequireSession>
-              <AffiliatesPage />
+              <SurfaceGate path="/affiliates">
+                <AffiliatesPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -204,7 +235,9 @@ export default function App() {
           path="/billing"
           element={
             <RequireSession>
-              <BillingPage />
+              <SurfaceGate path="/billing">
+                <BillingPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -212,7 +245,9 @@ export default function App() {
           path="/analytics"
           element={
             <RequireSession>
-              <AnalyticsPage />
+              <SurfaceGate path="/analytics">
+                <AnalyticsPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -220,7 +255,9 @@ export default function App() {
           path="/developers"
           element={
             <RequireSession>
-              <DevelopersPage />
+              <SurfaceGate path="/developers">
+                <DevelopersPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -228,7 +265,9 @@ export default function App() {
           path="/account-hub"
           element={
             <RequireSession>
-              <AccountHubPage />
+              <SurfaceGate path="/account-hub">
+                <AccountHubPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -236,7 +275,9 @@ export default function App() {
           path="/gallery"
           element={
             <RequireSession>
-              <GalleryPage />
+              <SurfaceGate path="/gallery">
+                <GalleryPage />
+              </SurfaceGate>
             </RequireSession>
           }
         />
@@ -270,7 +311,9 @@ export default function App() {
           path="/design/projects/:projectId"
           element={
             <RequireRole min="pro_user">
-              <DesignDashboardPage />
+              <SurfaceGate path="/design">
+                <DesignDashboardPage />
+              </SurfaceGate>
             </RequireRole>
           }
         />
@@ -278,7 +321,9 @@ export default function App() {
           path="/design/projects"
           element={
             <RequireRole min="pro_user">
-              <DesignDashboardPage />
+              <SurfaceGate path="/design">
+                <DesignDashboardPage />
+              </SurfaceGate>
             </RequireRole>
           }
         />
@@ -286,7 +331,9 @@ export default function App() {
           path="/design"
           element={
             <RequireRole min="pro_user">
-              <DesignDashboardPage />
+              <SurfaceGate path="/design">
+                <DesignDashboardPage />
+              </SurfaceGate>
             </RequireRole>
           }
         />
@@ -294,7 +341,9 @@ export default function App() {
           path="/design/:section"
           element={
             <RequireRole min="pro_user">
-              <DesignDashboardPage />
+              <SurfaceGate path="/design">
+                <DesignDashboardPage />
+              </SurfaceGate>
             </RequireRole>
           }
         />
@@ -302,9 +351,11 @@ export default function App() {
           path="/coding"
           element={
             <RequireRole min="pro_user">
-              <SolanaWalletProvider>
-                <CodingDashboardPage />
-              </SolanaWalletProvider>
+              <SurfaceGate path="/coding">
+                <SolanaWalletProvider>
+                  <CodingDashboardPage />
+                </SolanaWalletProvider>
+              </SurfaceGate>
             </RequireRole>
           }
         />
@@ -312,9 +363,11 @@ export default function App() {
           path="/coding/:section"
           element={
             <RequireRole min="pro_user">
-              <SolanaWalletProvider>
-                <CodingDashboardPage />
-              </SolanaWalletProvider>
+              <SurfaceGate path="/coding">
+                <SolanaWalletProvider>
+                  <CodingDashboardPage />
+                </SolanaWalletProvider>
+              </SurfaceGate>
             </RequireRole>
           }
         />

@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
 import { getDtourSessionToken } from "@/lib/session";
-import { Button } from "@/ui";
+import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
+import { useFlags } from "@/lib/useFlags";
+import { Badge, Button, cn } from "@/ui";
 
-type Route = { method: string; path: string; desc: string; body?: string };
+type Route = { method: string; path: string; desc: string; body?: string; flag?: string };
 const GROUPS: { group: string; routes: Route[] }[] = [
   {
     group: "AI Completions",
@@ -29,12 +31,14 @@ const GROUPS: { group: string; routes: Route[] }[] = [
         path: "/api/v1/generate-image",
         desc: "Generate an image",
         body: '{ "prompt": "A futuristic city with neon lights" }',
+        flag: "image_generation_enabled",
       },
       {
         method: "POST",
         path: "/api/v1/generate-video",
         desc: "Generate a video",
         body: '{ "prompt": "A serene mountain landscape" }',
+        flag: "video_enabled",
       },
       { method: "GET", path: "/api/v1/gallery", desc: "List your generations" },
     ],
@@ -47,16 +51,22 @@ const GROUPS: { group: string; routes: Route[] }[] = [
         path: "/api/elevenlabs/tts",
         desc: "Text to speech",
         body: '{ "text": "Welcome to Detour Cloud", "modelId": "eleven_flash_v2_5" }',
+        flag: "tts_enabled",
       },
-      { method: "GET", path: "/api/elevenlabs/voices", desc: "List public voices" },
-      { method: "GET", path: "/api/elevenlabs/voices/user", desc: "Your cloned voices" },
+      { method: "GET", path: "/api/elevenlabs/voices", desc: "List public voices", flag: "tts_enabled" },
+      { method: "GET", path: "/api/elevenlabs/voices/user", desc: "Your cloned voices", flag: "tts_enabled" },
     ],
   },
   {
     group: "Account",
     routes: [
       { method: "GET", path: "/api/v1/user", desc: "Your profile (session auth)" },
-      { method: "GET", path: "/api/v1/api-keys", desc: "List API keys (session auth)" },
+      {
+        method: "GET",
+        path: "/api/v1/api-keys",
+        desc: "List API keys (session auth)",
+        flag: "surface_api_keys",
+      },
     ],
   },
 ];
@@ -65,6 +75,8 @@ const COLOR: Record<string, string> = { GET: "text-sky-300", POST: "text-emerald
 
 export default function ApiExplorerPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
+  const flags = useFlags();
+  const apiKeysLabel = surfaceLabelForRoute("/api-keys", flags);
   const status = useAction(anyApi.proxy.status);
   const forward = useAction(anyApi.proxy.forward);
   const [configured, setConfigured] = useState<boolean | null>(null);
@@ -103,8 +115,20 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
         <div>
           <h1 className="text-xl font-semibold text-white">API Explorer</h1>
           <p className="mt-1 text-sm text-white/50">
-            The Detour API (proxied to ElizaCloud). Mint a key in{" "}
-            <Link to="/api-keys" className="text-purple-300 hover:underline">API Keys</Link>.
+            The Detour API (proxied to ElizaCloud).{" "}
+            {apiKeysLabel === "Coming soon" ? (
+              <>
+                API keys are behind launch hardening.{" "}
+                <Badge tone="warning" className="align-middle">
+                  Coming soon
+                </Badge>
+              </>
+            ) : (
+              <>
+                Mint a key in{" "}
+                <Link to="/api-keys" className="text-purple-300 hover:underline">API Keys</Link>.
+              </>
+            )}
           </p>
         </div>
 
@@ -155,24 +179,39 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
           <div key={g.group}>
             <div className="mb-2 text-xs uppercase tracking-widest text-white/45">{g.group}</div>
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-              {g.routes.map((r) => (
-                <button
-                  type="button"
-                  key={r.path}
-                  onClick={() => {
-                    setMethod(r.method);
-                    setPath(r.path);
-                    setBody(r.body ?? "");
-                  }}
-                  className="flex w-full items-center gap-3 border-b border-white/5 px-4 py-2.5 text-left text-sm transition last:border-0 hover:bg-white/[0.03]"
-                >
-                  <span className={`w-12 shrink-0 font-mono text-xs font-semibold ${COLOR[r.method] ?? "text-white/50"}`}>
-                    {r.method}
-                  </span>
-                  <code className="font-mono text-xs text-white/80">{r.path}</code>
-                  <span className="ml-auto text-xs text-white/40">{r.desc}</span>
-                </button>
-              ))}
+              {g.routes.map((r) => {
+                const unavailable = r.flag ? flags[r.flag] !== true : false;
+                return (
+                  <button
+                    type="button"
+                    key={r.path}
+                    disabled={unavailable}
+                    onClick={() => {
+                      if (unavailable) return;
+                      setMethod(r.method);
+                      setPath(r.path);
+                      setBody(r.body ?? "");
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 border-b border-white/5 px-4 py-2.5 text-left text-sm transition last:border-0",
+                      unavailable
+                        ? "cursor-not-allowed opacity-55"
+                        : "hover:bg-white/[0.03]",
+                    )}
+                  >
+                    <span className={`w-12 shrink-0 font-mono text-xs font-semibold ${COLOR[r.method] ?? "text-white/50"}`}>
+                      {r.method}
+                    </span>
+                    <code className="font-mono text-xs text-white/80">{r.path}</code>
+                    <span className="ml-auto text-xs text-white/40">{r.desc}</span>
+                    {unavailable && (
+                      <Badge tone="warning" className="px-1.5 py-0 text-[9px]">
+                        Coming soon
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}

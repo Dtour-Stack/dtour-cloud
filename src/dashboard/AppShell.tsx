@@ -4,14 +4,14 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { usePublicConfig } from "@/lib/useConfig";
 import { useFlags } from "@/lib/useFlags";
-import { isRouteEnabled } from "@/lib/surfaceFlags";
+import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
 import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
 } from "@/lib/playwright-dtour-auth";
 import { isAdmin, isPro, type Role } from "@/lib/roles";
 import { DTOUR_SESSION_KEY, getDtourSessionToken } from "@/lib/session";
-import { cn, Icon, IconButton } from "@/ui";
+import { Badge, cn, Icon, IconButton } from "@/ui";
 import { AdminDetourAssistant } from "./admin/AdminDetourAssistant";
 import { InboxPanel } from "./InboxPanel";
 
@@ -112,7 +112,7 @@ export function AppShell({
   ) as number | undefined;
   const cfg = usePublicConfig();
   const flags = useFlags();
-  const visibleNav = nav.filter((item) => isRouteEnabled(item.to, flags));
+  const visibleNav = nav;
   const banner = cfg.maintenance_mode
     ? "⚠️ Detour Cloud is in maintenance mode — some features may be unavailable."
     : typeof cfg.announcement === "string" && cfg.announcement.trim()
@@ -207,28 +207,39 @@ export function AppShell({
         ) : (
           <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Primary">
             {(() => {
-              const renderItem = (item: NavItem) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={linkClass}
-                  onClick={closeMobile}
-                >
-                  {item.icon}
-                  {label(item.label)}
-                  {item.isNew && (
-                    <span
-                      className={cn(
-                        "ml-auto rounded-full border border-purple-400/25 bg-purple-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-wider text-purple-200",
-                        !navOpen && "md:hidden",
-                      )}
-                    >
-                      New
-                    </span>
-                  )}
-                </NavLink>
-              );
+              const renderItem = (item: NavItem) => {
+                const surfaceLabel = surfaceLabelForRoute(item.to, flags);
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={linkClass}
+                    onClick={closeMobile}
+                  >
+                    {item.icon}
+                    {label(item.label)}
+                    {surfaceLabel && (
+                      <Badge
+                        tone={surfaceLabel === "Coming soon" ? "warning" : "accent"}
+                        className={cn("ml-auto px-1.5 py-0 text-[9px]", !navOpen && "md:hidden")}
+                      >
+                        {surfaceLabel}
+                      </Badge>
+                    )}
+                    {item.isNew && (
+                      <span
+                        className={cn(
+                          "ml-auto rounded-full border border-purple-400/25 bg-purple-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-wider text-purple-200",
+                          !navOpen && "md:hidden",
+                        )}
+                      >
+                        New
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              };
 
               const ungrouped = visibleNav.filter((i) => !i.group);
               // Derive group order from first appearance — keeps AppShell generic
@@ -282,7 +293,7 @@ export function AppShell({
               <Icon.PanelLeft />
             </IconButton>
             {isPro(me?.role) ? (
-              <ContextSwitcher context={context} role={me?.role} />
+              <ContextSwitcher context={context} role={me?.role} flags={flags} />
             ) : (
               <span className="text-sm text-white/40">{title ?? "Dashboard"}</span>
             )}
@@ -360,9 +371,11 @@ export function AppShell({
 function ContextSwitcher({
   context,
   role,
+  flags,
 }: {
   context: "user" | "admin" | "design" | "coding" | "profile" | "custom";
   role?: Role;
+  flags: Record<string, boolean>;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -417,6 +430,7 @@ function ContextSwitcher({
       ? [{ key: "admin", label: "Admin", to: "/admin", icon: <Icon.Shield size={14} /> }]
       : []),
   ];
+  const itemLabel = (to: string) => surfaceLabelForRoute(to, flags);
   const current =
     context === "custom"
       ? (items.find((i) => i.key === `custom:${activeCustomName}`) ?? {
@@ -438,6 +452,14 @@ function ContextSwitcher({
       >
         {current.icon}
         <span>{current.label}</span>
+        {itemLabel(current.to) && (
+          <Badge
+            tone={itemLabel(current.to) === "Coming soon" ? "warning" : "accent"}
+            className="hidden px-1.5 py-0 text-[9px] sm:inline-flex"
+          >
+            {itemLabel(current.to)}
+          </Badge>
+        )}
         <Icon.ChevronDown size={14} />
       </button>
       {open && (
@@ -463,6 +485,14 @@ function ContextSwitcher({
             >
               {i.icon}
               <span className="flex-1">{i.label}</span>
+              {itemLabel(i.to) && (
+                <Badge
+                  tone={itemLabel(i.to) === "Coming soon" ? "warning" : "accent"}
+                  className="px-1.5 py-0 text-[9px]"
+                >
+                  {itemLabel(i.to)}
+                </Badge>
+              )}
               {i.key === current.key && <Icon.Check size={14} />}
             </button>
           ))}

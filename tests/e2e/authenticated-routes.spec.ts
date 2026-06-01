@@ -14,6 +14,8 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.locator("body")).toContainText("@playwright");
     await expect(page.getByRole("link", { name: /Design/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Coding/i })).toBeVisible();
+    await expect(page.getByText("Open beta").first()).toBeVisible();
+    await expect(page.getByText("Coming soon").first()).toBeVisible();
   });
 
   test("design studio exposes generate preview and removes AI components inventory", async ({
@@ -71,5 +73,21 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("button", { name: "workflows" })).toBeVisible();
     await expect(page.getByRole("button", { name: "chat" })).toBeVisible();
     await expect(page.getByRole("button", { name: "applicants" })).toBeVisible();
+  });
+
+  test("planned dashboard surfaces are gated behind coming soon", async ({ page }) => {
+    await page.goto("/api-keys");
+
+    await expect(page.getByText("Coming soon").first()).toBeVisible();
+    await expect(
+      page.getByText("Programmatic access keys are being hardened before public launch."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Create/i })).toHaveCount(0);
+
+    await page.goto("/developers");
+    await page.getByRole("button", { name: "API Keys Coming soon", exact: true }).click();
+    await expect(
+      page.getByText("Programmatic access keys are being hardened before public launch."),
+    ).toBeVisible();
   });
 });

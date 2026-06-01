@@ -3,7 +3,7 @@ import { anyApi } from "convex/server";
 import { Link } from "react-router-dom";
 import { getDtourSessionToken } from "@/lib/session";
 import { useFlags } from "@/lib/useFlags";
-import { isRouteEnabled } from "@/lib/surfaceFlags";
+import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
 import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
@@ -12,6 +12,7 @@ import {
   Badge,
   buttonClasses,
   Button,
+  cn,
   EmptyState,
   Icon,
   Panel,
@@ -76,7 +77,7 @@ export function DashboardHome() {
   const name = me?.username ? `@${me.username}` : me ? truncate(me.pubkey) : "";
   const balance = me?.balance ?? 0;
   const lifetime = me?.plan === "lifetime";
-  const launcher = LAUNCHER.filter((l) => isRouteEnabled(l.to, flags));
+  const launcher = LAUNCHER;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -207,23 +208,42 @@ export function DashboardHome() {
 
       {/* Launcher grid — everything that isn't in the slim side nav. */}
       <div className="fade-up mt-8" style={{ animationDelay: "210ms" }}>
-        <SectionHeading title="Explore" description="Jump to any part of Detour Cloud." />
+        <SectionHeading
+          title="Explore"
+          description="Live, open beta, and upcoming Detour Cloud surfaces."
+        />
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {launcher.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]"
-            >
-              <span className="rounded-lg bg-white/5 p-2 text-white/70 group-hover:text-white">
-                {l.icon}
-              </span>
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-white">{l.label}</div>
-                <div className="truncate text-xs text-white/45">{l.desc}</div>
-              </div>
-            </Link>
-          ))}
+          {launcher.map((l) => {
+            const surfaceLabel = surfaceLabelForRoute(l.to, flags);
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                className={cn(
+                  "group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]",
+                  surfaceLabel === "Coming soon" && "border-white/[0.07] bg-white/[0.01]",
+                )}
+              >
+                <span className="rounded-lg bg-white/5 p-2 text-white/70 group-hover:text-white">
+                  {l.icon}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium text-white">{l.label}</span>
+                    {surfaceLabel && (
+                      <Badge
+                        tone={surfaceLabel === "Coming soon" ? "warning" : "accent"}
+                        className="shrink-0 px-1.5 py-0 text-[9px]"
+                      >
+                        {surfaceLabel}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="truncate text-xs text-white/45">{l.desc}</div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
