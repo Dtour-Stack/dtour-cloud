@@ -5,6 +5,8 @@ import { GuidedTour } from "@/dashboard/design/GuidedTour";
 import { CODING_PROVIDERS, type CodingProviderId } from "@/lib/codingProviders";
 import { cn, Icon } from "@/ui";
 import { CODING_TOUR } from "./codingGuide";
+import { DraftLabSection } from "./DraftLabSection";
+import { WorkspaceSavesSection } from "./WorkspaceSavesSection";
 
 type Backend = "runner" | "sandbox" | "selfhost";
 
@@ -29,6 +31,8 @@ export function CodingSidebar({
   onProvider,
   token,
   onLaunchInTerminal,
+  onSaveWorkspace,
+  runnerConnected,
 }: {
   backend: Backend;
   onBackend: (b: Backend) => void;
@@ -36,6 +40,8 @@ export function CodingSidebar({
   onProvider: (p: CodingProviderId) => void;
   token: string | null;
   onLaunchInTerminal: (cmd: string) => void;
+  onSaveWorkspace: (name: string) => void;
+  runnerConnected: boolean;
 }) {
   const keys = useQuery(
     anyApi.codingProviders.listKeys,
@@ -201,6 +207,14 @@ export function CodingSidebar({
               E2B microVMs; Sandbox runs them via npm in your browser (needs network).
             </p>
           </section>
+
+          <DraftLabSection token={token} />
+
+          <WorkspaceSavesSection
+            token={token}
+            onSaveInTerminal={onSaveWorkspace}
+            runnerActive={backend === "runner" && runnerConnected}
+          />
 
           <section data-tour="coding-launch">
             <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">

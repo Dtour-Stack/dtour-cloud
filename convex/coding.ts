@@ -13,9 +13,12 @@ import { requireRole } from "./rbac";
 // CPU $0.000014/vCPU-s = 14 µ$ ; RAM $0.0000045/GiB-s = 4.5 µ$.
 const CPU_MICRO_PER_VCPU_SEC = 14;
 const RAM_MICRO_PER_GIB_SEC = 4.5;
-const MARKUP_FRACTION = 1.0; // 2× = +100% over metered cost
+const MARKUP_FRACTION = 0.5; // 1.5× metered E2B cost — modest margin, not 2×
 const HOLDER_DISCOUNT = 0.2; // 20% off the marked-up price for qualifying holders
 const MIN_CHARGE_MICRO_USD = 10_000; // $0.01 floor per session (covers overhead)
+/** Flat fee to persist a sandbox workspace snapshot (≤ max bytes). */
+export const WORKSPACE_SAVE_MICRO_USD = 50_000; // $0.05
+export const WORKSPACE_MAX_BYTES = 5 * 1024 * 1024; // 5 MiB compressed archive cap
 
 // $DTOUR holder-discount eligibility from the CACHED users.balance (no RPC):
 // holder = ≥ 0.5% of total supply. Supply is fixed (Token-2022, no mint auth).
@@ -87,6 +90,8 @@ export const pricing = query({
       markupFraction: MARKUP_FRACTION,
       holderDiscount: HOLDER_DISCOUNT,
       minChargeUsd: MIN_CHARGE_MICRO_USD / USD,
+      workspaceSaveUsd: WORKSPACE_SAVE_MICRO_USD / USD,
+      workspaceMaxMiB: WORKSPACE_MAX_BYTES / (1024 * 1024),
       // representative default sandbox (2 vCPU / 0.5 GiB)
       example: {
         vcpu: 2,
@@ -178,6 +183,114 @@ export const recordSession = mutation({
       data: { durationSec, costMicro, chargeMicro, qualifies },
     });
     return { ok: true as const, chargedUsd: chargeMicro / USD, balanceUsd: after / USD };
+  },
+});
+
+// ── admin: grant USD credits (top-up stand-in until the payment rail exists) ──
+// ── user: saved workspace archives ───────────────────────────────────────────
+export const listWorkspaces = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const pubkey = await sessionPubkey(ctx, token);
+    if (!pubkey) return [];
+    const rows = await ctx.db
+      .query("codingWorkspaces")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .order("desc")
+      .take(40);
+    return Promise.all(
+      rows.map(async (r) => ({
+        id: r._id,
+        name: r.name,
+        sizeBytes: r.sizeBytes,
+        at: r.at,
+        downloadUrl: (await ctx.storage.getUrl(r.storageId)) ?? null,
+      })),
+    );
+  },
+});
+
+export const prepareWorkspaceSave = mutation({
+  args: { token: v.string(), name: v.string(), sizeBytes: v.number() },
+  handler: async (ctx, { token, name, sizeBytes }) => {
+    const pubkey = await sessionPubkey(ctx, token);
+    if (!pubkey) throw new Error("Not authenticated");
+    const trimmed = name.trim().slice(0, 80) || "workspace";
+    if (!(sizeBytes > 0) || sizeBytes > WORKSPACE_MAX_BYTES) {
+      throw new Error(`Workspace must be under ${WORKSPACE_MAX_BYTES / (1024 * 1024)} MiB`);
+    }
+    const qualifies = await holderQualifies(ctx, pubkey);
+    const chargeMicro = Math.round(
+      WORKSPACE_SAVE_MICRO_USD * (qualifies ? 1 - HOLDER_DISCOUNT : 1),
+    );
+    const bal = await balanceMicro(ctx, pubkey);
+    if (bal < chargeMicro) {
+      throw new Error(`Need $${(chargeMicro / USD).toFixed(2)} credits to save (balance $${(bal / USD).toFixed(2)})`);
+    }
+    const uploadUrl = await ctx.storage.generateUploadUrl();
+    return {
+      uploadUrl,
+      name: trimmed,
+      chargeUsd: chargeMicro / USD,
+    };
+  },
+});
+
+export const finalizeWorkspaceSave = mutation({
+  args: {
+    token: v.string(),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    sizeBytes: v.number(),
+    sandboxId: v.optional(v.string()),
+  },
+  handler: async (ctx, a) => {
+    const pubkey = await sessionPubkey(ctx, a.token);
+    if (!pubkey) return { ok: false as const, reason: "no session" };
+
+    const existing = await ctx.db
+      .query("codingWorkspaces")
+      .withIndex("by_storage", (q) => q.eq("storageId", a.storageId))
+      .unique();
+    if (existing) {
+      return {
+        ok: true as const,
+        id: existing._id,
+        chargedUsd: existing.priceMicroUsd / USD,
+      };
+    }
+
+    if (!(a.sizeBytes > 0) || a.sizeBytes > WORKSPACE_MAX_BYTES) {
+      throw new Error("Invalid workspace size");
+    }
+
+    const qualifies = await holderQualifies(ctx, pubkey);
+    const chargeMicro = Math.round(
+      WORKSPACE_SAVE_MICRO_USD * (qualifies ? 1 - HOLDER_DISCOUNT : 1),
+    );
+
+    const row = await ctx.db
+      .query("creditBalances")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .unique();
+    const after = (row?.balanceMicroUsd ?? 0) - chargeMicro;
+    if (row) await ctx.db.patch(row._id, { balanceMicroUsd: after, updatedAt: Date.now() });
+    else await ctx.db.insert("creditBalances", { pubkey, balanceMicroUsd: after, updatedAt: Date.now() });
+
+    const id = await ctx.db.insert("codingWorkspaces", {
+      pubkey,
+      name: a.name.trim().slice(0, 80) || "workspace",
+      sandboxId: a.sandboxId,
+      storageId: a.storageId,
+      sizeBytes: a.sizeBytes,
+      priceMicroUsd: chargeMicro,
+      at: Date.now(),
+    });
+    await logEvent(ctx, "coding.workspace_save", {
+      pubkey,
+      data: { sizeBytes: a.sizeBytes, chargeMicro },
+    });
+    return { ok: true as const, id, chargedUsd: chargeMicro / USD, balanceUsd: after / USD };
   },
 });
 

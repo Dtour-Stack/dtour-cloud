@@ -49,9 +49,18 @@ export default function CodingDashboardPage() {
   const lowBalance = backend === "runner" && credits != null && credits.balanceUsd < 0.05;
   const [topUpOpen, setTopUpOpen] = useState(false);
   const injectRef = useRef<((cmd: string) => void) | null>(null);
+  const runnerWsRef = useRef<WebSocket | null>(null);
+  const [runnerConnected, setRunnerConnected] = useState(false);
 
   const onLaunchInTerminal = useCallback((cmd: string) => {
     injectRef.current?.(`${cmd}\r`);
+  }, []);
+
+  const onSaveWorkspace = useCallback((name: string) => {
+    const ws = runnerWsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(`w${JSON.stringify({ name })}`);
+    }
   }, []);
 
   return (
@@ -114,6 +123,8 @@ export default function CodingDashboardPage() {
             onProvider={setActiveProvider}
             token={token}
             onLaunchInTerminal={onLaunchInTerminal}
+            onSaveWorkspace={onSaveWorkspace}
+            runnerConnected={runnerConnected}
           />
           <div className="min-h-0 flex-1 p-3" data-tour="coding-terminal">
             <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
@@ -123,6 +134,8 @@ export default function CodingDashboardPage() {
                 activeProvider={activeProvider}
                 token={token}
                 injectRef={injectRef}
+                runnerWsRef={runnerWsRef}
+                onRunnerConnection={setRunnerConnected}
               />
             </div>
           </div>
@@ -140,11 +153,15 @@ function CodingTerminal({
   activeProvider,
   token,
   injectRef,
+  runnerWsRef,
+  onRunnerConnection,
 }: {
   backend: Backend;
   activeProvider: CodingProviderId;
   token: string | null;
   injectRef: React.MutableRefObject<((cmd: string) => void) | null>;
+  runnerWsRef: React.MutableRefObject<WebSocket | null>;
+  onRunnerConnection: (connected: boolean) => void;
 }) {
   const termRef = useRef<TerminalHandle>(null);
   const shellRef = useRef<BashShell | null>(null);
@@ -216,10 +233,18 @@ function CodingTerminal({
     ws.binaryType = "arraybuffer";
     ws.onmessage = (e) =>
       write(typeof e.data === "string" ? e.data : new Uint8Array(e.data as ArrayBuffer));
-    ws.onerror = () => write("\r\n  \x1b[31mconnection error\x1b[0m\r\n");
-    ws.onclose = () => write("\r\n  session closed.\r\n");
+    ws.onopen = () => onRunnerConnection(true);
+    ws.onerror = () => {
+      onRunnerConnection(false);
+      write("\r\n  \x1b[31mconnection error\x1b[0m\r\n");
+    };
+    ws.onclose = () => {
+      onRunnerConnection(false);
+      write("\r\n  session closed.\r\n");
+    };
     wsRef.current = ws;
-  }, [backend, write, provider.label, provider.launchCmd, token, sessionEnv]);
+    runnerWsRef.current = ws;
+  }, [backend, write, provider.label, provider.launchCmd, token, sessionEnv, runnerWsRef, onRunnerConnection]);
 
   const onData = useCallback(
     (data: string) => {
@@ -242,11 +267,13 @@ function CodingTerminal({
   );
 
   useEffect(() => {
+    onRunnerConnection(false);
     const ws = wsRef.current;
     return () => {
       ws?.close();
+      runnerWsRef.current = null;
     };
-  }, []);
+  }, [onRunnerConnection, runnerWsRef]);
 
   return (
     <Terminal

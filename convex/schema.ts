@@ -329,6 +329,19 @@ export default defineSchema({
     .index("by_pubkey", ["pubkey"])
     .index("by_sandbox", ["sandboxId"]),
 
+  // Saved coding-sandbox workspace archives (tar.gz in Convex storage).
+  codingWorkspaces: defineTable({
+    pubkey: v.string(),
+    name: v.string(),
+    sandboxId: v.optional(v.string()),
+    storageId: v.id("_storage"),
+    sizeBytes: v.number(),
+    priceMicroUsd: v.number(),
+    at: v.number(),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_storage", ["storageId"]),
+
   // Per-call inference usage ledger (chat/media). Keyed by refId for idempotency
   // (one charge per logical call) — mirrors codingUsage. Stores metered gateway
   // cost AND price charged (cost × (1+markup) × holder-discount).

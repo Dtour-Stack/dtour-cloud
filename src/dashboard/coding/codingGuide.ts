@@ -22,6 +22,16 @@ export const CODING_TOUR: TourStep[] = [
     anchor: "coding-launch",
   },
   {
+    title: "Draft agent lab",
+    body: "Pick one of your lightweight Agents and send a test turn — same inference path as Agents chat (persona, plugins, model). Use E2B for plugin/workflow hacking; use Draft lab to validate prompts.",
+    anchor: "coding-draft-lab",
+  },
+  {
+    title: "Save your work",
+    body: "While connected to Detour Cloud, save ~/workspace as a tarball for a small flat fee (~$0.05). Downloads appear in the list below.",
+    anchor: "coding-workspace-save",
+  },
+  {
     title: "Operator: E2B API key",
     body: "The platform E2B_API_KEY lives in deploy/.env (not in the browser). Users only add model keys. Build a custom template via services/coding-relay/e2b-template for faster starts.",
     anchor: "coding-setup",

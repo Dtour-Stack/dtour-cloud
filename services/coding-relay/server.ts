@@ -8,12 +8,14 @@
  * Wire protocol (client→server): a 1-char type prefix per text frame —
  *   "d<keystrokes>"  input to the PTY
  *   "r<json {cols,rows}>"  resize
+ *   "w<json {name?}>"  save ~/workspace to Convex (flat credit fee)
  * Server→client frames are raw PTY output bytes (written straight to the term).
  */
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { Sandbox } from "e2b";
 import { bootstrapCodingSandbox } from "./bootstrap";
+import { saveWorkspaceFromSandbox } from "./workspaceSave";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const E2B_TEMPLATE = process.env.E2B_TEMPLATE?.trim() || undefined;
@@ -47,6 +49,7 @@ type WSData = {
   closed: boolean;
   startedAtMs: number;
   sandboxId: string;
+  saving: boolean;
 };
 
 const enc = new TextEncoder();
@@ -75,6 +78,7 @@ Bun.serve<WSData>({
           closed: false,
           startedAtMs: 0,
           sandboxId: "",
+          saving: false,
         },
       })
     ) {
@@ -166,7 +170,24 @@ Bun.serve<WSData>({
       const type = str[0];
       const payload = str.slice(1);
       try {
-        if (type === "r") {
+        if (type === "w") {
+          if (ws.data.saving) return;
+          ws.data.saving = true;
+          const body = payload ? (JSON.parse(payload) as { name?: string }) : {};
+          const name = typeof body.name === "string" ? body.name : "workspace";
+          void saveWorkspaceFromSandbox(
+            convex,
+            sandbox,
+            ws.data.token,
+            ws.data.sandboxId,
+            name,
+            (msg) => {
+              if (!ws.data.closed) ws.send(msg);
+            },
+          ).finally(() => {
+            ws.data.saving = false;
+          });
+        } else if (type === "r") {
           const { cols, rows } = JSON.parse(payload) as { cols: number; rows: number };
           if (cols > 0 && rows > 0) await sandbox.pty.resize(pid, { cols, rows });
         } else {

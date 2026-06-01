@@ -49,7 +49,21 @@ export async function bootstrapCodingSandbox(
     );
   }
 
+  const draftHelp = `#!/usr/bin/env bash
+# Detour Draft lab — persona/prompt tests run in the Coding sidebar (Draft lab panel).
+# This sandbox is for plugins, workflows, and CLIs.
+echo "Use the Draft lab panel in Detour Coding to test your lightweight agent persona."
+echo "Here: opencode · codex · claude · pi — mkdir -p ~/workspace for saveable work."
+`;
+  await sandbox.commands.run(
+    `mkdir -p ~/.detour/bin && cat > ~/.detour/bin/detour-draft << 'DETOUR_DRAFT_EOF'\n${draftHelp}\nDETOUR_DRAFT_EOF
+chmod +x ~/.detour/bin/detour-draft
+grep -q 'detour/bin' ~/.bashrc 2>/dev/null || echo 'export PATH="$HOME/.detour/bin:$PATH"' >> ~/.bashrc`,
+    { timeoutMs: 15_000 },
+  );
+
   onProgress(
-    "\r\n  \x1b[32mready\x1b[0m — run: \x1b[36mopencode\x1b[0m · \x1b[36mcodex\x1b[0m · \x1b[36mclaude\x1b[0m · \x1b[36mpi\x1b[0m (pick an agent tab + save keys)\r\n\r\n",
+    "\r\n  \x1b[32mready\x1b[0m — run: \x1b[36mopencode\x1b[0m · \x1b[36mcodex\x1b[0m · \x1b[36mclaude\x1b[0m · \x1b[36mpi\x1b[0m · \x1b[36mdetour-draft\x1b[0m\r\n" +
+      "  Draft lab (sidebar) = test agent persona · Save workspace = $0.05 (holder discount applies)\r\n\r\n",
   );
 }
