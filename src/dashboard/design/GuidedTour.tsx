@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button, cn, Icon } from "@/ui";
 
 /** `anchor` matches a `[data-tour="<anchor>"]` element to spotlight for the
@@ -151,30 +152,35 @@ export function GuidedTour({
         <Icon.BookOpen size={14} /> {label}
       </button>
 
+      {/* Portalled to <body>: the toolbar's backdrop-filter would otherwise make
+          it the containing block for position:fixed, trapping the overlay. */}
       {open &&
         step &&
-        (rect && cardStyle && spotStyle ? (
-          // anchored: spotlight the element, park the card beside it
-          <div className="fixed inset-0 z-50">
-            <div
-              className="pointer-events-none rounded-2xl ring-2 ring-violet-400/80 transition-all duration-200"
-              style={spotStyle}
-            />
-            <div
-              className="rounded-2xl border border-white/10 bg-[#0d0d12] p-5 shadow-2xl transition-all duration-200"
-              style={cardStyle}
-            >
-              {card}
+        createPortal(
+          rect && cardStyle && spotStyle ? (
+            // anchored: spotlight the element, park the card beside it
+            <div className="fixed inset-0 z-[60]">
+              <div
+                className="pointer-events-none rounded-2xl ring-2 ring-violet-400/80 transition-all duration-200"
+                style={spotStyle}
+              />
+              <div
+                className="rounded-2xl border border-white/10 bg-[#0d0d12] p-5 shadow-2xl transition-all duration-200"
+                style={cardStyle}
+              >
+                {card}
+              </div>
             </div>
-          </div>
-        ) : (
-          // unanchored: centered card
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0d12] p-6 shadow-2xl">
-              {card}
+          ) : (
+            // unanchored: centered card
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0d12] p-6 shadow-2xl">
+                {card}
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+          document.body,
+        )}
     </>
   );
 }
