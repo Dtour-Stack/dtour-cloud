@@ -26,6 +26,10 @@ type Cfg = {
   excludeWallets: string[];
   perRunCapSol: number;
   memo?: string;
+  // Metered-inference economics (bps). Markup must exceed the discount to stay
+  // profitable; defaults mirror inference.ts (markup +15% / holder-discount 10%).
+  inferenceMarkupBps?: number;
+  inferenceHolderDiscountBps?: number;
   updatedAt?: number | null;
 };
 type Snap = {
@@ -51,7 +55,18 @@ export function AdminTokenomics() {
   const snapshot = useAction(anyApi.tokenomics.snapshot);
 
   const [draft, setDraft] = useState<Cfg | null>(null);
-  const cfg = draft ?? remote ?? null;
+  // Default the metered-inference bps if getConfig doesn't yet return them (the
+  // `as Cfg` cast above would otherwise hide a missing field → NaN input / a save
+  // that drops the arg). 1500/1000 mirror inference.ts (markup +15% / discount 10%).
+  const cfg = draft
+    ? draft
+    : remote
+      ? {
+          ...remote,
+          inferenceMarkupBps: remote.inferenceMarkupBps ?? 1500,
+          inferenceHolderDiscountBps: remote.inferenceHolderDiscountBps ?? 1000,
+        }
+      : null;
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [snap, setSnap] = useState<Snap | null>(null);
@@ -206,6 +221,41 @@ export function AdminTokenomics() {
               <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">Per-run cap (SOL)</label>
               <input type="number" step="0.1" value={cfg.perRunCapSol} onChange={(e) => patch({ perRunCapSol: Number(e.target.value) })} className={field} />
             </div>
+          </div>
+
+          {/* Metered-inference economics — markup + holder discount (stored as bps). */}
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">Inference markup (%)</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={(cfg.inferenceMarkupBps ?? 0) / 100}
+                    onChange={(e) => patch({ inferenceMarkupBps: Math.round(Number(e.target.value) * 100) })}
+                    className={field}
+                  />
+                  <span className="text-sm text-white/40">%</span>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">Inference holder discount (%)</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={(cfg.inferenceHolderDiscountBps ?? 0) / 100}
+                    onChange={(e) => patch({ inferenceHolderDiscountBps: Math.round(Number(e.target.value) * 100) })}
+                    className={field}
+                  />
+                  <span className="text-sm text-white/40">%</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-white/40">
+              Markup must exceed the discount to stay profitable (e.g. 15% markup, 10% discount).
+            </p>
           </div>
 
           {/* Exclude list — owners removed from pro-rata beyond the 4 pools. */}

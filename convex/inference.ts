@@ -21,9 +21,25 @@ import { logEvent } from "./events";
 // cost, both guards hold at markup +15% / holder-discount 10%:
 //   non-holder 1.15 (< 1.20 → cheaper than Eliza, +15% margin)
 //   holder     1.15×0.90 = 1.035 (≥ cost → no loss; ~14% under Eliza)
-const MARKUP_FRACTION = 0.15;
-const HOLDER_DISCOUNT = 0.1;
+// These are now ADMIN-CONFIGURABLE (tokenomicsConfig.inferenceMarkupBps /
+// inferenceHolderDiscountBps); _charge reads them per-call and these constants
+// are only the fallback when the config row is absent. Two pricing guards must
+// hold whatever the admin sets: (1) markup keeps non-holders cheaper than
+// ElizaCloud (×1.20) → markup ≤ ~20%; (2) markup ≥ 0.25 is ONLY required IF the
+// holder discount applies, so that (1+markup)×(1-discount) ≥ cost (no loss on
+// holders). The default 15%/10% holds: 1.15×0.90 = 1.035 ≥ cost.
+// Fallbacks when tokenomicsConfig is absent (mirrors tokenomics.DEFAULT_CONFIG).
+// Integer basis points: 1500 bps = +15% markup, 1000 bps = 10% holder discount.
+const DEFAULT_MARKUP_BPS = 1500;
+const DEFAULT_HOLDER_DISCOUNT_BPS = 1000;
 const MIN_CHARGE_MICRO_USD = 1; // effectively no floor on inference (tiny calls)
+// OpenRouter image gen (/chat/completions, modalities:["image","text"]) does NOT
+// always return an authoritative usage.cost for google/gemini-2.5-flash-image —
+// it can be absent or returned as 0 intermittently. Unlike chat we can't fall
+// back to the per-token catalog (image isn't priced per token), so when usage.cost
+// is missing or non-positive we meter at ElizaCloud's published image rate so an
+// image is never billed at ~$0 (margin leak). $0.0468/req → micro-USD via × USD.
+const ELIZACLOUD_IMAGE_USD = 0.0468;
 
 const DTOUR_SUPPLY = 989_000_000;
 const HOLDER_THRESHOLD = 0.005;
@@ -130,7 +146,18 @@ export const _charge = internalMutation({
     const qualifies =
       DTOUR_SUPPLY > 0 && (user?.balance ?? 0) / DTOUR_SUPPLY >= HOLDER_THRESHOLD;
 
-    const marked = a.costMicroUsd * (1 + MARKUP_FRACTION) * (qualifies ? 1 - HOLDER_DISCOUNT : 1);
+    // Admin-configurable markup + holder discount (tokenomicsConfig, single row).
+    // ctx.runQuery is unavailable in a mutation, so read the row directly via
+    // ctx.db and default to the same 15%/10% the constants encode when absent
+    // (or when a field is unset on a row saved before these columns existed).
+    const cfg = await ctx.db.query("tokenomicsConfig").first();
+    const markupBps = cfg?.inferenceMarkupBps ?? DEFAULT_MARKUP_BPS;
+    const discountBps = cfg?.inferenceHolderDiscountBps ?? DEFAULT_HOLDER_DISCOUNT_BPS;
+    const markupFraction = markupBps / 10_000;
+    const holderDiscount = discountBps / 10_000;
+
+    const marked =
+      a.costMicroUsd * (1 + markupFraction) * (qualifies ? 1 - holderDiscount : 1);
     const priceMicro = lifetime ? 0 : Math.max(MIN_CHARGE_MICRO_USD, Math.round(marked));
 
     await ctx.db.insert("inferenceUsage", {
@@ -340,7 +367,16 @@ export const runImage = action({
         const storageId = await ctx.storage.store(new Blob([bytes], { type: m[1] }));
         url = (await ctx.storage.getUrl(storageId)) ?? dataUrl;
       }
-      const costMicroUsd = (json.usage?.cost ?? 0) * USD;
+      // usage.cost is the authoritative per-request USD cost; use it when present
+      // AND positive. If absent or 0 (OpenRouter does this intermittently for the
+      // image model), meter at ElizaCloud's image rate so we never bill ~$0 — the
+      // guard is deliberately stricter than chat (> 0, not just typeof number)
+      // because there is no legitimate zero-cost image.
+      const costUsd =
+        typeof json.usage?.cost === "number" && json.usage.cost > 0
+          ? json.usage.cost
+          : ELIZACLOUD_IMAGE_USD;
+      const costMicroUsd = costUsd * USD;
       await ctx.runMutation(internal.inference._charge, {
         pubkey,
         refId,
@@ -367,6 +403,75 @@ export const runImage = action({
     const j = (await res.json()) as { data?: Array<{ url?: string }>; url?: string; image?: string };
     const url = j.data?.[0]?.url ?? j.url ?? j.image;
     if (typeof url !== "string" || !url) throw new Error("No image returned");
+    return { url, source: "elizacloud" };
+  },
+});
+
+/**
+ * Generate speech (TTS) from text + meter it. OpenRouter does NOT expose a TTS
+ * endpoint that returns an authoritative usage.cost (its /audio/speech, if any,
+ * yields raw bytes — no cost signal), so unlike chat/image there's no metering
+ * advantage to it. We use ElizaCloud's ElevenLabs TTS (POST /api/elevenlabs/tts,
+ * returns audio/mpeg bytes) and meter by character count at ElizaCloud's
+ * published rate ($0.06 / 1k chars). Audio bytes can't be RETURNED inline (multi-
+ * MB > value-size limit → "Server Error"), so we store them in Convex storage and
+ * return a small hosted URL — same pattern as runImage. Charging is idempotent by
+ * refId; gated on credits via canInfer. This is the LIVE path: it does NOT branch
+ * on OPENROUTER_API_KEY (that key is set in prod, but ElizaCloud is the TTS rail).
+ */
+export const runSpeech = action({
+  args: {
+    token: v.string(),
+    text: v.string(),
+    modelId: v.optional(v.string()),
+    refId: v.string(),
+  },
+  handler: async (ctx, { token, text, modelId, refId }): Promise<{ url: string; source: string }> => {
+    const me = (await ctx.runQuery(api.users.me, { token })) as { pubkey: string } | null;
+    if (!me) throw new Error("Not signed in");
+    const pubkey = me.pubkey;
+    if (!text.trim()) throw new Error("No text to speak");
+
+    // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
+    const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
+    if (!gate.ok) {
+      throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to generate speech." : "Cannot run inference.");
+    }
+
+    const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
+    const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
+    if (!key) throw new Error("Speech generation isn't configured.");
+    const usedModel = modelId && modelId.trim() ? modelId : "eleven_flash_v2_5";
+
+    // ElevenLabs TTS returns a streaming audio/mpeg body (not JSON).
+    const res = await fetch(`${base.replace(/\/$/, "")}/api/elevenlabs/tts`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ text, modelId: usedModel }),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`Speech generation failed (${res.status})${t ? ` — ${t.slice(0, 120)}` : ""}`);
+    }
+    const type = res.headers.get("content-type") || "audio/mpeg";
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length === 0) throw new Error("No audio returned");
+
+    // Store BEFORE charging so a store failure doesn't bill without a deliverable.
+    const storageId = await ctx.storage.store(new Blob([bytes], { type }));
+    const url = await ctx.storage.getUrl(storageId);
+    if (!url) throw new Error("Couldn't host the generated audio");
+
+    // ElizaCloud voice-tts pricing: $0.06 / 1000 chars → micro-USD raw cost.
+    // _charge applies markup + holder discount on top (cost vs price split).
+    const costMicroUsd = Math.ceil(text.length / 1000) * 0.06 * USD;
+    await ctx.runMutation(internal.inference._charge, {
+      pubkey,
+      refId,
+      surface: "speech",
+      model: usedModel,
+      costMicroUsd,
+    });
     return { url, source: "elizacloud" };
   },
 });

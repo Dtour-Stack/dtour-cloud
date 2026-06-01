@@ -225,21 +225,46 @@ export const runWorkflow = action({
           case "generate.video": {
             const prompt = inputVal(id, "prompt") ?? "";
             if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
+            // ElizaCloud has no usage.cost for video, so we meter at the
+            // pricing/summary default (generate-video estimatedRange.min, ~$1).
+            // Gate on credits first, charge AFTER the media lands so a failed gen
+            // doesn't bill the user. Idempotent by refId (`${runId}:${id}`).
+            const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as {
+              ok: boolean;
+              reason?: string;
+            };
+            if (!gate.ok) {
+              throw new Error(
+                gate.reason === "out of credits"
+                  ? "Out of credits — top up to generate video."
+                  : "Cannot run inference.",
+              );
+            }
             const res = await post("/api/v1/generate-video", { prompt });
             outputs[id] = { video: await mediaUrl(res, "video/mp4") };
             state[id] = { status: "done", output: outputs[id].video };
+            const costMicroUsd = (await videoCostUsd(info.baseUrl)) * 1_000_000;
+            await ctx.runMutation(internal.inference._charge, {
+              pubkey: info.pubkey,
+              refId: `${runId}:${id}`,
+              surface: "video",
+              model: "elizacloud/generate-video",
+              costMicroUsd,
+            });
             break;
           }
           case "generate.speech": {
             const text = inputVal(id, "text") ?? "";
             if (!text.trim()) throw new Error("Connect text to speak");
-            // ElevenLabs TTS returns a streaming audio/mpeg body (not JSON).
-            const res = await post("/api/elevenlabs/tts", { text, modelId: "eleven_flash_v2_5" });
-            if (!res.ok) throw new Error(`Speech failed (${res.status})`);
-            const buf = new Uint8Array(await res.arrayBuffer());
-            let bin = "";
-            for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-            outputs[id] = { audio: `data:audio/mpeg;base64,${btoa(bin)}` };
+            // Metered TTS through inference.runSpeech (ElizaCloud ElevenLabs,
+            // stored to Convex storage → small hosted URL, charged surface
+            // "speech"). refId per node run keeps the charge idempotent.
+            const { url } = (await ctx.runAction(api.inference.runSpeech, {
+              token,
+              text,
+              refId: `${runId}:${id}`,
+            })) as { url: string };
+            outputs[id] = { audio: url };
             state[id] = { status: "done", output: "(audio generated)" };
             break;
           }
@@ -297,6 +322,43 @@ const ELIZA_OUTPUTS: Record<string, string[]> = {
 };
 
 type Poster = (path: string, body: unknown) => Promise<Response>;
+
+/**
+ * ElizaCloud video price (USD/request). Video has NO inline usage.cost and the
+ * per-request price is variable ($0.336–3.84), so we meter at the pricing/summary
+ * floor — GET /api/v1/pricing/summary, generate-video estimatedRange.min. Any
+ * failure (network, shape drift, missing field) falls back to a flat $1.00 so a
+ * video gen is never billed at $0 nor blocked on a pricing fetch.
+ */
+async function videoCostUsd(baseUrl: string): Promise<number> {
+  const FALLBACK = 1.0;
+  try {
+    const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/pricing/summary`, {
+      headers: key ? { authorization: `Bearer ${key}` } : {},
+    });
+    if (!res.ok) return FALLBACK;
+    const j = (await res.json()) as any;
+    // Tolerate a few plausible shapes: a keyed map or an array of entries.
+    const entry =
+      j?.["generate-video"] ??
+      j?.pricing?.["generate-video"] ??
+      (Array.isArray(j?.pricing)
+        ? j.pricing.find((p: any) => p?.id === "generate-video" || p?.name === "generate-video")
+        : undefined) ??
+      (Array.isArray(j)
+        ? j.find((p: any) => p?.id === "generate-video" || p?.name === "generate-video")
+        : undefined);
+    const min =
+      entry?.estimatedRange?.min ??
+      entry?.priceRange?.min ??
+      entry?.min ??
+      entry?.price;
+    return typeof min === "number" && Number.isFinite(min) && min > 0 ? min : FALLBACK;
+  } catch {
+    return FALLBACK;
+  }
+}
 
 /** Chat/completions text generation through ElizaCloud. */
 async function chat(

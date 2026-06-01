@@ -24,10 +24,77 @@ export const listAssets = query({
       rows.map(async (r) => ({
         id: r._id,
         name: r.name,
+        contentType: r.contentType,
         url: await ctx.storage.getUrl(r.storageId),
         createdAt: r.createdAt,
       })),
     );
+  },
+});
+
+/**
+ * The signed-in user's gallery — their saved + uploaded images, newest-first,
+ * each resolved to a small served URL (via ctx.storage.getUrl). Powers the
+ * Gallery surface and any "pick from your images" UI in workflows/chat.
+ */
+export const myGallery = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) return [];
+    const rows = await ctx.db
+      .query("assets")
+      .withIndex("by_owner", (q) => q.eq("owner", caller.pubkey))
+      .order("desc")
+      .collect();
+    return Promise.all(
+      rows.map(async (r) => ({
+        id: r._id,
+        name: r.name,
+        contentType: r.contentType,
+        url: await ctx.storage.getUrl(r.storageId),
+        createdAt: r.createdAt,
+      })),
+    );
+  },
+});
+
+/**
+ * Hand the client a short-lived signed URL to POST file bytes to Convex storage.
+ * Gated to a signed-in user; the resulting storageId is persisted via
+ * `saveUploaded` once the upload completes.
+ */
+export const generateUploadUrl = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) throw new Error("Not authenticated");
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Record an uploaded file (from `generateUploadUrl`) as an asset owned by the
+ * signed-in user, so it shows up in their gallery.
+ */
+export const saveUploaded = mutation({
+  args: {
+    token: v.string(),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    contentType: v.string(),
+  },
+  handler: async (ctx, { token, storageId, name, contentType }) => {
+    const caller = await resolveRole(ctx, token);
+    if (!caller) throw new Error("Not authenticated");
+    await ctx.db.insert("assets", {
+      owner: caller.pubkey,
+      storageId,
+      name: name.trim() || "Untitled image",
+      contentType: contentType || "image/png",
+      createdAt: Date.now(),
+    });
+    return { ok: true };
   },
 });
 

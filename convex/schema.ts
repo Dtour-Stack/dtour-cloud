@@ -215,6 +215,11 @@ export default defineSchema({
     // Branding memo attached to each distribute batch tx ("" = none). Optional
     // for backward-compat; read code defaults it.
     memo: v.optional(v.string()),
+    // Inference pricing (admin-tunable). Basis points; read code defaults them
+    // (1500 = +15% markup, 1000 = 10% holder discount) when absent. inference._charge
+    // reads these directly off this row to price chat/image/speech/video.
+    inferenceMarkupBps: v.optional(v.number()),
+    inferenceHolderDiscountBps: v.optional(v.number()),
     updatedAt: v.number(),
   }),
 

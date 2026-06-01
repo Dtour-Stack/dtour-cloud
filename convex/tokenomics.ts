@@ -34,6 +34,12 @@ const DEFAULT_CONFIG = {
   perRunCapSol: 5,
   // Branding memo attached to each distribute batch tx (blank = no memo).
   memo: "Detour Cloud · $DTOUR holder reward · detour.ninja",
+  // Inference pricing (basis points). inference._charge reads these to price every
+  // metered call: priced = cost × (1 + markup) × (holder ? 1 - discount : 1).
+  //   markup 1500 bps (+15%) keeps non-holders under ElizaCloud (×1.20).
+  //   discount 1000 bps (10%) keeps holders above cost: 1.15×0.90 = 1.035 ≥ cost.
+  inferenceMarkupBps: 1500,
+  inferenceHolderDiscountBps: 1000,
 };
 
 /**
@@ -52,6 +58,9 @@ async function readConfig(ctx: QueryCtx | MutationCtx) {
     excludeWallets: cfg.excludeWallets ?? DEFAULT_CONFIG.excludeWallets,
     perRunCapSol: cfg.perRunCapSol ?? DEFAULT_CONFIG.perRunCapSol,
     memo: cfg.memo ?? DEFAULT_CONFIG.memo,
+    inferenceMarkupBps: cfg.inferenceMarkupBps ?? DEFAULT_CONFIG.inferenceMarkupBps,
+    inferenceHolderDiscountBps:
+      cfg.inferenceHolderDiscountBps ?? DEFAULT_CONFIG.inferenceHolderDiscountBps,
   };
 }
 
@@ -86,6 +95,10 @@ export const setConfig = mutation({
     excludeWallets: v.array(v.string()),
     perRunCapSol: v.number(),
     memo: v.optional(v.string()),
+    // Inference pricing (basis points). Optional so the existing admin form (which
+    // doesn't send them yet) keeps working — omitting a field leaves it untouched.
+    inferenceMarkupBps: v.optional(v.number()),
+    inferenceHolderDiscountBps: v.optional(v.number()),
   },
   handler: async (ctx, { token, ...cfg }) => {
     const caller = await requireRole(ctx, token, "admin");
@@ -105,13 +118,33 @@ export const setConfig = mutation({
     if (!(cfg.perRunCapSol > 0) || !Number.isFinite(cfg.perRunCapSol)) {
       throw new Error("perRunCapSol must be a positive number");
     }
+    // Inference pricing bps: 0..50000 (0%..500%) sane range. Only validate fields
+    // that were actually sent (undefined = leave the stored/default value).
+    for (const k of ["inferenceMarkupBps", "inferenceHolderDiscountBps"] as const) {
+      const val = cfg[k];
+      if (val === undefined) continue;
+      if (!Number.isInteger(val) || val < 0 || val > 50000) {
+        throw new Error(`${k} must be an integer between 0 and 50000 bps`);
+      }
+    }
     // Dedupe + drop blanks; pool wallets are always excluded in code anyway.
     cfg.excludeWallets = [
       ...new Set(cfg.excludeWallets.map((w) => w.trim()).filter(Boolean)),
     ];
     if (typeof cfg.memo === "string") cfg.memo = cfg.memo.trim();
     const existing = await ctx.db.query("tokenomicsConfig").first();
-    const doc = { ...cfg, updatedAt: Date.now() };
+    // An omitted optional bps field must LEAVE the stored value: a patch with an
+    // explicit `undefined` deletes the column in Convex. Pull the two bps fields
+    // out of the spread, then add each back ONLY when it was actually sent — so a
+    // normal save from the existing form (which sends neither) can't silently wipe
+    // a tuned markup back to the default.
+    const { inferenceMarkupBps, inferenceHolderDiscountBps, ...rest } = cfg;
+    const doc = {
+      ...rest,
+      ...(inferenceMarkupBps === undefined ? {} : { inferenceMarkupBps }),
+      ...(inferenceHolderDiscountBps === undefined ? {} : { inferenceHolderDiscountBps }),
+      updatedAt: Date.now(),
+    };
     if (existing) await ctx.db.patch(existing._id, doc);
     else await ctx.db.insert("tokenomicsConfig", doc);
     await logEvent(ctx, "tokenomics.config", { pubkey: caller.pubkey });

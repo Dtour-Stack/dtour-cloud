@@ -45,6 +45,7 @@ const BillingPage = lazy(() => import("@/dashboard/billing/BillingPage"));
 const AnalyticsPage = lazy(() => import("@/dashboard/analytics/AnalyticsPage"));
 const DevelopersPage = lazy(() => import("@/dashboard/developers/DevelopersPage"));
 const AccountHubPage = lazy(() => import("@/dashboard/account/AccountHubPage"));
+const GalleryPage = lazy(() => import("@/dashboard/gallery/GalleryPage"));
 
 export default function App() {
   return (
@@ -209,6 +210,14 @@ export default function App() {
           element={
             <RequireSession>
               <AccountHubPage />
+            </RequireSession>
+          }
+        />
+        <Route
+          path="/gallery"
+          element={
+            <RequireSession>
+              <GalleryPage />
             </RequireSession>
           }
         />
