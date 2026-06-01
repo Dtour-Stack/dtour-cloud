@@ -4,6 +4,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ELIZA_PLUGINS } from "@/dashboard/design/workflow/registry";
 import { getDtourSessionToken } from "@/lib/session";
+import { generateAgentConfig } from "./aiGenerate";
 import {
   Badge,
   Button,
@@ -37,6 +38,7 @@ export function AgentsHome() {
   const create = useMutation(anyApi.agents.create);
   const removeAgent = useMutation(anyApi.agents.remove);
   const listModels = useAction(anyApi.agents.listModels);
+  const runChat = useAction(anyApi.inference.runChat);
   const [models, setModels] = useState<{ id: string; source: string }[]>([]);
 
   const [open, setOpen] = useState(false);
@@ -63,6 +65,36 @@ export function AgentsHome() {
   }, {});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── AI generate (prompt → draft config, pre-fills the form for review) ──
+  const [genPrompt, setGenPrompt] = useState("");
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+
+  async function generate() {
+    if (!token || !genPrompt.trim() || genBusy) return;
+    setGenBusy(true);
+    setGenError(null);
+    try {
+      const refId = `gen-agent-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const draft = await generateAgentConfig(
+        runChat,
+        token,
+        genPrompt.trim(),
+        refId,
+        models.map((m) => m.id),
+      );
+      setName(draft.name);
+      setDescription(draft.description);
+      setSystemPrompt(draft.systemPrompt);
+      setModel(draft.model);
+      setPlugins(draft.plugins);
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenBusy(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -104,6 +136,32 @@ export function AgentsHome() {
             title="Create an agent"
             description="A persona + model. Chat runs through ElizaCloud while you're online."
           />
+          <div className="mt-4 rounded-xl border border-violet-400/20 bg-violet-400/[0.04] p-3">
+            <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-white/70">
+              <Icon.Sparkles size={13} /> Generate with AI
+            </span>
+            <div className="flex gap-2">
+              <input
+                value={genPrompt}
+                onChange={(e) => setGenPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    generate();
+                  }
+                }}
+                placeholder="Describe the agent — e.g. a witty Discord mod that summarizes threads"
+                className={`${field} min-w-0 flex-1`}
+              />
+              <Button type="button" variant="secondary" onClick={generate} disabled={genBusy || !genPrompt.trim()}>
+                {genBusy ? "Designing…" : "Generate"}
+              </Button>
+            </div>
+            {genError && <p className="mt-1.5 text-[11px] text-red-400/90">{genError}</p>}
+            <p className="mt-1.5 text-[11px] text-white/35">
+              Fills the fields below — review and edit before creating.
+            </p>
+          </div>
           <form onSubmit={submit} className="mt-4 space-y-3">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent name" required className={field} />
             <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" className={field} />

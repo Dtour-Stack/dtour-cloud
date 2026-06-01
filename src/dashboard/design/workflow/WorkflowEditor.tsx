@@ -10,6 +10,7 @@ import {
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
+import { generateWorkflowGraph } from "./aiGenerate";
 import { defaultValues, getDef, NODE_DEFS, PORT_COLOR } from "./registry";
 import { type Graph, TEMPLATES } from "./templates";
 import type { Edge, NodeInstance, PortType, Viewport, WidgetDef } from "./types";
@@ -191,6 +192,30 @@ export function WorkflowEditor() {
     setSel(null);
     setRunId(null);
     setShowTemplates(false);
+  }
+
+  // ── AI generate (prompt → node graph, via metered inference) ──
+  const runChat = useAction(anyApi.inference.runChat);
+  const [showGen, setShowGen] = useState(false);
+  const [genPrompt, setGenPrompt] = useState("");
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+
+  async function generate() {
+    if (!token || !genPrompt.trim() || genBusy) return;
+    setGenBusy(true);
+    setGenError(null);
+    try {
+      const refId = `gen-wf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const g = await generateWorkflowGraph(runChat, token, genPrompt.trim(), refId);
+      loadGraph(g);
+      setShowGen(false);
+      setGenPrompt("");
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenBusy(false);
+    }
   }
 
   async function saveAsTemplate() {
@@ -625,6 +650,16 @@ export function WorkflowEditor() {
         >
           <Icon.LayoutGrid size={14} /> Templates
         </button>
+        <button
+          type="button"
+          onClick={() => setShowGen((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition hover:bg-white/10 hover:text-white",
+            showGen ? "bg-white/10 text-white" : "text-white/75",
+          )}
+        >
+          <Icon.Sparkles size={14} /> Generate
+        </button>
         <GuidedTour id="workflow" heading="Workflows" steps={WORKFLOW_TOUR} />
         <div className="mx-1 h-5 w-px bg-white/10" />
         <button
@@ -874,6 +909,68 @@ export function WorkflowEditor() {
               Save
             </button>
           </div>
+        </div>
+      )}
+
+      {/* AI generate */}
+      {showGen && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute left-1/2 top-16 z-20 flex w-[26rem] max-w-[92vw] -translate-x-1/2 flex-col gap-3 rounded-2xl border border-white/10 bg-[#0d0d0d]/95 p-4 shadow-2xl backdrop-blur-xl"
+        >
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/80">
+              <Icon.Sparkles size={14} /> Generate a workflow
+            </span>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setShowGen(false)}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white"
+            >
+              <Icon.X size={14} />
+            </button>
+          </div>
+          <p className="text-[11px] leading-relaxed text-white/40">
+            Describe what you want to build — Detour designs the node graph and drops it
+            onto the canvas. Replaces the current graph.
+          </p>
+          <textarea
+            rows={3}
+            value={genPrompt}
+            onChange={(e) => setGenPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") generate();
+            }}
+            placeholder="e.g. Generate a portrait, upscale it, and preview the result"
+            className="resize-none rounded-xl border border-white/12 bg-white/5 px-3 py-2.5 text-[13px] text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              "Generate an image from a prompt and upscale it",
+              "Build a Discord agent that replies with recent-message context",
+              "Turn a prompt into speech",
+            ].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setGenPrompt(s)}
+                className="rounded-full border border-white/12 px-2.5 py-1 text-[11px] text-white/55 transition hover:bg-white/10 hover:text-white"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          {genError && <p className="text-[11px] leading-relaxed text-red-400/90">{genError}</p>}
+          <button
+            type="button"
+            onClick={generate}
+            disabled={!genPrompt.trim() || genBusy}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[13px] font-medium text-black transition hover:shadow-lg hover:shadow-white/10 disabled:opacity-40"
+          >
+            <Icon.Sparkles size={13} />
+            {genBusy ? "Designing…" : "Generate"}
+          </button>
         </div>
       )}
 
