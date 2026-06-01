@@ -297,13 +297,6 @@ export function ExcalidrawDesignCanvas() {
                   handlePendingImages(api);
                 }}
                 onChange={onChange}
-                UIOptions={{
-                  canvasActions: {
-                    loadScene: false,
-                    saveToActiveFile: false,
-                    export: false,
-                  },
-                }}
               />
             </div>
           </Suspense>

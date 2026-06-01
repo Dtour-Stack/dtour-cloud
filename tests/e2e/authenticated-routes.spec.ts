@@ -40,6 +40,14 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.locator('[data-tour="sketch-toolbar"]')).toBeVisible();
     await expect(page.getByText("Loading canvas…")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Assets/i })).toBeVisible();
+    const sketch = page.locator(".excalidraw");
+    await expect(sketch.locator('[data-testid="toolbar-rectangle"]')).toBeVisible();
+    await sketch.locator('label:has([data-testid="toolbar-rectangle"])').click();
+    await expect(sketch.locator('[aria-label="Rectangle"]')).toBeChecked();
+    await sketch.locator('[data-testid="main-menu-trigger"]').click();
+    await expect(sketch.locator('[data-testid="dropdown-menu"]')).toBeVisible();
+    await expect(sketch.locator('[data-testid="image-export-button"]')).toBeVisible();
+    await expect(sketch.locator('[data-testid="load-button"]')).toBeVisible();
 
     await page.goto("/design/generate");
 

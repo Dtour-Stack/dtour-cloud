@@ -4,7 +4,7 @@
 }
 
 .excalidraw-sketch-host .excalidraw .layer-ui__wrapper {
-  z-index: 1;
+  z-index: 5;
 }
 
 /* Welcome hints sit center-screen; hide when Detour owns onboarding via Guide. */
