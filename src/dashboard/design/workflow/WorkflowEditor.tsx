@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
+import { queueCanvasImage } from "../canvas/canvasStorage";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
@@ -41,6 +43,7 @@ function portRowY(index: number) {
 }
 
 export function WorkflowEditor() {
+  const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<Gesture | null>(null);
 
@@ -234,6 +237,11 @@ export function WorkflowEditor() {
     } finally {
       setSavingUrl(null);
     }
+  }
+
+  function sendToCanvas(url: string) {
+    queueCanvasImage(url);
+    navigate("/design/canvas");
   }
 
   function addImageFromAsset(url: string) {
@@ -579,15 +587,25 @@ export function WorkflowEditor() {
                       </div>
                     )}
                     {media && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => saveOutput(val)}
-                        disabled={savingUrl === val}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 py-1.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                      >
-                        <Icon.Plus size={12} /> {savingUrl === val ? "Saving…" : "Save to library"}
-                      </button>
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => sendToCanvas(val)}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-500/10 py-1.5 text-[11px] text-violet-200 transition hover:bg-violet-500/20"
+                        >
+                          <Icon.Frame size={12} /> Send to canvas
+                        </button>
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => saveOutput(val)}
+                          disabled={savingUrl === val}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 py-1.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                        >
+                          <Icon.Plus size={12} /> {savingUrl === val ? "Saving…" : "Save to library"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );

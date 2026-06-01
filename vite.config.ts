@@ -20,6 +20,6 @@ export default defineConfig({
   // The symlinked monorepo (packages/, plugins/) lives inside this repo for the
   // backend's tsconfig resolution. Stop Vite's dep scanner from crawling it —
   // only scan our own entry.
-  optimizeDeps: { entries: ["index.html"] },
+  optimizeDeps: { entries: ["index.html"], include: ["@excalidraw/excalidraw"] },
   server: { port: 5174, fs: { strict: false } },
 });

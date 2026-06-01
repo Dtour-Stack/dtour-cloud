@@ -3,7 +3,7 @@ import { Navigate, useMatch, useNavigate, useParams } from "react-router-dom";
 import { Badge, Button, Icon, Panel, SectionHeading } from "@/ui";
 import { GalleryHome } from "../gallery/GalleryHome";
 import { AppShell, type NavItem } from "../AppShell";
-import { DesignCanvas } from "./canvas/DesignCanvas";
+import { ExcalidrawDesignCanvas } from "./canvas/ExcalidrawDesignCanvas";
 import { GeneratePanel } from "./generate/GeneratePanel";
 import { ProjectsOverview } from "./projects/ProjectsOverview";
 import { WorkflowEditor } from "./workflow/WorkflowEditor";
@@ -98,21 +98,20 @@ function Overview() {
 
       <Panel className="fade-up p-6">
         <SectionHeading
-          title="Powered by open-design"
-          description="The generation engine adapts the open-source open-design project (Apache-2.0)."
+          title="Excalidraw + Detour Cloud"
+          description="Hand-drawn diagrams on an embedded Excalidraw canvas, with AI generation through Detour inference."
         />
         <p className="mt-3 text-[13px] leading-relaxed text-white/55">
-          Detour's Design Studio brings open-design's local-first design tooling — design
-          systems, prototypes, and exports — into the cloud for Pro members, branded for
-          Detour. Generation runs through Detour Cloud inference.
+          Sketch wireframes, annotate workflow outputs, and generate diagram layouts with AI.
+          Workflow images land on the canvas in one click; everything auto-saves to your account.
         </p>
         <a
-          href="https://github.com/nexu-io/open-design"
+          href="https://github.com/excalidraw/excalidraw"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] text-white/60 underline-offset-4 transition hover:text-white hover:underline"
         >
-          github.com/nexu-io/open-design <Icon.ArrowUpRight size={13} />
+          github.com/excalidraw/excalidraw <Icon.ArrowUpRight size={13} />
         </a>
       </Panel>
     </Section>
@@ -291,7 +290,7 @@ export default function DesignDashboardPage() {
   if (key === "canvas") {
     return (
       <AppShell title="Design Studio" nav={DESIGN_NAV} context="design" bare>
-        <DesignCanvas />
+        <ExcalidrawDesignCanvas />
       </AppShell>
     );
   }

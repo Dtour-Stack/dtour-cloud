@@ -218,14 +218,16 @@ export const WORKFLOW_TOUR: TourStep[] = [
 export const CANVAS_TOUR: TourStep[] = [
   {
     title: "The design canvas",
-    body: "A GPU-accelerated canvas for composing visuals — frames, shapes, text, and generated images — alongside your workflows.",
+    body: "An Excalidraw-powered surface for hand-drawn diagrams, annotations, and workflow outputs — with Detour Cloud AI on the side.",
   },
   {
-    title: "1 · Add & arrange",
-    body: "Use the toolbar to add frames, shapes, and text. Drag to move, use the handles to resize. Your scene auto-saves.",
+    title: "1 · Draw & arrange",
+    body: "Use Excalidraw's native tools for shapes, arrows, text, and frames. Your scene auto-saves every few seconds.",
+    anchor: "canvas-toolbar",
   },
   {
-    title: "2 · Bring in generations",
-    body: "Send outputs from the Workflows builder onto the canvas to lay them out, annotate, and export. Re-open this guide anytime from the “Guide” button.",
+    title: "2 · Gallery & workflows",
+    body: "Insert images from Gallery, or send workflow preview outputs to the canvas. Open the AI panel to generate diagram layouts from a prompt.",
+    anchor: "canvas-toolbar",
   },
 ];
