@@ -8,8 +8,8 @@ import { anyApi } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
-import { CODING_CLI_NPM_INSTALL, CODING_HOME_SETUP } from "@/lib/codingCliInstall";
 import { providerById } from "@/lib/codingProviders";
+import { runSandboxBootstrap } from "@/lib/codingSandboxBootstrap";
 import { envExportScript } from "@/lib/codingSandboxEnv";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, cn, Icon } from "@/ui";
@@ -231,15 +231,10 @@ function CodingTerminal() {
         }
       }
       const envScript = envExportScript(userEnv);
-      await shell.handleInput(`${CODING_HOME_SETUP}\n`);
-      await shell.handleInput(
-        `cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${envScript}\nDETOUR_ENV_EOF\n`,
-      );
-      await shell.handleInput(
-        `grep -q 'detour/env' ~/.bashrc 2>/dev/null || echo '[ -f ~/.detour/env ] && . ~/.detour/env' >> ~/.bashrc\n`,
-      );
-      await shell.handleInput(". ~/.detour/env 2>/dev/null\n");
-      await shell.handleInput(`${CODING_CLI_NPM_INSTALL}\n`);
+      const bash = shell.bash;
+      if (bash) {
+        await runSandboxBootstrap(bash, shell.cwd, envScript, (chunk) => write(chunk));
+      }
       write(
         `\r\n  \x1b[32mready\x1b[0m — \x1b[36m${provider.label}\x1b[0m · run \x1b[36m${provider.launchCmd}\x1b[0m · work in ~/workspace\r\n\r\n`,
       );
