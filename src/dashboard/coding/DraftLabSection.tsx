@@ -17,7 +17,13 @@ type Msg = {
   pending?: boolean;
 };
 
-export function DraftLabSection({ token }: { token: string | null }) {
+export function DraftLabSection({
+  token,
+  showHeading = true,
+}: {
+  token: string | null;
+  showHeading?: boolean;
+}) {
   const agents = useQuery(
     anyApi.agents.list,
     token ? { token } : "skip",
@@ -66,13 +72,17 @@ export function DraftLabSection({ token }: { token: string | null }) {
 
   return (
     <section data-tour="coding-draft-lab">
-      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
-        Draft agent lab
-      </h3>
-      <p className="mb-2 text-[10px] leading-relaxed text-white/40">
-        {hint?.summary ??
-          "Smoke-test persona, plugins, and prompts on your lightweight agent (inference credits)."}
-      </p>
+      {showHeading && (
+        <>
+          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+            Draft agent lab
+          </h3>
+          <p className="mb-2 text-[10px] leading-relaxed text-white/40">
+            {hint?.summary ??
+              "Smoke-test persona, plugins, and prompts on your lightweight agent (inference credits)."}
+          </p>
+        </>
+      )}
       {!agents?.length ? (
         <p className="text-[11px] text-amber-200/80">
           Create an agent under <span className="text-white/70">Agents</span> first.

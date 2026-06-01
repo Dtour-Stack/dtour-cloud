@@ -4,8 +4,10 @@
  */
 import type { Sandbox } from "e2b";
 
-const GLOBAL_CLI_INSTALL =
-  "npm install -g --ignore-scripts opencode-ai @openai/codex @anthropic-ai/claude-code @earendil-works/pi-coding-agent 2>/dev/null";
+const HOME_SETUP =
+  'export HOME="${HOME:-/home/user}" && mkdir -p "$HOME" "$HOME/workspace" "$HOME/.detour" "$HOME/.detour/bin"';
+
+const GLOBAL_CLI_INSTALL = `${HOME_SETUP} && npm install -g --ignore-scripts opencode-ai @openai/codex @anthropic-ai/claude-code @earendil-works/pi-coding-agent`;
 
 export type SandboxEnv = Record<string, string>;
 
@@ -32,8 +34,9 @@ export async function bootstrapCodingSandbox(
   onProgress: (msg: string) => void,
 ): Promise<void> {
   const script = buildEnvScript(env);
+  await sandbox.commands.run(HOME_SETUP, { timeoutMs: 15_000 });
   await sandbox.commands.run(
-    `mkdir -p ~/.detour && cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${script}\nDETOUR_ENV_EOF`,
+    `cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${script}\nDETOUR_ENV_EOF`,
     { timeoutMs: 30_000 },
   );
   await sandbox.commands.run(

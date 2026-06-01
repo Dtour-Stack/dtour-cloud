@@ -7,18 +7,18 @@ export const CODING_TOUR: TourStep[] = [
     anchor: "coding-terminal",
   },
   {
-    title: "Agent tabs (left rail)",
-    body: "Pick OpenCode, Codex, Claude, Pi, or OpenRouter from the vertical tabs. A green dot means you saved a key for that agent.",
-    anchor: "coding-providers",
+    title: "Coding sidebar",
+    body: "Terminal, Setup, Draft lab, and Saved work replace the normal dashboard nav. Each agent (OpenCode, Codex, Claude, Pi, OpenRouter) has its own page for API keys.",
+    anchor: "coding-setup",
   },
   {
     title: "Choose a backend",
-    body: "Detour Cloud (E2B) = server microVM, billed in credits. Sandbox = WASM bash in-browser with npm-installed CLIs. Self-host is coming later.",
+    body: "Setup → Detour Cloud (E2B) or in-browser Sandbox. Sessions mkdir ~/workspace and install all agent CLIs automatically.",
     anchor: "coding-backends",
   },
   {
-    title: "Save keys & go",
-    body: "Paste each provider API key once — encrypted server-side, injected into your session. Then click Run opencode / codex / claude / pi in the terminal.",
+    title: "Save keys & run",
+    body: "Under Agents in the sidebar, paste each provider key once. Use Open terminal to launch opencode, codex, claude, or pi.",
     anchor: "coding-launch",
   },
   {

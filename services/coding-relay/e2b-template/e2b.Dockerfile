@@ -4,6 +4,8 @@
 
 FROM e2bdev/code-interpreter:latest
 
+RUN mkdir -p /home/user/workspace /home/user/.detour/bin
+
 RUN npm install -g --ignore-scripts \
   opencode-ai \
   @openai/codex \

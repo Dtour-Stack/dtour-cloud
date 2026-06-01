@@ -14,10 +14,12 @@ export function WorkspaceSavesSection({
   token,
   onSaveInTerminal,
   runnerActive,
+  showHeading = true,
 }: {
   token: string | null;
   onSaveInTerminal: (name: string) => void;
   runnerActive: boolean;
+  showHeading?: boolean;
 }) {
   const pricing = useQuery(anyApi.coding.pricing, {});
   const workspaces = useQuery(
@@ -32,15 +34,19 @@ export function WorkspaceSavesSection({
 
   return (
     <section data-tour="coding-workspace-save">
-      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
-        Save work
-      </h3>
-      <p className="mb-2 text-[10px] leading-relaxed text-white/40">
-        Snapshot <span className="font-mono text-white/55">~/workspace</span> from an active Detour
-        Cloud session — ${saveUsd.toFixed(2)} per save
-        {pricing?.workspaceMaxMiB != null ? ` (≤ ${pricing.workspaceMaxMiB} MiB)` : ""}. Holder
-        discount applies.
-      </p>
+      {showHeading && (
+        <>
+          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+            Save work
+          </h3>
+          <p className="mb-2 text-[10px] leading-relaxed text-white/40">
+            Snapshot <span className="font-mono text-white/55">~/workspace</span> from an active
+            Detour Cloud session — ${saveUsd.toFixed(2)} per save
+            {pricing?.workspaceMaxMiB != null ? ` (≤ ${pricing.workspaceMaxMiB} MiB)` : ""}. Holder
+            discount applies.
+          </p>
+        </>
+      )}
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}

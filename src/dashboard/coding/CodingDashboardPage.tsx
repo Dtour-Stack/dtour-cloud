@@ -6,18 +6,27 @@ import coreWasmUrl from "@wterm/core/wasm?url";
 import { useAction, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
-import { CODING_CLI_NPM_INSTALL } from "@/lib/codingCliInstall";
-import { providerById, type CodingProviderId } from "@/lib/codingProviders";
+import { CODING_CLI_NPM_INSTALL, CODING_HOME_SETUP } from "@/lib/codingCliInstall";
+import { providerById } from "@/lib/codingProviders";
 import { envExportScript } from "@/lib/codingSandboxEnv";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, cn, Icon } from "@/ui";
-import { CodingSidebar } from "./CodingSidebar";
+import { CodingDraftPage } from "./CodingDraftPage";
+import { CodingKeysPage } from "./CodingKeysPage";
+import { CodingSavesPage } from "./CodingSavesPage";
+import {
+  CodingSessionProvider,
+  useCodingProviderFromRoute,
+  useCodingSession,
+  type CodingBackend,
+} from "./CodingSessionContext";
+import { CodingSetupPage } from "./CodingSetupPage";
+import { CODING_NAV } from "./codingNav";
 import { TopUpModal } from "./TopUpModal";
 
-type Backend = "runner" | "sandbox" | "selfhost";
-
-function wsEndpoint(backend: Backend): string {
+function wsEndpoint(backend: CodingBackend): string {
   if (backend === "runner" && typeof window !== "undefined") {
     const token = getDtourSessionToken();
     if (!token) return "";
@@ -33,9 +42,62 @@ type Pricing =
   | undefined;
 
 export default function CodingDashboardPage() {
-  const [backend, setBackend] = useState<Backend>("runner");
-  const [activeProvider, setActiveProvider] = useState<CodingProviderId>("opencode");
+  const { section } = useParams();
+  const providerFromRoute = useCodingProviderFromRoute(section);
+
+  return (
+    <CodingSessionProvider>
+      <CodingShell section={section} providerFromRoute={providerFromRoute} />
+    </CodingSessionProvider>
+  );
+}
+
+function CodingShell({
+  section,
+  providerFromRoute,
+}: {
+  section: string | undefined;
+  providerFromRoute: ReturnType<typeof useCodingProviderFromRoute>;
+}) {
+  if (providerFromRoute) {
+    return (
+      <AppShell title="Coding" nav={CODING_NAV} context="coding">
+        <CodingKeysPage providerId={providerFromRoute} />
+      </AppShell>
+    );
+  }
+
+  if (section && section !== "terminal") {
+    if (section === "setup") {
+      return (
+        <AppShell title="Coding" nav={CODING_NAV} context="coding">
+          <CodingSetupPage />
+        </AppShell>
+      );
+    }
+    if (section === "draft") {
+      return (
+        <AppShell title="Coding" nav={CODING_NAV} context="coding">
+          <CodingDraftPage />
+        </AppShell>
+      );
+    }
+    if (section === "saves") {
+      return (
+        <AppShell title="Coding" nav={CODING_NAV} context="coding">
+          <CodingSavesPage />
+        </AppShell>
+      );
+    }
+    return <Navigate to="/coding" replace />;
+  }
+
+  return <CodingTerminalView />;
+}
+
+function CodingTerminalView() {
   const token = getDtourSessionToken();
+  const { backend, activeProvider } = useCodingSession();
   const credits = useQuery(
     anyApi.coding.myCredits,
     token ? { token } : "skip",
@@ -48,27 +110,14 @@ export default function CodingDashboardPage() {
     : null;
   const lowBalance = backend === "runner" && credits != null && credits.balanceUsd < 0.05;
   const [topUpOpen, setTopUpOpen] = useState(false);
-  const injectRef = useRef<((cmd: string) => void) | null>(null);
-  const runnerWsRef = useRef<WebSocket | null>(null);
-  const [runnerConnected, setRunnerConnected] = useState(false);
-
-  const onLaunchInTerminal = useCallback((cmd: string) => {
-    injectRef.current?.(`${cmd}\r`);
-  }, []);
-
-  const onSaveWorkspace = useCallback((name: string) => {
-    const ws = runnerWsRef.current;
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(`w${JSON.stringify({ name })}`);
-    }
-  }, []);
+  const provider = providerById(activeProvider);
 
   return (
-    <AppShell title="Coding" context="coding" bare>
+    <AppShell title="Coding" nav={CODING_NAV} context="coding" bare>
       <div className="flex h-full flex-col bg-[#08080b]">
         <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2">
           <span className="text-xs text-white/50">
-            OpenCode · Codex · Claude · Pi — E2B or in-browser Sandbox
+            {provider.label} · OpenCode · Codex · Claude · Pi
           </span>
           <div className="ml-auto flex items-center gap-3">
             {backend === "runner" && (
@@ -115,29 +164,9 @@ export default function CodingDashboardPage() {
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1">
-          <CodingSidebar
-            backend={backend}
-            onBackend={setBackend}
-            activeProvider={activeProvider}
-            onProvider={setActiveProvider}
-            token={token}
-            onLaunchInTerminal={onLaunchInTerminal}
-            onSaveWorkspace={onSaveWorkspace}
-            runnerConnected={runnerConnected}
-          />
-          <div className="min-h-0 flex-1 p-3" data-tour="coding-terminal">
-            <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
-              <CodingTerminal
-                key={`${backend}-${token ?? "anon"}`}
-                backend={backend}
-                activeProvider={activeProvider}
-                token={token}
-                injectRef={injectRef}
-                runnerWsRef={runnerWsRef}
-                onRunnerConnection={setRunnerConnected}
-              />
-            </div>
+        <div className="min-h-0 flex-1 p-3" data-tour="coding-terminal">
+          <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
+            <CodingTerminal key={`${backend}-${token ?? "anon"}`} />
           </div>
         </div>
       </div>
@@ -148,21 +177,15 @@ export default function CodingDashboardPage() {
   );
 }
 
-function CodingTerminal({
-  backend,
-  activeProvider,
-  token,
-  injectRef,
-  runnerWsRef,
-  onRunnerConnection,
-}: {
-  backend: Backend;
-  activeProvider: CodingProviderId;
-  token: string | null;
-  injectRef: React.MutableRefObject<((cmd: string) => void) | null>;
-  runnerWsRef: React.MutableRefObject<WebSocket | null>;
-  onRunnerConnection: (connected: boolean) => void;
-}) {
+function CodingTerminal() {
+  const token = getDtourSessionToken();
+  const {
+    backend,
+    activeProvider,
+    injectRef,
+    runnerWsRef,
+    setRunnerConnected,
+  } = useCodingSession();
   const termRef = useRef<TerminalHandle>(null);
   const shellRef = useRef<BashShell | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -189,10 +212,10 @@ function CodingTerminal({
   const onReady = useCallback(async () => {
     if (backend === "sandbox") {
       const shell = new BashShell({
-        env: { TERM: "xterm-256color", SHELL: "/bin/bash" },
+        env: { TERM: "xterm-256color", SHELL: "/bin/bash", HOME: "/home/user" },
         greeting: [
           "Detour — in-browser Sandbox (WASM bash + npm CLIs).",
-          "Installing OpenCode, Codex, Claude Code, Pi (first connect may take ~1 min)…",
+          "Preparing ~/workspace and installing agents…",
           "",
         ],
       });
@@ -208,8 +231,9 @@ function CodingTerminal({
         }
       }
       const envScript = envExportScript(userEnv);
+      await shell.handleInput(`${CODING_HOME_SETUP}\n`);
       await shell.handleInput(
-        `mkdir -p ~/.detour && cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${envScript}\nDETOUR_ENV_EOF\n`,
+        `cat > ~/.detour/env << 'DETOUR_ENV_EOF'\n${envScript}\nDETOUR_ENV_EOF\n`,
       );
       await shell.handleInput(
         `grep -q 'detour/env' ~/.bashrc 2>/dev/null || echo '[ -f ~/.detour/env ] && . ~/.detour/env' >> ~/.bashrc\n`,
@@ -217,7 +241,7 @@ function CodingTerminal({
       await shell.handleInput(". ~/.detour/env 2>/dev/null\n");
       await shell.handleInput(`${CODING_CLI_NPM_INSTALL}\n`);
       write(
-        `\r\n  \x1b[32mready\x1b[0m — agent tab: \x1b[36m${provider.label}\x1b[0m · run \x1b[36m${provider.launchCmd}\x1b[0m\r\n\r\n`,
+        `\r\n  \x1b[32mready\x1b[0m — \x1b[36m${provider.label}\x1b[0m · run \x1b[36m${provider.launchCmd}\x1b[0m · work in ~/workspace\r\n\r\n`,
       );
       return;
     }
@@ -225,7 +249,7 @@ function CodingTerminal({
     if (!url) {
       write(
         "\r\n  \x1b[33mThis backend isn't connected yet.\x1b[0m\r\n" +
-          "  Self-host is future work — use Detour Cloud or Sandbox.\r\n",
+          "  Pick a backend under Coding → Setup in the sidebar.\r\n",
       );
       return;
     }
@@ -233,18 +257,27 @@ function CodingTerminal({
     ws.binaryType = "arraybuffer";
     ws.onmessage = (e) =>
       write(typeof e.data === "string" ? e.data : new Uint8Array(e.data as ArrayBuffer));
-    ws.onopen = () => onRunnerConnection(true);
+    ws.onopen = () => setRunnerConnected(true);
     ws.onerror = () => {
-      onRunnerConnection(false);
+      setRunnerConnected(false);
       write("\r\n  \x1b[31mconnection error\x1b[0m\r\n");
     };
     ws.onclose = () => {
-      onRunnerConnection(false);
+      setRunnerConnected(false);
       write("\r\n  session closed.\r\n");
     };
     wsRef.current = ws;
     runnerWsRef.current = ws;
-  }, [backend, write, provider.label, provider.launchCmd, token, sessionEnv, runnerWsRef, onRunnerConnection]);
+  }, [
+    backend,
+    write,
+    provider.label,
+    provider.launchCmd,
+    token,
+    sessionEnv,
+    runnerWsRef,
+    setRunnerConnected,
+  ]);
 
   const onData = useCallback(
     (data: string) => {
@@ -267,13 +300,13 @@ function CodingTerminal({
   );
 
   useEffect(() => {
-    onRunnerConnection(false);
+    setRunnerConnected(false);
     const ws = wsRef.current;
     return () => {
       ws?.close();
       runnerWsRef.current = null;
     };
-  }, [onRunnerConnection, runnerWsRef]);
+  }, [setRunnerConnected, runnerWsRef]);
 
   return (
     <Terminal

@@ -9,7 +9,7 @@ const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
   { title: "Workflows & Design", body: "Compose generation + agent graphs visually.", to: "/design" },
   {
     title: "Coding sandboxes",
-    body: "E2B ([open-source](https://github.com/e2b-dev/e2b)) + in-browser Sandbox. OpenCode, Codex, Claude, Pi — save keys in the left rail, open Guide on /coding.",
+    body: "E2B ([open-source](https://github.com/e2b-dev/e2b)) + in-browser Sandbox. OpenCode, Codex, Claude, Pi — save keys under Agents in the Coding sidebar, open Guide on /coding.",
     to: "/coding",
   },
   { title: "Affiliates", body: "Earn a share of the platform fee on referrals.", to: "/profile/affiliates" },
