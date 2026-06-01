@@ -4,9 +4,9 @@
  * target; the returned JSON is validated + re-id'd so a model can never produce a
  * graph that breaks the editor.
  */
-import { ELIZA_PLUGINS, getDef, NODE_DEFS } from "./registry";
+import { defaultValues, ELIZA_PLUGINS, getDef, NODE_DEFS } from "./registry";
 import type { Graph } from "./templates";
-import type { Edge, NodeInstance } from "./types";
+import type { Edge, NodeDef, NodeInstance } from "./types";
 
 type RunChat = (args: {
   token: string;
@@ -57,8 +57,9 @@ function normalize(raw: unknown): Graph {
   rawNodes.forEach((n) => {
     const node = n as { id?: string; type?: string; values?: Record<string, unknown> };
     if (!node.type) return;
+    let def: NodeDef;
     try {
-      getDef(node.type); // throws if unknown
+      def = getDef(node.type); // throws if unknown
     } catch {
       return;
     }
@@ -70,7 +71,9 @@ function normalize(raw: unknown): Graph {
       type: node.type,
       x: 80 + (col % 4) * 280,
       y: 80 + Math.floor(col / 4) * 220,
-      values: (node.values as Record<string, string | number>) ?? {},
+      // Fill widget defaults first — models routinely omit keys; without this
+      // they'd render as "undefined"/NaN (the happy path, not an edge case).
+      values: { ...defaultValues(def), ...((node.values as Record<string, string | number>) ?? {}) },
     });
   });
   if (nodes.length === 0) throw new Error("The model returned no valid nodes.");
@@ -86,6 +89,9 @@ function normalize(raw: unknown): Graph {
     const tDef = defByNewId.get(tn)!;
     const tPort = tDef.inputs.find((p) => p.name === edge.target?.port);
     if (!sPort || !tPort) return;
+    // Same invariant the interactive editor enforces: matching types, or either
+    // side is the "any" wildcard. Stops generated image→text-style miswires.
+    if (!(sPort.type === tPort.type || sPort.type === "any" || tPort.type === "any")) return;
     edges.push({
       id: `e_${edges.length}`,
       source: { node: sn, port: sPort.name },
