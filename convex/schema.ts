@@ -314,10 +314,22 @@ export default defineSchema({
     costMicroUsd: v.number(), // raw gateway cost (what we pay)
     priceMicroUsd: v.number(), // what the user was charged
     holderDiscount: v.boolean(),
+    // freetour: routed to a free OpenRouter model → $0, counts toward the daily cap.
+    free: v.optional(v.boolean()),
     at: v.number(),
   })
     .index("by_pubkey", ["pubkey"])
     .index("by_ref", ["refId"]),
+
+  // freetour per-user daily counter — OpenRouter's free-tier caps are account-wide
+  // on our single org key, so we meter free usage per user to keep it fair. One row
+  // per (pubkey, UTC day); `count` increments per free inference call.
+  freetourUsage: defineTable({
+    pubkey: v.string(),
+    day: v.string(), // UTC yyyy-mm-dd
+    count: v.number(),
+    updatedAt: v.number(),
+  }).index("by_pubkey_day", ["pubkey", "day"]),
 
   // Cached OpenRouter model price catalog (per-token rates) — refreshed on demand
   // so inference metering doesn't refetch the full list every call. Single row.

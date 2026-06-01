@@ -39,6 +39,9 @@ export function AgentsHome() {
   const removeAgent = useMutation(anyApi.agents.remove);
   const listModels = useAction(anyApi.agents.listModels);
   const runChat = useAction(anyApi.inference.runChat);
+  const freetour = useQuery(anyApi.inference.freetourStatus, token ? { token } : "skip") as
+    | { used: number; cap: number; remaining: number }
+    | undefined;
   const [models, setModels] = useState<{ id: string; source: string }[]>([]);
 
   const [open, setOpen] = useState(false);
@@ -178,6 +181,7 @@ export function AgentsHome() {
               </label>
               <select id="agent-model" value={model} onChange={(e) => setModel(e.target.value)} className={field}>
                 <option value="auto">Auto — let Detour Cloud route the best model (recommended)</option>
+                <option value="freetour">Free — rate-limited (no credits used)</option>
                 {Object.entries(groups).map(([source, list]) => (
                   <optgroup key={source} label={source}>
                     {list.map((id) => (
@@ -187,7 +191,15 @@ export function AgentsHome() {
                 ))}
               </select>
               <p className="mt-1.5 text-[11px] text-white/35">
-                Leave on Auto and we pick the right model per message. Override only if you need a specific one.
+                {model === "freetour" ? (
+                  <>
+                    Routes to free models — no credits used, but rate-limited, so replies may be slower or
+                    ask you to retry.
+                    {freetour && ` ${freetour.remaining}/${freetour.cap} free messages left today.`}
+                  </>
+                ) : (
+                  "Leave on Auto and we pick the right model per message. Override only if you need a specific one."
+                )}
               </p>
             </div>
             <div>
@@ -263,7 +275,7 @@ export function AgentsHome() {
                 <p className="mt-1 line-clamp-2 text-[13px] text-white/45">{a.description}</p>
               )}
               <div className="mt-4 flex items-center justify-between">
-                <Badge tone="neutral">{a.model === "auto" ? "Auto" : a.model}</Badge>
+                <Badge tone="neutral">{a.model === "auto" ? "Auto" : a.model === "freetour" ? "Free" : a.model}</Badge>
                 <Button size="sm" variant="secondary" onClick={() => navigate(`/agents/${a.id}`)}>
                   Chat
                 </Button>

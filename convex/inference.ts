@@ -47,6 +47,32 @@ const USD = 1_000_000;
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 const PRICE_TTL_MS = 60 * 60 * 1000; // refresh the OpenRouter price catalog hourly
 
+// ── freetour: free OpenRouter models ($0), rate-limited ───────────────────────
+// Curated :free instruct models tried in priority order via OpenRouter's models[]
+// fallback (it tries the next on a model error), with openrouter/free — their own
+// router across ALL free models, vision/tool-capable — as the always-valid
+// catch-all. Free models bill $0, so we record usage but never charge. Their rate
+// limits (20/min; 50–1000/day) are ACCOUNT-WIDE on our one key, so we also keep a
+// per-user daily cap. Two triggers: the FREETOUR env flag (dev — route everything
+// free, no per-user cap) and the user-selectable "freetour" model (prod — capped).
+const FREE_MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
+  "openrouter/free",
+];
+const FREETOUR_DAILY_CAP = 50; // per-user free calls/day (soft; the pool is shared)
+
+/** freetour is on when the dev env flag is set OR the user picked the "Free"
+ *  option (model "freetour" / OpenRouter's own "openrouter/free" router). */
+function freetourActive(model: string): boolean {
+  return !!process.env.FREETOUR || model === "freetour" || model === "openrouter/free";
+}
+function utcDay(): string {
+  return new Date(Date.now()).toISOString().slice(0, 10);
+}
+
 async function sessionPubkey(ctx: QueryCtx | MutationCtx, token: string): Promise<string | null> {
   const s = await ctx.db
     .query("sessions")
@@ -189,6 +215,76 @@ export const _charge = internalMutation({
   },
 });
 
+// ── freetour: per-user daily free-call counter ────────────────────────────────
+
+export const _freetourUsed = internalQuery({
+  args: { pubkey: v.string() },
+  handler: async (ctx, { pubkey }): Promise<number> => {
+    const row = await ctx.db
+      .query("freetourUsage")
+      .withIndex("by_pubkey_day", (q) => q.eq("pubkey", pubkey).eq("day", utcDay()))
+      .unique();
+    return row?.count ?? 0;
+  },
+});
+
+/** Record a free inference call: $0 usage row (for the dashboard) + bump the
+ *  per-user daily counter. Idempotent by refId, like _charge. */
+export const _recordFree = internalMutation({
+  args: {
+    pubkey: v.string(),
+    refId: v.string(),
+    surface: v.string(),
+    model: v.string(),
+    promptTokens: v.optional(v.number()),
+    completionTokens: v.optional(v.number()),
+    costMicroUsd: v.number(),
+  },
+  handler: async (ctx, a) => {
+    const existing = await ctx.db
+      .query("inferenceUsage")
+      .withIndex("by_ref", (q) => q.eq("refId", a.refId))
+      .unique();
+    if (existing) return; // retry → no double count
+
+    await ctx.db.insert("inferenceUsage", {
+      pubkey: a.pubkey,
+      refId: a.refId,
+      surface: a.surface,
+      model: a.model,
+      promptTokens: a.promptTokens,
+      completionTokens: a.completionTokens,
+      costMicroUsd: Math.round(a.costMicroUsd),
+      priceMicroUsd: 0, // free — never charged (bypasses _charge's micro-USD floor)
+      holderDiscount: false,
+      free: true,
+      at: Date.now(),
+    });
+    const day = utcDay();
+    const row = await ctx.db
+      .query("freetourUsage")
+      .withIndex("by_pubkey_day", (q) => q.eq("pubkey", a.pubkey).eq("day", day))
+      .unique();
+    if (row) await ctx.db.patch(row._id, { count: row.count + 1, updatedAt: Date.now() });
+    else await ctx.db.insert("freetourUsage", { pubkey: a.pubkey, day, count: 1, updatedAt: Date.now() });
+  },
+});
+
+/** Free-tier budget left today (powers the "N free left" hint in the UI). */
+export const freetourStatus = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const pubkey = await sessionPubkey(ctx, token);
+    if (!pubkey) return { used: 0, cap: FREETOUR_DAILY_CAP, remaining: 0 };
+    const row = await ctx.db
+      .query("freetourUsage")
+      .withIndex("by_pubkey_day", (q) => q.eq("pubkey", pubkey).eq("day", utcDay()))
+      .unique();
+    const used = row?.count ?? 0;
+    return { used, cap: FREETOUR_DAILY_CAP, remaining: Math.max(0, FREETOUR_DAILY_CAP - used) };
+  },
+});
+
 // ── public: can this user run paid inference? (gate before a call) ────────────
 export const canInfer = query({
   args: { token: v.string() },
@@ -243,9 +339,22 @@ export const runChat = action({
     const orKey = process.env.OPENROUTER_API_KEY;
 
     if (orKey) {
-      // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
-      const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
-      if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to keep chatting." : "Cannot run inference.");
+      const free = freetourActive(model);
+      if (free) {
+        // freetour: the dev env flag routes everything free with no per-user cap;
+        // the user-facing "Free" option is capped (the OpenRouter pool is shared).
+        if (!process.env.FREETOUR) {
+          const used = (await ctx.runQuery(internal.inference._freetourUsed, { pubkey })) as number;
+          if (used >= FREETOUR_DAILY_CAP)
+            throw new Error(
+              `Free daily limit reached (${FREETOUR_DAILY_CAP}/day). Add credits for unlimited inference, or try again tomorrow.`,
+            );
+        }
+      } else {
+        // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
+        const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
+        if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to keep chatting." : "Cannot run inference.");
+      }
 
       // Vision: when an image is attached, attach it to the last user message as
       // OpenRouter multimodal content + force a multimodal model (the agent's
@@ -270,6 +379,14 @@ export const runChat = action({
         reqMessages = out;
       }
 
+      // freetour routes to free models: the curated models[] fallback for text, or
+      // openrouter/free for vision (it filters for image-capable free models).
+      // Otherwise send the requested model as-is.
+      const body: Record<string, unknown> = { messages: reqMessages };
+      if (free && imageUrl) body.model = "openrouter/free";
+      else if (free) body.models = FREE_MODELS;
+      else body.model = reqModel;
+
       const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
         method: "POST",
         headers: {
@@ -278,10 +395,14 @@ export const runChat = action({
           "http-referer": "https://detour.ninja",
           "x-title": "Detour Cloud",
         },
-        body: JSON.stringify({ model: reqModel, messages: reqMessages }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
+        // Free pool exhausted: 429 = per-minute, 402 = daily account cap. Tell the
+        // user to wait/retry rather than surfacing a raw gateway error.
+        if (free && (res.status === 429 || res.status === 402))
+          throw new Error("Free models are busy right now — wait a few seconds and try again.");
         throw new Error(`Inference failed (${res.status}): ${t.slice(0, 160)}`);
       }
       const json = (await res.json()) as {
@@ -306,16 +427,29 @@ export const runChat = action({
         const rate = prices[usedModel] ?? prices[model] ?? { prompt: 0, completion: 0 };
         costMicroUsd = (prompt * rate.prompt + completion * rate.completion) * USD;
       }
-      await ctx.runMutation(internal.inference._charge, {
-        pubkey,
-        refId,
-        surface: "chat",
-        model: usedModel,
-        promptTokens: prompt,
-        completionTokens: completion,
-        costMicroUsd,
-      });
-      return { text, source: "openrouter" };
+      if (free) {
+        // Free models bill $0 — record usage (dashboard + daily cap) but never charge.
+        await ctx.runMutation(internal.inference._recordFree, {
+          pubkey,
+          refId,
+          surface: "chat",
+          model: usedModel,
+          promptTokens: prompt,
+          completionTokens: completion,
+          costMicroUsd,
+        });
+      } else {
+        await ctx.runMutation(internal.inference._charge, {
+          pubkey,
+          refId,
+          surface: "chat",
+          model: usedModel,
+          promptTokens: prompt,
+          completionTokens: completion,
+          costMicroUsd,
+        });
+      }
+      return { text, source: free ? "freetour" : "openrouter" };
     }
 
     // Fallback: ElizaCloud (unmetered/free until the gateway key lands).
