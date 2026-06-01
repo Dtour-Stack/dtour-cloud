@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useMatch, useNavigate, useParams } from "react-router-dom";
 import { Badge, Button, Icon, Panel, SectionHeading } from "@/ui";
+import { GalleryHome } from "../gallery/GalleryHome";
 import { AppShell, type NavItem } from "../AppShell";
 import { DesignCanvas } from "./canvas/DesignCanvas";
 import { GeneratePanel } from "./generate/GeneratePanel";
+import { ProjectsOverview } from "./projects/ProjectsOverview";
 import { WorkflowEditor } from "./workflow/WorkflowEditor";
 
 const DESIGN_NAV: NavItem[] = [
@@ -13,6 +15,13 @@ const DESIGN_NAV: NavItem[] = [
   { to: "/design/canvas", label: "Canvas", icon: <Icon.Frame /> },
   { to: "/design/workflows", label: "Workflows", icon: <Icon.Plug /> },
   { to: "/design/generate", label: "Generate", icon: <Icon.Wand /> },
+  { to: "/design/projects", label: "All projects", icon: <Icon.LayoutGrid />, group: "Projects", end: true },
+  {
+    to: "/design/projects/gallery",
+    label: "Gallery",
+    icon: <Icon.Image />,
+    group: "Projects",
+  },
 ];
 
 function Section({
@@ -57,6 +66,12 @@ function Overview() {
       icon: <Icon.Wand size={18} />,
       title: "Generate",
       desc: "Describe it; get web, mobile, and slide designs.",
+    },
+    {
+      to: "/design/projects",
+      icon: <Icon.Image size={18} />,
+      title: "Projects",
+      desc: "Built-in Gallery and your media library for workflows.",
     },
   ];
   return (
@@ -249,7 +264,28 @@ const SECTIONS: Record<string, ReactNode> = {
 
 export default function DesignDashboardPage() {
   const { section } = useParams();
+  const projectMatch = useMatch("/design/projects/:projectId");
+  const projectsList = useMatch({ path: "/design/projects", end: true });
+  const projectId = projectMatch?.params.projectId;
   const key = section ?? "overview";
+
+  if (projectId === "gallery") {
+    return (
+      <AppShell title="Design Studio" nav={DESIGN_NAV} context="design">
+        <GalleryHome title="Gallery" />
+      </AppShell>
+    );
+  }
+  if (projectId) {
+    return <Navigate to="/design/projects" replace />;
+  }
+  if (projectsList) {
+    return (
+      <AppShell title="Design Studio" nav={DESIGN_NAV} context="design">
+        <ProjectsOverview />
+      </AppShell>
+    );
+  }
 
   // The canvas + workflow editor fill the whole main area (no scroll/padding).
   if (key === "canvas") {

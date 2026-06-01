@@ -258,6 +258,22 @@ export default function App() {
           }
         />
         <Route
+          path="/design/projects/:projectId"
+          element={
+            <RequireRole min="pro_user">
+              <DesignDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/design/projects"
+          element={
+            <RequireRole min="pro_user">
+              <DesignDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
           path="/design"
           element={
             <RequireRole min="pro_user">

@@ -19,6 +19,7 @@ import {
 const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode }[] = [
   { to: "/coding", label: "Coding", desc: "Sandboxed coding agents", icon: <Icon.Zap size={16} /> },
   { to: "/design", label: "Design", desc: "Workflows & canvas", icon: <Icon.Palette size={16} /> },
+  { to: "/gallery", label: "Gallery", desc: "Uploads & generated images", icon: <Icon.Image size={16} /> },
   { to: "/developers", label: "Developers", desc: "API, keys & docs", icon: <Icon.Plug size={16} /> },
   { to: "/account-hub", label: "Account", desc: "Profile, security, settings", icon: <Icon.User size={16} /> },
   { to: "/analytics", label: "Analytics", desc: "Usage & spend", icon: <Icon.Activity size={16} /> },

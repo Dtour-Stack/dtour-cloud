@@ -115,7 +115,7 @@ export const FLAG_REGISTRY: readonly FlagDef[] = [
     defaultEnabled: true,
     label: "Gallery",
     description: "User media library + vision chat picks.",
-    routes: ["/gallery"],
+    routes: ["/gallery", "/design/projects/gallery"],
     status: "live",
   },
   {

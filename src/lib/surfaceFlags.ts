@@ -2,6 +2,7 @@
 export const ROUTE_SURFACE_FLAG: Record<string, string> = {
   "/agents": "surface_agents",
   "/gallery": "surface_gallery",
+  "/design/projects/gallery": "surface_gallery",
   "/profile/billing": "surface_billing",
   "/profile/affiliates": "surface_affiliates",
   "/billing": "surface_billing",
