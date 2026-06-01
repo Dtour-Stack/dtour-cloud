@@ -3,6 +3,8 @@ import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { usePublicConfig } from "@/lib/useConfig";
+import { useFlags } from "@/lib/useFlags";
+import { isRouteEnabled } from "@/lib/surfaceFlags";
 import { isAdmin, isPro, type Role } from "@/lib/roles";
 import { DTOUR_SESSION_KEY, getDtourSessionToken } from "@/lib/session";
 import { cn, Icon, IconButton } from "@/ui";
@@ -103,6 +105,8 @@ export function AppShell({
     token ? { token } : "skip",
   ) as number | undefined;
   const cfg = usePublicConfig();
+  const flags = useFlags();
+  const visibleNav = nav.filter((item) => isRouteEnabled(item.to, flags));
   const banner = cfg.maintenance_mode
     ? "⚠️ Detour Cloud is in maintenance mode — some features may be unavailable."
     : typeof cfg.announcement === "string" && cfg.announcement.trim()
@@ -220,12 +224,12 @@ export function AppShell({
                 </NavLink>
               );
 
-              const ungrouped = nav.filter((i) => !i.group);
+              const ungrouped = visibleNav.filter((i) => !i.group);
               // Derive group order from first appearance — keeps AppShell generic
               // (a flat nav with no groups renders nothing here) while honoring the
               // manifest order: Runtime → Account → Monetization.
               const groupOrder: string[] = [];
-              for (const i of nav) {
+              for (const i of visibleNav) {
                 if (i.group && !groupOrder.includes(i.group)) groupOrder.push(i.group);
               }
 
@@ -243,7 +247,7 @@ export function AppShell({
                         {g}
                       </p>
                       <div className="space-y-1">
-                        {nav.filter((i) => i.group === g).map(renderItem)}
+                        {visibleNav.filter((i) => i.group === g).map(renderItem)}
                       </div>
                     </div>
                   ))}

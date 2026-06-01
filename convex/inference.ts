@@ -339,12 +339,10 @@ export const runChat = action({
     const orKey = process.env.OPENROUTER_API_KEY;
 
     if (orKey) {
-      // Admin kill-switches (toggle without redeploy): paid_inference_enabled,
-      // freetour_enabled. Absent row → default on (only an explicit false blocks).
       const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
       const free = freetourActive(model);
       if (free) {
-        if (flags.freetour_enabled === false)
+        if (!flags.freetour_enabled)
           throw new Error("Free inference is paused right now — try again later or use credits.");
         // freetour: the dev env flag routes everything free with no per-user cap;
         // the user-facing "Free" option is capped (the OpenRouter pool is shared).
@@ -356,7 +354,7 @@ export const runChat = action({
             );
         }
       } else {
-        if (flags.paid_inference_enabled === false)
+        if (!flags.paid_inference_enabled)
           throw new Error("Inference is temporarily paused — please try again shortly.");
         // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
         const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
@@ -459,6 +457,15 @@ export const runChat = action({
       return { text, source: free ? "freetour" : "openrouter" };
     }
 
+    const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
+    const free = freetourActive(model);
+    if (free) {
+      if (!flags.freetour_enabled)
+        throw new Error("Free inference is paused right now — try again later or use credits.");
+    } else if (!flags.paid_inference_enabled) {
+      throw new Error("Inference is temporarily paused — please try again shortly.");
+    }
+
     // Fallback: ElizaCloud (unmetered/free until the gateway key lands).
     const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
     const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
@@ -492,7 +499,9 @@ export const runImage = action({
 
     if (orKey) {
       const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
-      if (flags.paid_inference_enabled === false)
+      if (!flags.image_generation_enabled)
+        throw new Error("Image generation is temporarily unavailable.");
+      if (!flags.paid_inference_enabled)
         throw new Error("Image generation is temporarily paused — please try again shortly.");
       const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };
       if (!gate.ok) throw new Error(gate.reason === "out of credits" ? "Out of credits — top up to generate." : "Cannot run inference.");
@@ -555,6 +564,12 @@ export const runImage = action({
       return { url, source: "openrouter" };
     }
 
+    const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
+    if (!flags.image_generation_enabled)
+      throw new Error("Image generation is temporarily unavailable.");
+    if (!flags.paid_inference_enabled)
+      throw new Error("Image generation is temporarily paused — please try again shortly.");
+
     // Fallback: ElizaCloud (unmetered/free until the gateway key lands).
     const base = process.env.ELIZACLOUD_API_URL || "https://api.elizacloud.ai";
     const key = process.env.ELIZACLOUD_API_KEY || process.env.ELIZAOS_CLOUD_API_KEY;
@@ -604,7 +619,7 @@ export const runSpeech = action({
     // admin flips tts_enabled on once it's live — this returns a clean message
     // instead of letting users hit a raw gateway 404.
     const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
-    if (flags.tts_enabled !== true) throw new Error("Voice / text-to-speech is temporarily unavailable.");
+    if (!flags.tts_enabled) throw new Error("Voice / text-to-speech is temporarily unavailable.");
 
     // Gate on credits (lifetime bypass handled in _charge; pre-check balance).
     const gate = (await ctx.runQuery(api.inference.canInfer, { token })) as { ok: boolean; reason?: string };

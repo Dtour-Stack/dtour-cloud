@@ -89,7 +89,7 @@ const SECTIONS: Record<string, ReactNode> = {
   flags: (
     <Section
       title="Feature Flags"
-      description="Toggle features on or off across the platform."
+      description="Grouped toggles for inference rails, product surfaces, and builders-phase features."
     >
       <AdminFlags />
     </Section>

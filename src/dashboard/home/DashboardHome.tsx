@@ -2,6 +2,8 @@ import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { Link } from "react-router-dom";
 import { getDtourSessionToken } from "@/lib/session";
+import { useFlags } from "@/lib/useFlags";
+import { isRouteEnabled } from "@/lib/surfaceFlags";
 import {
   Badge,
   buttonClasses,
@@ -24,7 +26,8 @@ const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode
   { to: "/mcps", label: "MCPs", desc: "Hosted tool servers", icon: <Icon.Zap size={16} /> },
   { to: "/apps", label: "My Apps", desc: "Publish & monetize", icon: <Icon.LayoutGrid size={16} /> },
   { to: "/earnings", label: "Earnings", desc: "Affiliate $ELIZA", icon: <Icon.Coins size={16} /> },
-  { to: "/affiliates", label: "Affiliates", desc: "Invite & earn", icon: <Icon.Flag size={16} /> },
+  { to: "/api-explorer", label: "API explorer", desc: "Try cloud routes", icon: <Icon.Plug size={16} /> },
+  { to: "/api-keys", label: "API keys", desc: "Programmatic access", icon: <Icon.Shield size={16} /> },
 ];
 
 type Me = {
@@ -55,6 +58,7 @@ function truncate(addr: string): string {
 
 export function DashboardHome() {
   const token = getDtourSessionToken();
+  const flags = useFlags();
   const me = useQuery(
     anyApi.users.me,
     token ? { token } : "skip",
@@ -64,6 +68,7 @@ export function DashboardHome() {
   const name = me?.username ? `@${me.username}` : me ? truncate(me.pubkey) : "";
   const balance = me?.balance ?? 0;
   const lifetime = me?.plan === "lifetime";
+  const launcher = LAUNCHER.filter((l) => isRouteEnabled(l.to, flags));
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -195,7 +200,7 @@ export function DashboardHome() {
       <div className="fade-up mt-8" style={{ animationDelay: "210ms" }}>
         <SectionHeading title="Explore" description="Jump to any part of Detour Cloud." />
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {LAUNCHER.map((l) => (
+          {launcher.map((l) => (
             <Link
               key={l.to}
               to={l.to}

@@ -46,6 +46,10 @@ export function ProfileHome() {
   const update = useMutation(anyApi.profiles.update);
   const canUpload = useFlag("profile_avatar_upload");
   const agentLinking = useFlag("agent_linking");
+  const githubLinking = useFlag("github_linking");
+  const socialFields = SOCIAL_FIELDS.filter(
+    (f) => f.key !== "github" || githubLinking,
+  );
 
   const [avatarUrl, setAvatarUrl] = useState("");
   const [socials, setSocials] = useState<Socials>({});
@@ -120,7 +124,7 @@ export function ProfileHome() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {SOCIAL_FIELDS.map((f) => (
+            {socialFields.map((f) => (
               <div key={f.key}>
                 <label htmlFor={`s-${f.key}`} className="mb-1.5 block text-xs uppercase tracking-widest text-white/50">
                   {f.label}

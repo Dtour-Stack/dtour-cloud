@@ -225,6 +225,9 @@ export const runWorkflow = action({
           case "generate.video": {
             const prompt = inputVal(id, "prompt") ?? "";
             if (!prompt.trim()) throw new Error("Connect a Prompt to generate");
+            const flags = (await ctx.runQuery(api.flags.all, {})) as Record<string, boolean>;
+            if (!flags.video_enabled)
+              throw new Error("Video generation is temporarily unavailable.");
             // ElizaCloud has no usage.cost for video, so we meter at the
             // pricing/summary default (generate-video estimatedRange.min, ~$1).
             // Gate on credits first, charge AFTER the media lands so a failed gen

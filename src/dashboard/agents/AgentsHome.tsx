@@ -4,6 +4,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ELIZA_PLUGINS } from "@/dashboard/design/workflow/registry";
 import { getDtourSessionToken } from "@/lib/session";
+import { useFlag, useFlags } from "@/lib/useFlags";
 import { generateAgentConfig } from "./aiGenerate";
 import {
   Badge,
@@ -42,6 +43,9 @@ export function AgentsHome() {
   const freetour = useQuery(anyApi.inference.freetourStatus, token ? { token } : "skip") as
     | { used: number; cap: number; remaining: number }
     | undefined;
+  const flags = useFlags();
+  const showFreetourOption = flags.freetour_user_visible && flags.freetour_enabled;
+  const freetourPaused = !flags.freetour_enabled;
   const [models, setModels] = useState<{ id: string; source: string }[]>([]);
 
   const [open, setOpen] = useState(false);
@@ -133,6 +137,12 @@ export function AgentsHome() {
         </Button>
       </header>
 
+      {freetourPaused && (
+        <div className="fade-up rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-[13px] text-amber-100/90">
+          Free-tier inference is paused platform-wide. Use Auto or a paid model, or try again later.
+        </div>
+      )}
+
       {open && (
         <Panel className="fade-up p-6">
           <SectionHeading
@@ -181,7 +191,9 @@ export function AgentsHome() {
               </label>
               <select id="agent-model" value={model} onChange={(e) => setModel(e.target.value)} className={field}>
                 <option value="auto">Auto — let Detour Cloud route the best model (recommended)</option>
-                <option value="freetour">Free — rate-limited (no credits used)</option>
+                {showFreetourOption && (
+                  <option value="freetour">Free — rate-limited (no credits used)</option>
+                )}
                 {Object.entries(groups).map(([source, list]) => (
                   <optgroup key={source} label={source}>
                     {list.map((id) => (
