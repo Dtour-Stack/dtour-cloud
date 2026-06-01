@@ -16,6 +16,7 @@ export default defineSchema({
     lastLoginAt: v.number(),
     // Billing entitlement. "lifetime" = unlimited usage, never billed. Absent = standard.
     plan: v.optional(v.literal("lifetime")),
+    creatorRewardsEligible: v.optional(v.boolean()),
   }).index("by_pubkey", ["pubkey"]),
 
   // Access sessions issued after a successful gate.
@@ -30,6 +31,9 @@ export default defineSchema({
   waitlist: defineTable({
     email: v.string(),
     pubkey: v.optional(v.string()), // wallet they had connected, if any
+    kind: v.optional(v.union(v.literal("early_access"), v.literal("dev_tester"))),
+    name: v.optional(v.string()),
+    reason: v.optional(v.string()),
     at: v.number(),
   }).index("by_email", ["email"]),
 
@@ -38,7 +42,7 @@ export default defineSchema({
   whitelist: defineTable({
     pubkey: v.string(),
     role: v.optional(
-      v.union(v.literal("super_admin"), v.literal("admin")),
+      v.union(v.literal("super_admin"), v.literal("admin"), v.literal("dev_tester")),
     ),
     note: v.optional(v.string()),
     addedAt: v.number(),
@@ -170,6 +174,65 @@ export default defineSchema({
   })
     .index("by_to", ["to"])
     .index("by_to_read", ["to", "read"]),
+
+  adminAssistantThreads: defineTable({
+    owner: v.string(),
+    title: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_owner", ["owner"]),
+
+  adminAssistantMessages: defineTable({
+    threadId: v.id("adminAssistantThreads"),
+    owner: v.string(),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    workflow: v.optional(v.string()),
+    status: v.optional(
+      v.union(v.literal("pending"), v.literal("complete"), v.literal("failed")),
+    ),
+    at: v.number(),
+  })
+    .index("by_thread", ["threadId"])
+    .index("by_owner", ["owner"]),
+
+  testerOutreach: defineTable({
+    email: v.string(),
+    pubkey: v.optional(v.string()),
+    adminPubkey: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    html: v.optional(v.string()),
+    status: v.union(
+      v.literal("drafted"),
+      v.literal("sent"),
+      v.literal("failed"),
+      v.literal("received"),
+      v.literal("scored"),
+    ),
+    agentmailMessageId: v.optional(v.string()),
+    agentmailThreadId: v.optional(v.string()),
+    score: v.optional(v.number()),
+    recommendation: v.optional(v.string()),
+    replyText: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_status", ["status"]),
+
+  agentMailWebhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    email: v.optional(v.string()),
+    inboxId: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    payload: v.string(),
+    at: v.number(),
+  })
+    .index("by_event", ["eventId"])
+    .index("by_email", ["email"]),
 
   // Analytics / admin debug log.
   events: defineTable({

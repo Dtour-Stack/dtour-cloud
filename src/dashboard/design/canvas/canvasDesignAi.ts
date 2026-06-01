@@ -24,7 +24,9 @@ const WEBSITE_SYSTEM = `You are a web UI designer. Output ONLY raw JSON (no mark
 {"html":"<style>...</style><div>...</div>","w":390,"h":844}
 
 Rules:
-- Self-contained HTML+CSS snippet for an iframe srcdoc (no external URLs, no scripts).
+- Self-contained HTML+CSS+lightweight vanilla JS snippet for an iframe srcdoc.
+- No external URLs, imports, network calls, storage, cookies, or remote fonts.
+- Scripts are only for local UI behavior: tabs, toggles, filters, menus, and fake preview state.
 - Mobile-first unless the prompt says desktop. w/h = artboard size in px.
 - Modern Detour aesthetic: near-black text, white cards, violet accent, Inter-like system font.
 - Keep HTML under 12kb.`;

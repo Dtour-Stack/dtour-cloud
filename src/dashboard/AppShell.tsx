@@ -8,6 +8,7 @@ import { isRouteEnabled } from "@/lib/surfaceFlags";
 import { isAdmin, isPro, type Role } from "@/lib/roles";
 import { DTOUR_SESSION_KEY, getDtourSessionToken } from "@/lib/session";
 import { cn, Icon, IconButton } from "@/ui";
+import { AdminDetourAssistant } from "./admin/AdminDetourAssistant";
 import { InboxPanel } from "./InboxPanel";
 
 type Me = { username?: string | null; role?: Role } | null | undefined;
@@ -342,6 +343,7 @@ export function AppShell({
         </div>
         <div className="flex-1 overflow-auto p-4">{panel ?? <InboxPanel />}</div>
       </aside>
+      {context === "admin" && isAdmin(me?.role) && <AdminDetourAssistant />}
     </div>
   );
 }

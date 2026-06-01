@@ -21,6 +21,7 @@ type User = {
   email: string | null;
   avatarUrl: string | null;
   role: Role;
+  creatorRewardsEligible: boolean;
   swerveTags: string[];
   customTags: string[];
 };
@@ -69,6 +70,7 @@ export function AdminUsers() {
                     <Badge tone={u.role === "super_admin" || u.role === "admin" ? "accent" : "neutral"}>
                       {ROLE_LABEL[u.role]}
                     </Badge>
+                    {u.creatorRewardsEligible && <Badge tone="neutral">Creator split</Badge>}
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-white/35">
                     <span className="font-mono">{truncate(u.pubkey)}</span>

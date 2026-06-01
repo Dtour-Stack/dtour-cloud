@@ -16,7 +16,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin", label: "Overview", icon: <Icon.Activity />, end: true },
   { to: "/admin/users", label: "Users", icon: <Icon.User /> },
   { to: "/admin/team", label: "Team & Access", icon: <Icon.Shield /> },
-  { to: "/admin/waitlist", label: "Waitlist", icon: <Icon.Sparkles /> },
+  { to: "/admin/waitlist", label: "Requests", icon: <Icon.Sparkles /> },
   { to: "/admin/tokenomics", label: "Tokenomics", icon: <Icon.Coins /> },
   { to: "/admin/broadcast", label: "Broadcast", icon: <Icon.Megaphone /> },
   { to: "/admin/settings", label: "Settings", icon: <Icon.Settings /> },
@@ -64,8 +64,8 @@ const SECTIONS: Record<string, ReactNode> = {
   tokenomics: <AdminTokenomics />,
   waitlist: (
     <Section
-      title="Waitlist"
-      description="Early-access email signups from non-whitelisted wallets at the gate."
+      title="Access Requests"
+      description="Early-access signups and tester applications from the login gate."
     >
       <AdminWaitlist />
     </Section>

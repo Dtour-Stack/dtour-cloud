@@ -10,7 +10,6 @@ import {
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Streamdown } from "streamdown";
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import {
   buildChatMenuItems,
@@ -23,6 +22,23 @@ import {
 import { getDtourSessionToken } from "@/lib/session";
 import { useFlags } from "@/lib/useFlags";
 import { cn, Icon } from "@/ui";
+import {
+  AiAttachmentPreview,
+  AiConversation,
+  AiConversationContent,
+  AiConversationEmptyState,
+  AiInlineImage,
+  AiMessageAvatar,
+  AiMessageBubble,
+  AiMessageButton,
+  AiMessageResponse,
+  AiModelSelectorButton,
+  AiPromptInputFooter,
+  AiPromptInputFrame,
+  AiPromptInputTextarea,
+  AiPromptSubmit,
+  AiRoundAction,
+} from "@/ui/ai-elements";
 
 import { AgentTurnPanel } from "./AgentTurnPanel";
 import { ElizaPluginsModal } from "./ElizaPluginsModal";
@@ -83,7 +99,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
   ) as Msg[] | undefined;
   const getOrCreateDefaultChat = useMutation(anyApi.agents.getOrCreateDefaultChat);
   const createChat = useMutation(anyApi.agents.createChat);
-  const chat = useMutation(anyApi.agents.chat);
+  const chat = useAction(anyApi.agents.chat);
   const clearChat = useMutation(anyApi.agents.clearChat);
   const flags = useFlags();
   const [input, setInput] = useState("");
@@ -93,6 +109,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
   const [showMcpTools, setShowMcpTools] = useState(false);
   const [showElizaPlugins, setShowElizaPlugins] = useState(false);
   const [attachUrl, setAttachUrl] = useState<string | null>(null); // gallery image
+  const [sendError, setSendError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoRunTools, setAutoRunTools] = useState(() => readAutoRunTools(agentId));
   const [panelOpen, setPanelOpen] = useState(true);
@@ -155,10 +172,15 @@ export function AgentChat({ agentId }: { agentId: string }) {
     const img = attachUrl;
     setInput("");
     setAttachUrl(null);
+    setSendError(null);
     if (taRef.current) taRef.current.style.height = "auto";
     setSending(true);
     try {
       await chat({ token, agentId, chatId, message: text, imageUrl: img ?? undefined });
+    } catch (err) {
+      setInput(text);
+      setAttachUrl(img);
+      setSendError(err instanceof Error ? err.message : "Could not send message");
     } finally {
       setSending(false);
     }
@@ -226,74 +248,57 @@ export function AgentChat({ agentId }: { agentId: string }) {
       </header>
 
       {/* Messages */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <AiConversation>
         <div className="mx-auto w-full max-w-3xl px-4 py-8 md:px-6">
           {messages === undefined ? (
             <p className="mt-12 text-center text-sm text-white/40">Loading…</p>
           ) : !hasMessages ? (
-            <div className="mt-[14vh] flex flex-col items-center text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-white/70">
-                <Icon.Bot size={26} />
-              </span>
-              <h2 className="mt-5 text-xl font-semibold tracking-tight">{name}</h2>
-              <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/45">
-                Ask anything. Detour Cloud routes the right model for each message —
-                you never have to pick.
-              </p>
-            </div>
+            <AiConversationEmptyState
+              icon={<Icon.Bot size={26} />}
+              title={name}
+              body="Ask anything. Detour Cloud routes the right model for each message — you never have to pick."
+            />
           ) : (
-            <div className="space-y-7">
+            <AiConversationContent>
               {messages.map((m) =>
                 m.role === "user" ? (
                   <div key={m.id} className="flex flex-col items-end gap-1.5">
                     {m.imageUrl && (
-                      <img
-                        src={m.imageUrl}
-                        alt="attachment"
-                        className="max-h-56 max-w-[60%] rounded-2xl rounded-br-md border border-white/10 object-cover"
-                      />
+                      <AiInlineImage src={m.imageUrl} alt="attachment" />
                     )}
                     {m.content && (
-                      <div className="max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-white px-4 py-2.5 text-[14.5px] leading-relaxed text-black">
+                      <AiMessageBubble from="user">
                         {m.content}
-                      </div>
+                      </AiMessageBubble>
                     )}
                   </div>
                 ) : (
-                  <button
-                    type="button"
+                  <AiMessageButton
                     key={m.id}
                     onClick={() => {
                       setSelectedTurnId(m.id);
                       setPanelOpen(true);
                     }}
-                    className={cn(
-                      "flex w-full gap-3 rounded-xl px-2 py-1 text-left transition",
-                      selectedTurnId === m.id && panelOpen
-                        ? "bg-white/[0.04] ring-1 ring-purple-400/25"
-                        : "hover:bg-white/[0.03]",
-                    )}
+                    active={selectedTurnId === m.id && panelOpen}
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/60">
+                    <AiMessageAvatar>
                       <Icon.Bot size={14} />
-                    </span>
-                    <div className="min-w-0 flex-1">
+                    </AiMessageAvatar>
+                    <AiMessageBubble from="assistant">
                       {m.content === "" ? (
                         <TypingDots />
                       ) : (
-                        <div className="prose-chat text-[14.5px] leading-relaxed text-white/90">
-                          <Streamdown>{m.content}</Streamdown>
-                        </div>
+                        <AiMessageResponse>{m.content}</AiMessageResponse>
                       )}
-                    </div>
-                  </button>
+                    </AiMessageBubble>
+                  </AiMessageButton>
                 ),
               )}
-            </div>
+            </AiConversationContent>
           )}
           <div ref={endRef} className="h-px" />
         </div>
-      </div>
+      </AiConversation>
 
       {/* Composer */}
       <div className="shrink-0 px-4 pb-4 md:px-6">
@@ -331,6 +336,11 @@ export function AgentChat({ agentId }: { agentId: string }) {
           <p className="mt-2 text-center text-[11px] text-white/25">
             Detour Cloud routes the model · Enter to send · Shift+Enter for a new line
           </p>
+          {sendError && (
+            <p className="mt-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-[12px] text-red-100/85">
+              {sendError}
+            </p>
+          )}
         </div>
       </div>
       </div>
@@ -456,39 +466,22 @@ function Composer({
   onToggleAutoRun: () => void;
 }) {
   return (
-    <form
+    <AiPromptInputFrame
       onSubmit={onSubmit}
-      className="rounded-[1.5rem] border border-white/12 bg-white/[0.04] transition focus-within:border-purple-400/40"
     >
       {attachUrl && (
         <div className="px-3 pt-3">
-          <div className="relative inline-block">
-            <img
-              src={attachUrl}
-              alt="attachment"
-              className="h-16 w-16 rounded-lg border border-white/15 object-cover"
-            />
-            <button
-              type="button"
-              aria-label="Remove image"
-              onClick={onClearAttach}
-              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-black text-white/80 transition hover:text-white"
-            >
-              <Icon.X size={11} />
-            </button>
-          </div>
+          <AiAttachmentPreview src={attachUrl} alt="attachment" onRemove={onClearAttach} />
         </div>
       )}
-      <textarea
+      <AiPromptInputTextarea
         ref={taRef}
         value={input}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        rows={1}
         placeholder={placeholder}
-        className="max-h-56 w-full resize-none bg-transparent px-4 pt-3.5 text-[15px] leading-relaxed text-white placeholder:text-white/30 focus:outline-none"
       />
-      <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-1">
+      <AiPromptInputFooter>
         <ToolsMenu
           autoRunTools={autoRunTools}
           onOpenInstructions={onOpenInstructions}
@@ -500,52 +493,23 @@ function Composer({
           onToggleAutoRun={onToggleAutoRun}
         />
         {showGalleryButton && (
-          <RoundButton label="Attach image from gallery" onClick={onAttachClick}>
+          <AiRoundAction label="Attach image from gallery" onClick={onAttachClick}>
             <Icon.Image size={17} />
-          </RoundButton>
+          </AiRoundAction>
         )}
         <ModelMenu agentId={agentId} model={model} />
         <div className="flex-1" />
         {showVoiceButton ? (
-          <RoundButton label="Voice input (coming soon)" disabled>
+          <AiRoundAction label="Voice input (coming soon)" disabled>
             <Icon.Mic size={17} />
-          </RoundButton>
+          </AiRoundAction>
         ) : null}
-        <button
-          type="submit"
+        <AiPromptSubmit
           disabled={sending || (!input.trim() && !attachUrl)}
-          aria-label="Send"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:shadow-lg hover:shadow-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          <Icon.ArrowUp size={17} />
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function RoundButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled?: boolean;
-  onClick?: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-    >
-      {children}
-    </button>
+          sending={sending}
+        />
+      </AiPromptInputFooter>
+    </AiPromptInputFrame>
   );
 }
 
@@ -637,9 +601,9 @@ function ToolsMenu({
 
   return (
     <div ref={ref} className="relative">
-      <RoundButton label="Tools & attachments" onClick={() => setOpen((v) => !v)}>
+      <AiRoundAction label="Tools & attachments" onClick={() => setOpen((v) => !v)}>
         <Icon.Plus size={18} />
-      </RoundButton>
+      </AiRoundAction>
       {open && (
         <div className="absolute bottom-full left-0 z-40 mb-2 w-72 overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d] p-1.5 shadow-2xl backdrop-blur-xl">
           {items.map((item) => (
@@ -787,17 +751,11 @@ function ModelMenu({ agentId, model }: { agentId: string; model: string }) {
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
+      <AiModelSelectorButton
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-white/12 bg-white/5 px-3 text-[12px] text-white/75 transition hover:bg-white/10"
-      >
-        <Icon.Sparkles size={13} />
-        <span className="truncate">{label}</span>
-        <Icon.ChevronDown size={13} />
-      </button>
+        label={label}
+        open={open}
+      />
       {open && (
         <div
           role="menu"

@@ -543,7 +543,7 @@ export const modelEnv = internalQuery({
   },
 });
 
-export const chat = mutation({
+export const chat = action({
   args: {
     token: v.string(),
     agentId: v.id("agents"),
@@ -553,11 +553,16 @@ export const chat = mutation({
   },
   handler: async (ctx, args) => {
     if (!args.message.trim() && !args.imageUrl) throw new Error("Empty message");
-    const caller = await resolveRole(ctx, args.token);
-    if (!caller) throw new Error("Not authenticated");
-    const chat = await requireOwnedChat(ctx, caller.pubkey, args.chatId);
-    if (!chat || chat.agentId !== args.agentId) throw new Error("Not found");
-    await ensureChatThread(ctx, args.chatId, caller.pubkey);
+    const data = await ctx.runQuery(internal.agents.forChat, {
+      token: args.token,
+      agentId: args.agentId,
+      chatId: args.chatId,
+    });
+    if (!data) throw new Error("Not found");
+    await ctx.runMutation(internal.agentComponentStore.ensureThreadId, {
+      chatId: args.chatId,
+      owner: data.owner,
+    });
     await start(ctx, internal.agentChatWorkflow.agentTurn, args);
     return { ok: true };
   },
@@ -616,9 +621,19 @@ export const listModels = action({
       }
     }
 
-    const paid = [...ids.values()]
+    const all = [...ids.values()];
+    const free = freeOpts.length
+      ? all
+          .filter((m) => m.free || m.id === "freetour")
+          .sort((a, b) => {
+            if (a.id === "freetour") return -1;
+            if (b.id === "freetour") return 1;
+            return a.id.localeCompare(b.id);
+          })
+      : [];
+    const paid = all
       .filter((m) => !m.free && m.id !== "freetour")
       .sort((a, b) => a.id.localeCompare(b.id));
-    return [...freeOpts, ...paid];
+    return [...free, ...paid];
   },
 });

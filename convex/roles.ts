@@ -1,6 +1,6 @@
 // Shared role logic (plain TS, imported by Convex functions).
 
-export type Role = "user" | "pro_user" | "super_user" | "admin" | "super_admin";
+export type Role = "user" | "dev_tester" | "pro_user" | "super_user" | "admin" | "super_admin";
 export type AdminRole = "admin" | "super_admin";
 
 // User-tier thresholds (denominator #1 = $DTOUR held). More denominators can
@@ -21,6 +21,7 @@ export function tierFromBalance(
 
 const RANK: Record<Role, number> = {
   user: 0,
+  dev_tester: 1,
   pro_user: 1,
   super_user: 2,
   admin: 3,
@@ -33,6 +34,7 @@ export function atLeast(role: Role, min: Role): boolean {
 
 export const ROLE_LABEL: Record<Role, string> = {
   user: "User",
+  dev_tester: "Dev / Tester",
   pro_user: "Pro",
   super_user: "Super User",
   admin: "Admin",
@@ -47,6 +49,8 @@ export function baseSwerveTag(role: Role): string {
       return "Founder";
     case "admin":
       return "Team";
+    case "dev_tester":
+      return "Builder";
     case "super_user":
       return "Super";
     case "pro_user":

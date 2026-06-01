@@ -40,6 +40,7 @@ type Me = {
   swerveTags?: string[];
   avatarUrl?: string | null;
   plan?: "lifetime" | null;
+  creatorRewardsEligible?: boolean;
 } | null;
 
 const TIERS = [
@@ -118,6 +119,7 @@ export function DashboardHome() {
                 {t}
               </Badge>
             ))}
+            {me.creatorRewardsEligible && <Badge tone="neutral">Creator split</Badge>}
           </div>
         ) : null}
       </header>

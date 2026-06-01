@@ -38,14 +38,19 @@ export const recordLogin = internalMutation({
   args: { pubkey: v.string(), balance: v.number() },
   handler: async (ctx, { pubkey, balance }) => {
     const now = Date.now();
+    const whitelist = await ctx.db
+      .query("whitelist")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .unique();
+    const creatorRewardsEligible = whitelist?.role === "dev_tester";
     const existing = await ctx.db
       .query("users")
       .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
       .unique();
     if (existing) {
-      await ctx.db.patch(existing._id, { balance, lastLoginAt: now });
+      await ctx.db.patch(existing._id, { balance, lastLoginAt: now, creatorRewardsEligible });
     } else {
-      await ctx.db.insert("users", { pubkey, balance, lastLoginAt: now });
+      await ctx.db.insert("users", { pubkey, balance, lastLoginAt: now, creatorRewardsEligible });
     }
 
     const token = crypto.randomUUID();

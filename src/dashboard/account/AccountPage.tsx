@@ -9,6 +9,7 @@ type Me = {
   balance: number;
   role: string;
   plan: string | null;
+  creatorRewardsEligible: boolean;
   username: string | null;
   email: string | null;
   lastLoginAt: number | null;
@@ -29,6 +30,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           <Row label="Email" value={me?.email ?? "—"} />
           <Row label="Tier" value={me?.role ?? "—"} />
           <Row label="Plan" value={me?.plan === "lifetime" ? "Lifetime (unlimited)" : "Standard"} />
+          <Row label="Creator rewards" value={me?.creatorRewardsEligible ? "Eligible" : "Not eligible"} />
           <Row label="$DTOUR balance" value={me ? me.balance.toLocaleString() : "—"} />
         </div>
         <div className="flex gap-3 text-sm">

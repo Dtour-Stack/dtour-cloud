@@ -1,5 +1,6 @@
 export type Role =
   | "user"
+  | "dev_tester"
   | "pro_user"
   | "super_user"
   | "admin"
@@ -7,6 +8,7 @@ export type Role =
 
 const RANK: Record<Role, number> = {
   user: 0,
+  dev_tester: 1,
   pro_user: 1,
   super_user: 2,
   admin: 3,
@@ -28,6 +30,7 @@ export function isPro(role: Role | null | undefined): boolean {
 
 export const ROLE_LABEL: Record<Role, string> = {
   user: "User",
+  dev_tester: "Dev / Tester",
   pro_user: "Pro",
   super_user: "Super User",
   admin: "Admin",

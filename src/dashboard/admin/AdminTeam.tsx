@@ -16,10 +16,11 @@ import {
 
 type Member = {
   pubkey: string;
-  role: "admin" | "super_admin" | null;
+  role: "dev_tester" | "admin" | "super_admin" | null;
   note: string | null;
   addedAt: number;
   plan: "lifetime" | null;
+  creatorRewardsEligible: boolean;
 };
 
 const field =
@@ -46,7 +47,7 @@ export function AdminTeam() {
   const isSuper = me?.role === "super_admin";
   const [pubkey, setPubkey] = useState("");
   const [note, setNote] = useState("");
-  const [role, setRoleSel] = useState<"none" | "admin" | "super_admin">("none");
+  const [role, setRoleSel] = useState<"none" | "dev_tester" | "admin" | "super_admin">("none");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +73,7 @@ export function AdminTeam() {
     }
   }
 
-  async function changeRole(pk: string, r: "none" | "admin" | "super_admin") {
+  async function changeRole(pk: string, r: "none" | "dev_tester" | "admin" | "super_admin") {
     if (!token) return;
     setError(null);
     try {
@@ -108,8 +109,8 @@ export function AdminTeam() {
         <h1 className="text-2xl font-semibold tracking-tight">Team &amp; Access</h1>
         <p className="mt-1 text-[13px] text-white/45">
           Grant early access and assign roles. During early access, whitelisted
-          wallets can sign in; every other wallet joins the waitlist. Add a role
-          to also make a wallet an admin.
+          wallets can sign in; every other wallet joins the waitlist. Dev/tester
+          wallets get builder access and creator-reward eligibility without admin powers.
         </p>
       </header>
 
@@ -118,7 +119,7 @@ export function AdminTeam() {
           title="Whitelist a wallet"
           description={
             isSuper
-              ? "Optionally grant an admin role."
+              ? "Optionally grant dev/tester or admin status."
               : "Admins can whitelist; only a super admin can assign roles."
           }
         />
@@ -160,6 +161,7 @@ export function AdminTeam() {
                 className={field}
               >
                 <option value="none">None</option>
+                <option value="dev_tester">Dev / Tester</option>
                 <option value="admin">Admin</option>
                 <option value="super_admin">Super Admin</option>
               </select>
@@ -196,6 +198,7 @@ export function AdminTeam() {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm text-white/90">{truncate(m.pubkey)}</span>
                     {m.role && <Badge tone="accent">{ROLE_LABEL[m.role]}</Badge>}
+                    {m.creatorRewardsEligible && <Badge tone="neutral">Creator split</Badge>}
                   </div>
                   {m.note && <span className="text-xs text-white/40">{m.note}</span>}
                 </div>
@@ -224,11 +227,12 @@ export function AdminTeam() {
                       aria-label={`Role for ${truncate(m.pubkey)}`}
                       value={m.role ?? "none"}
                       onChange={(e) =>
-                        changeRole(m.pubkey, e.target.value as "none" | "admin" | "super_admin")
+                        changeRole(m.pubkey, e.target.value as "none" | "dev_tester" | "admin" | "super_admin")
                       }
                       className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white focus:border-purple-400/50 focus:outline-none"
                     >
                       <option value="none">User</option>
+                      <option value="dev_tester">Dev / Tester</option>
                       <option value="admin">Admin</option>
                       <option value="super_admin">Super Admin</option>
                     </select>

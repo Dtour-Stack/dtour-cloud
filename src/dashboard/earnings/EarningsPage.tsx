@@ -1,4 +1,4 @@
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -15,6 +15,10 @@ type Stats = {
 export default function EarningsPage() {
   const token = getDtourSessionToken();
   const myStats = useAction(anyApi.affiliates.myStats);
+  const me = useQuery(anyApi.users.me, token ? { token } : "skip") as
+    | { creatorRewardsEligible?: boolean }
+    | null
+    | undefined;
   const [stats, setStats] = useState<Stats>(null);
 
   useEffect(() => {
@@ -29,7 +33,7 @@ export default function EarningsPage() {
           <h1 className="text-xl font-semibold text-white">Earnings</h1>
           <p className="mt-1 text-sm text-white/50">
             Your affiliate revenue, paid as <span className="text-white">$ELIZA</span> to an EVM or
-            Solana wallet. Holder $DTOUR creator-fee rewards are distributed separately on-chain.
+            Solana wallet. Dev/tester accounts are also marked for creator reward splits.
           </p>
         </div>
 
@@ -46,6 +50,11 @@ export default function EarningsPage() {
             Manage affiliates & withdraw →
           </Link>
         </div>
+        {me?.creatorRewardsEligible && (
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-100/80">
+            This wallet is marked as a dev/tester creator-reward participant.
+          </div>
+        )}
       </div>
     </AppShell>
   );

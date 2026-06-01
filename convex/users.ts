@@ -42,6 +42,7 @@ export const me = query({
       role,
       swerveTags,
       plan: user?.plan ?? null,
+      creatorRewardsEligible: user?.creatorRewardsEligible === true || role === "dev_tester",
       lastLoginAt: user?.lastLoginAt ?? null,
       username: profile?.username ?? null,
       email: profile?.email ?? null,

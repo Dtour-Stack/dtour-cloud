@@ -3,7 +3,6 @@ import { v } from "convex/values";
 import nacl from "tweetnacl";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
-import { retrier } from "./retrier";
 
 function nonceFromMessage(message: string): string | null {
   const line = message
@@ -57,7 +56,7 @@ export const verify = action({
     // the dashboard shows it). Never block login on an RPC hiccup → default 0.
     let balance = 0;
     try {
-      balance = (await retrier.run(ctx, api.tokens.balanceOf, { pubkey })) as number;
+      balance = (await ctx.runAction(api.tokens.balanceOf, { pubkey })) as number;
     } catch {
       balance = 0;
     }

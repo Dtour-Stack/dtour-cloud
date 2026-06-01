@@ -9,13 +9,13 @@ import {
   internalQuery,
   query,
 } from "./_generated/server";
-import { retrier } from "./retrier";
 import {
   extractReasoning,
   type AgentTurnTrace,
   serializeTrace,
   stripReasoningTags,
 } from "./agentTrace";
+import { logEvent } from "./events";
 import {
   gatewayAttemptOrder,
   resolveRouteVariant,
@@ -627,7 +627,7 @@ export const runChat = action({
     refId: v.string(),
   },
   handler: async (ctx, args): Promise<ChatCoreResult> => {
-    return (await retrier.run(ctx, internal.inference.runChatCore, args)) as ChatCoreResult;
+    return (await ctx.runAction(internal.inference.runChatCore, args)) as ChatCoreResult;
   },
 });
 

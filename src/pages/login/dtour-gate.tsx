@@ -32,6 +32,7 @@ export function DtourGate() {
   const getNonce = useMutation(anyApi.auth.getNonce);
   const verifyGate = useAction(anyApi.gate.verify);
   const joinWaitlist = useMutation(anyApi.waitlist.join);
+  const applyTester = useMutation(anyApi.waitlist.applyTester);
 
   const pubkey = publicKey?.toBase58();
   // undefined = loading, false = not allowlisted, true = allowlisted.
@@ -45,6 +46,12 @@ export function DtourGate() {
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [testerOpen, setTesterOpen] = useState(false);
+  const [testerEmail, setTesterEmail] = useState("");
+  const [testerName, setTesterName] = useState("");
+  const [testerReason, setTesterReason] = useState("");
+  const [testerApplying, setTesterApplying] = useState(false);
+  const [testerApplied, setTesterApplied] = useState(false);
 
   const handleEnter = useCallback(async () => {
     if (!publicKey || !signMessage) return;
@@ -82,6 +89,28 @@ export function DtourGate() {
       setJoining(false);
     }
   }, [email, pubkey, joinWaitlist]);
+
+  const handleApplyTester = useCallback(async () => {
+    if (!pubkey) {
+      setError("Connect your wallet before applying");
+      return;
+    }
+    setTesterApplying(true);
+    setError(null);
+    try {
+      await applyTester({
+        email: testerEmail,
+        pubkey,
+        name: testerName.trim() || undefined,
+        reason: testerReason.trim() || undefined,
+      });
+      setTesterApplied(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send your application");
+    } finally {
+      setTesterApplying(false);
+    }
+  }, [applyTester, pubkey, testerEmail, testerName, testerReason]);
 
   return (
     <div className="space-y-4">
@@ -144,10 +173,68 @@ export function DtourGate() {
           </div>
         ))}
 
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+        {testerApplied ? (
+          <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-3 text-center">
+            <p className="text-sm text-emerald-200/90">
+              Application sent to the admin panel.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setTesterOpen((v) => !v)}
+              className="w-full rounded-full border border-white/25 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Apply to be a tester / early dev
+            </button>
+            {testerOpen && (
+              <div className="space-y-2">
+                <input
+                  type="email"
+                  value={testerEmail}
+                  onChange={(e) => setTesterEmail(e.target.value)}
+                  placeholder="email"
+                  autoComplete="email"
+                  className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
+                />
+                <input
+                  value={testerName}
+                  onChange={(e) => setTesterName(e.target.value)}
+                  placeholder="name or handle"
+                  className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
+                />
+                <textarea
+                  value={testerReason}
+                  onChange={(e) => setTesterReason(e.target.value)}
+                  placeholder="what will you test or build?"
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
+                />
+                {!pubkey && (
+                  <p className="text-xs text-amber-200/90">
+                    Connect your wallet first so admins can approve the exact address.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleApplyTester}
+                  disabled={testerApplying || !testerEmail.trim() || !pubkey}
+                  className="w-full rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:shadow-lg disabled:opacity-50"
+                >
+                  {testerApplying ? "Sending…" : "Send application"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {!connected && (
         <p className="text-center text-xs text-white/40">
-          Early access — connect your wallet. Approved wallets sign in; everyone
-          else joins the waitlist.
+          Early access — connect your wallet. Approved holders, dev/testers, and
+          team wallets sign in; everyone else joins the waitlist.
         </p>
       )}
 

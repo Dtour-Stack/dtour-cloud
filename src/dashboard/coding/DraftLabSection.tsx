@@ -1,7 +1,15 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useEffect, useState } from "react";
-import { cn } from "@/ui";
+import {
+  AiConversationContent,
+  AiMessageBubble,
+  AiMessageResponse,
+  AiPromptInputFooter,
+  AiPromptInputFrame,
+  AiPromptInputTextarea,
+  AiPromptSubmit,
+} from "@/ui/ai-elements";
 
 type AgentRow = {
   id: string;
@@ -49,7 +57,7 @@ export function DraftLabSection({
   const selected = agents?.find((a) => a.id === agentId);
 
   async function send() {
-    if (!token || !agentId || !input.trim()) return;
+    if (busy || !token || !agentId || !input.trim()) return;
     setBusy(true);
     setErr(null);
     try {
@@ -109,31 +117,63 @@ export function DraftLabSection({
             </p>
           )}
           {chatId && messages && messages.length > 0 && (
-            <div className="mb-2 max-h-28 overflow-y-auto rounded-lg border border-white/8 bg-black/30 p-2 text-[10px] leading-relaxed text-white/60">
-              {messages.slice(-6).map((m) => (
-                <div key={m.id} className={cn("mb-1", m.role === "user" && "text-violet-200/90")}>
-                  <span className="text-white/30">{m.role === "user" ? "you" : "agent"}: </span>
-                  {m.pending ? "…" : m.content.slice(0, 280)}
-                  {!m.pending && m.content.length > 280 ? "…" : ""}
-                </div>
-              ))}
+            <div className="mb-2 max-h-44 overflow-y-auto rounded-xl border border-white/8 bg-black/30 p-2">
+              <AiConversationContent className="space-y-2">
+                {messages.slice(-6).map((m) => {
+                  const body = m.pending ? "..." : m.content.slice(0, 280);
+                  const displayBody = !m.pending && m.content.length > 280 ? `${body}...` : body;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+                    >
+                      <AiMessageBubble
+                        from={m.role === "user" ? "user" : "assistant"}
+                        className={
+                          m.role === "user"
+                            ? "max-w-[92%] px-3 py-2 text-[12px]"
+                            : "max-w-[92%] rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-[12px] leading-relaxed text-white/70"
+                        }
+                      >
+                        {m.role === "user" ? (
+                          displayBody
+                        ) : (
+                          <AiMessageResponse>{displayBody}</AiMessageResponse>
+                        )}
+                      </AiMessageBubble>
+                    </div>
+                  );
+                })}
+              </AiConversationContent>
             </div>
           )}
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            rows={2}
-            placeholder="Test prompt or workflow instruction…"
-            className="mb-2 w-full resize-none rounded-lg border border-white/12 bg-black/40 px-2.5 py-2 text-[12px] text-white placeholder:text-white/30 focus:border-violet-400/40 focus:outline-none"
-          />
-          <button
-            type="button"
-            disabled={busy || !input.trim()}
-            onClick={() => void send()}
-            className="mb-1 w-full rounded-lg bg-violet-500/20 py-2 text-[12px] font-medium text-violet-100 ring-1 ring-violet-400/30 transition hover:bg-violet-500/30 disabled:opacity-40"
+          <AiPromptInputFrame
+            className="mb-2 rounded-xl bg-black/40"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send();
+            }}
           >
-            {busy ? "Running…" : "Run draft turn"}
-          </button>
+            <AiPromptInputTextarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              rows={2}
+              placeholder="Test prompt or workflow instruction..."
+              className="min-h-16 px-3 py-2 text-[12px]"
+            />
+            <AiPromptInputFooter className="px-2 pb-2">
+              <span className="truncate text-[10px] text-white/35">
+                {selected?.model ?? "Auto"}
+              </span>
+              <div className="flex-1" />
+              <AiPromptSubmit
+                disabled={busy || !input.trim()}
+                sending={busy}
+                className="h-8 w-8"
+              />
+            </AiPromptInputFooter>
+          </AiPromptInputFrame>
           {err && <p className="text-[10px] text-red-300/90">{err}</p>}
           <p className="mt-1 text-[9px] text-white/35">
             Billed as agent chat inference · open full chat in Agents for history.

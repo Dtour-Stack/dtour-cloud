@@ -1,6 +1,13 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { cn, Icon } from "@/ui";
 import {
+  AiPanel,
+  AiReasoningBlock,
+  AiSourceGroup,
+  AiStatusPill,
+  AiTraceStep,
+} from "@/ui/ai-elements";
+import {
   parseTrace,
   stepsByKind,
   type AgentTraceStep,
@@ -46,9 +53,8 @@ export function AgentTurnPanel({
   );
 
   return (
-    <aside
+    <AiPanel
       className={cn(
-        "flex min-h-0 flex-col border-l border-white/10 bg-[#080808]",
         className,
       )}
     >
@@ -110,7 +116,7 @@ export function AgentTurnPanel({
           />
         )}
       </div>
-    </aside>
+    </AiPanel>
   );
 }
 
@@ -118,7 +124,7 @@ function ActivityTab({ trace, sending }: { trace: AgentTurnTrace | null; sending
   if (!trace && sending) {
     return (
       <div className="space-y-3">
-        <StatusPill label="Working" pulse />
+        <AiStatusPill label="Working" pulse />
         <StepRow
           step={{
             id: "live",
@@ -136,7 +142,7 @@ function ActivityTab({ trace, sending }: { trace: AgentTurnTrace | null; sending
 
   return (
     <div className="space-y-4">
-      <StatusPill
+      <AiStatusPill
         label={
           trace.status === "running"
             ? "Working"
@@ -175,15 +181,7 @@ function ReasoningTab({ trace, sending }: { trace: AgentTurnTrace | null; sendin
     );
   }
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/35">
-        <Icon.Brain size={13} />
-        Model reasoning
-      </div>
-      <pre className="whitespace-pre-wrap font-sans text-[12.5px] leading-relaxed text-white/80">
-        {trace.reasoning}
-      </pre>
-    </div>
+    <AiReasoningBlock value={trace.reasoning} />
   );
 }
 
@@ -265,45 +263,28 @@ function SourcesTab({
 
 function SourceGroup({ title, steps }: { title: string; steps: AgentTraceStep[] }) {
   return (
-    <Section title={title}>
-      <div className="space-y-2">
-        {steps.map((s) => (
-          <StepRow key={s.id} step={s} />
-        ))}
-      </div>
-    </Section>
+    <AiSourceGroup title={title}>
+      {steps.map((s) => (
+        <StepRow key={s.id} step={s} />
+      ))}
+    </AiSourceGroup>
   );
 }
 
 function StepRow({ step, live }: { step: AgentTraceStep; live?: boolean }) {
   return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5">
-      <div className="flex items-start gap-2">
-        <StepIcon kind={step.kind} live={live} />
-        <div className="min-w-0 flex-1">
-          <div className="text-[12.5px] font-medium text-white/85">{step.title}</div>
-          {step.detail ? (
-            step.href ? (
-              <a
-                href={step.href}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 block truncate text-[11px] text-purple-300/90 hover:underline"
-              >
-                {step.detail}
-              </a>
-            ) : (
-              <p className="mt-1 text-[11px] leading-relaxed text-white/40">{step.detail}</p>
-            )
-          ) : null}
-        </div>
-      </div>
-    </div>
+    <AiTraceStep
+      icon={<StepIcon kind={step.kind} />}
+      title={step.title}
+      detail={step.detail}
+      href={step.href}
+      live={live}
+    />
   );
 }
 
-function StepIcon({ kind, live }: { kind: AgentTraceStep["kind"]; live?: boolean }) {
-  const icon =
+function StepIcon({ kind }: { kind: AgentTraceStep["kind"] }) {
+  return (
     kind === "search" ? (
       <Icon.Globe size={14} />
     ) : kind === "memory" ? (
@@ -314,16 +295,7 @@ function StepIcon({ kind, live }: { kind: AgentTraceStep["kind"]; live?: boolean
       <Icon.Brain size={14} />
     ) : (
       <Icon.Sparkles size={14} />
-    );
-  return (
-    <span
-      className={cn(
-        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 text-white/55",
-        live && "motion-safe:animate-pulse border-purple-400/30 text-purple-200/80",
-      )}
-    >
-      {icon}
-    </span>
+    )
   );
 }
 
@@ -381,35 +353,6 @@ function KV({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusPill({
-  label,
-  pulse,
-  error,
-}: {
-  label: string;
-  pulse?: boolean;
-  error?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium",
-        error
-          ? "border-red-400/25 bg-red-400/10 text-red-200/90"
-          : "border-white/10 bg-white/[0.04] text-white/70",
-      )}
-    >
-      <span
-        className={cn(
-          "h-1.5 w-1.5 rounded-full bg-emerald-400",
-          pulse && "motion-safe:animate-pulse",
-          error && "bg-red-400",
-        )}
-      />
-      {label}
-    </div>
-  );
-}
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (

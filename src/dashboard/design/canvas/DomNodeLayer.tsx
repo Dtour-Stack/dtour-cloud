@@ -11,6 +11,16 @@ type Props = {
   onDragStart?: (id: string, e: React.PointerEvent) => void;
 };
 
+function withEmbedPolicy(html: string): string {
+  const csp =
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">`;
+  if (/<html[\s>]/i.test(html)) {
+    if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${csp}`);
+    return html.replace(/<html([^>]*)>/i, `<html$1><head>${csp}</head>`);
+  }
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${csp}</head><body>${html}</body></html>`;
+}
+
 /** DOM layer for text, images, and website embeds — transforms with pan/zoom. */
 export function DomNodeLayer({ scene, view, selection, onSelect, onChangeNode, onDragStart }: Props) {
   return (
@@ -66,8 +76,9 @@ export function DomNodeLayer({ scene, view, selection, onSelect, onChangeNode, o
             {n.type === "embed" && n.html && (
               <iframe
                 title={n.label ?? "Website preview"}
-                sandbox="allow-same-origin"
-                srcDoc={n.html}
+                sandbox="allow-scripts"
+                referrerPolicy="no-referrer"
+                srcDoc={withEmbedPolicy(n.html)}
                 className="h-full w-full rounded-md border border-black/10 bg-white"
               />
             )}

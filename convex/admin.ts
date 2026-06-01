@@ -1,9 +1,32 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { getTierThresholds } from "./config_read";
 import { logEvent } from "./events";
 import { requireRole, resolveRole } from "./rbac";
-import { baseSwerveTag, tierFromBalance } from "./roles";
+import { baseSwerveTag, tierFromBalance, type Role } from "./roles";
+
+const assignableRole = v.union(
+  v.literal("dev_tester"),
+  v.literal("admin"),
+  v.literal("super_admin"),
+);
+
+function creatorRewardsEligible(role: Role | null | undefined): boolean {
+  return role === "dev_tester";
+}
+
+async function syncCreatorRewardsEligibility(
+  ctx: MutationCtx,
+  pubkey: string,
+  role: Role | null | undefined,
+) {
+  const row = await ctx.db
+    .query("users")
+    .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+    .unique();
+  if (row) await ctx.db.patch(row._id, { creatorRewardsEligible: creatorRewardsEligible(role) });
+}
 
 /** Caller's own role — lets the frontend show/hide admin UI. */
 export const myRole = query({
@@ -39,6 +62,7 @@ export const users = query({
           email: p?.email ?? null,
           avatarUrl: p?.avatarUrl ?? null,
           role,
+          creatorRewardsEligible: u.creatorRewardsEligible === true || creatorRewardsEligible(role),
           swerveTags: Array.from(
             new Set([baseSwerveTag(role), ...(p?.swerveTags ?? [])]),
           ),
@@ -87,6 +111,7 @@ export const members = query({
       ctx.db.query("users").collect(),
     ]);
     const planBy = new Map(users.map((u) => [u.pubkey, u.plan ?? null]));
+    const rewardsBy = new Map(users.map((u) => [u.pubkey, u.creatorRewardsEligible === true]));
     return rows
       .map((r) => ({
         pubkey: r.pubkey,
@@ -94,6 +119,7 @@ export const members = query({
         note: r.note ?? null,
         addedAt: r.addedAt,
         plan: planBy.get(r.pubkey) ?? null,
+        creatorRewardsEligible: rewardsBy.get(r.pubkey) === true || creatorRewardsEligible(r.role),
       }))
       .sort((a, b) => b.addedAt - a.addedAt);
   },
@@ -130,7 +156,7 @@ export const whitelistAdd = mutation({
     token: v.string(),
     pubkey: v.string(),
     note: v.optional(v.string()),
-    role: v.optional(v.union(v.literal("admin"), v.literal("super_admin"))),
+    role: v.optional(assignableRole),
   },
   handler: async (ctx, { token, pubkey, note, role }) => {
     const caller = await requireRole(ctx, token, "admin");
@@ -149,6 +175,7 @@ export const whitelistAdd = mutation({
     } else {
       await ctx.db.insert("whitelist", { pubkey, note, role, addedAt: Date.now() });
     }
+    if (role) await syncCreatorRewardsEligibility(ctx, pubkey, role);
     await logEvent(ctx, "whitelist.add", { pubkey: caller.pubkey, data: { pubkey, role } });
     return { ok: true, already: existing !== null };
   },
@@ -180,6 +207,7 @@ export const setRole = mutation({
     token: v.string(),
     pubkey: v.string(),
     role: v.union(
+      v.literal("dev_tester"),
       v.literal("admin"),
       v.literal("super_admin"),
       v.literal("none"),
@@ -201,6 +229,7 @@ export const setRole = mutation({
     } else {
       await ctx.db.insert("whitelist", { pubkey, role, addedAt: Date.now() });
     }
+    await syncCreatorRewardsEligibility(ctx, pubkey, role === "none" ? null : role);
     await logEvent(ctx, "role.set", { pubkey: caller.pubkey, data: { pubkey, role } });
     return { ok: true };
   },
@@ -245,15 +274,26 @@ export const setPlan = internalMutation({
   },
   handler: async (ctx, { pubkey, plan }) => {
     const value = plan === "none" ? undefined : plan;
+    const wl = await ctx.db
+      .query("whitelist")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .unique();
+    const rewardsEligible = creatorRewardsEligible(wl?.role);
     const row = await ctx.db
       .query("users")
       .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
       .unique();
     if (row) {
-      await ctx.db.patch(row._id, { plan: value });
+      await ctx.db.patch(row._id, { plan: value, creatorRewardsEligible: rewardsEligible });
     } else {
       // Grant before first login — recordLogin fills balance/lastLoginAt later.
-      await ctx.db.insert("users", { pubkey, balance: 0, lastLoginAt: 0, plan: value });
+      await ctx.db.insert("users", {
+        pubkey,
+        balance: 0,
+        lastLoginAt: 0,
+        plan: value,
+        creatorRewardsEligible: rewardsEligible,
+      });
     }
     return { ok: true, plan: value ?? null };
   },
@@ -270,14 +310,25 @@ export const setUserPlan = mutation({
   handler: async (ctx, { token, pubkey, plan }) => {
     const caller = await requireRole(ctx, token, "super_admin");
     const value = plan === "none" ? undefined : plan;
+    const wl = await ctx.db
+      .query("whitelist")
+      .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
+      .unique();
+    const rewardsEligible = creatorRewardsEligible(wl?.role);
     const row = await ctx.db
       .query("users")
       .withIndex("by_pubkey", (q) => q.eq("pubkey", pubkey))
       .unique();
     if (row) {
-      await ctx.db.patch(row._id, { plan: value });
+      await ctx.db.patch(row._id, { plan: value, creatorRewardsEligible: rewardsEligible });
     } else {
-      await ctx.db.insert("users", { pubkey, balance: 0, lastLoginAt: 0, plan: value });
+      await ctx.db.insert("users", {
+        pubkey,
+        balance: 0,
+        lastLoginAt: 0,
+        plan: value,
+        creatorRewardsEligible: rewardsEligible,
+      });
     }
     await logEvent(ctx, "plan.set", { pubkey: caller.pubkey, data: { pubkey, plan } });
     return { ok: true, plan: value ?? null };

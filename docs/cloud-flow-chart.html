@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eliza Cloud — System Flow Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: #12141c;
+      --border: #2a2d3a;
+      --text: #e8eaef;
+      --muted: #9aa3b5;
+      --accent: #7c6cff;
+      --accent2: #4f8cff;
+      --ok: #3dd68c;
+      --warn: #f5c542;
+      --detour: #c9b38c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1a1040 0%, transparent 55%),
+                  radial-gradient(900px 500px at 90% 0%, #0d2848 0%, transparent 50%),
+                  var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header {
+      padding: 2rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(11, 12, 16, 0.85);
+    }
+    h1 { margin: 0 0 0.35rem; font-size: 1.65rem; font-weight: 650; }
+    .sub { color: var(--muted); font-size: 0.95rem; max-width: 72ch; }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    nav a {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 0.35rem 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel);
+    }
+    nav a:hover { border-color: var(--accent); color: #fff; }
+    main { padding: 1.5rem 2rem 4rem; max-width: 1200px; margin: 0 auto; }
+    section {
+      margin: 2rem 0;
+      padding: 1.25rem 1.35rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    h2 { margin: 0 0 0.75rem; font-size: 1.15rem; }
+    h3 { margin: 1.25rem 0 0.5rem; font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    p, li { color: var(--muted); font-size: 0.92rem; }
+    li { margin: 0.25rem 0; }
+    code, .path {
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 0.82rem;
+      background: #1c1f2a;
+      padding: 0.12rem 0.4rem;
+      border-radius: 4px;
+      color: #d4daf0;
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.75rem 0 0; }
+    .legend span {
+      font-size: 0.8rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .eliza { border-color: var(--accent2); color: #b8d4ff; }
+    .detour { border-color: var(--detour); color: var(--detour); }
+    .infra { border-color: var(--ok); color: #9ef0c8; }
+    .mermaid {
+      background: #0e1018;
+      border-radius: 10px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 500; }
+    details {
+      margin: 0.5rem 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      background: #0e1018;
+    }
+    summary { cursor: pointer; color: var(--text); font-size: 0.9rem; }
+    .tree { font-family: ui-monospace, monospace; font-size: 0.78rem; color: var(--muted); white-space: pre; overflow-x: auto; }
+    footer { color: var(--muted); font-size: 0.8rem; padding: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Eliza Cloud — system flow chart</h1>
+    <p class="sub">
+      Upstream source: <code>/Users/home/Documents/eliza/packages/cloud-*</code> on <code>develop</code>.
+      Detour overlay: <code>/Users/home/dtour-cloud</code> (custom dashboard + Convex; proxies ElizaCloud infra).
+      Generated for local session research — open this file in a browser.
+    </p>
+    <div class="legend">
+      <span class="eliza">ElizaCloud (upstream)</span>
+      <span class="detour">Detour (white-label)</span>
+      <span class="infra">Hosted infra (not in repo)</span>
+    </div>
+    <nav>
+      <a href="#overview">Overview</a>
+      <a href="#packages">Packages</a>
+      <a href="#api-lifecycle">API lifecycle</a>
+      <a href="#chat">Chat / inference</a>
+      <a href="#auth">Auth paths</a>
+      <a href="#deploy">Agents &amp; deploy</a>
+      <a href="#routing">cloud-routing</a>
+      <a href="#surfaces">Surface map</a>
+      <a href="#files">File tree</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="overview">
+      <h2>1. Big picture</h2>
+      <p>Two products share the same ElizaCloud backend packages. <strong>Milady</strong> was the desktop shell (Electrobun + agent runtime). <strong>Detour Cloud</strong> is the reseller dashboard that vendors <code>cloud-api</code> plumbing and bills via $DTOUR + Convex.</p>
+      <div class="mermaid">
+flowchart TB
+  subgraph users [Users]
+    Browser[Browser / wallet]
+    AgentRT[Agent runtime / CLI]
+  end
+
+  subgraph detour [Detour Cloud — dtour-cloud]
+    Vite[Vite React dashboard\nsrc/dashboard/*]
+    Convex[Convex\nauth · gate · inference · design]
+    Vendored[vendored packages/cloud-*\nbyte-identical upstream]
+  end
+
+  subgraph eliza_hosted [ElizaCloud hosted — api.elizacloud.ai]
+    Worker[cloud-api Hono Worker\nCloudflare]
+    DB[(Postgres / Drizzle\ncloud-shared)]
+    R2[(R2 blobs)]
+    K8s[cloud-services\ncontainers · gateways]
+  end
+
+  subgraph upstream [Upstream monorepo — Documents/eliza]
+    CAP[packages/cloud-api]
+    CSH[packages/cloud-shared]
+    CRT[packages/cloud-routing]
+    CSDK[packages/cloud-sdk]
+    CFE[packages/cloud-frontend]
+    CINF[packages/cloud-infra]
+  end
+
+  Browser --> Vite
+  Vite --> Convex
+  Convex -->|ELIZACLOUD_API_KEY\nchat/completions proxy| Worker
+  Convex -->|OpenRouter direct\nmetered path| OR[openrouter.ai]
+  Vendored -.->|PR source| CAP
+  CAP --> CSH
+  Worker --> DB
+  Worker --> R2
+  Worker --> K8s
+  AgentRT -->|ELIZAOS_CLOUD_API_KEY\ncloud-routing| Worker
+  CAP --- upstream
+  CSH --- upstream
+      </div>
+    </section>
+
+    <section id="packages">
+      <h2>2. Package roles</h2>
+      <table>
+        <thead>
+          <tr><th>Package</th><th>Role</th><th>Detour</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>cloud-api</code></td>
+            <td>Hono app on Cloudflare Workers. File-based routes → <code>src/_router.generated.ts</code>. Auth middleware, billing, inference, MCP, cron, webhooks.</td>
+            <td>Vendored in <code>dtour-cloud/packages/</code></td>
+          </tr>
+          <tr>
+            <td><code>cloud-shared</code></td>
+            <td>DB schemas, repositories, services (containers, credits, agents, email, x402, …).</td>
+            <td>Vendored</td>
+          </tr>
+          <tr>
+            <td><code>cloud-routing</code></td>
+            <td>Runtime SDK: resolve ElizaCloud base URL + <code>Authorization: Bearer eliza_*</code> for agent plugins.</td>
+            <td>Vendored</td>
+          </tr>
+          <tr>
+            <td><code>cloud-sdk</code></td>
+            <td>Typed client for cloud HTTP APIs.</td>
+            <td>Vendored</td>
+          </tr>
+          <tr>
+            <td><code>cloud-frontend</code></td>
+            <td>Official ElizaCloud dashboard (reference UI).</td>
+            <td>Not shipped — Detour builds <code>src/dashboard/*</code></td>
+          </tr>
+          <tr>
+            <td><code>cloud-infra</code></td>
+            <td>K8s / operator tests, capacity, redis chainsaw tests.</td>
+            <td>Not vendored — ops only</td>
+          </tr>
+          <tr>
+            <td><code>cloud-services</code></td>
+            <td>Go/Rust sidecars: tunnel-proxy, headscale, operator CRDs, MCP smoke.</td>
+            <td>Runs on ElizaCloud infra; Detour proxies</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="mermaid">
+flowchart LR
+  subgraph api [cloud-api]
+    R[route.ts files]
+    GEN[_generate-router.mjs]
+    RT[_router.generated.ts]
+    BOOT[bootstrap-app.ts]
+    R --> GEN --> RT --> BOOT
+  end
+  subgraph shared [cloud-shared]
+    SCH[db/schemas]
+    REP[db/repositories]
+    SVC[lib/services]
+    SCH --> REP --> SVC
+  end
+  BOOT --> SVC
+      </div>
+    </section>
+
+    <section id="api-lifecycle">
+      <h2>3. cloud-api request lifecycle</h2>
+      <p>Every HTTP hit to <code>api.elizacloud.ai</code> follows this stack (see <code>packages/cloud-api/src/index.ts</code> → <code>bootstrap-app.ts</code>).</p>
+      <div class="mermaid">
+sequenceDiagram
+  participant C as Client
+  participant W as Cloudflare Worker
+  participant H as Hono bootstrap-app
+  participant A as authMiddleware
+  participant R as route handler
+  participant S as cloud-shared service
+  participant D as Postgres / R2
+
+  C->>W: HTTPS request
+  W->>H: fetch(request, env, ctx)
+  H->>H: setRuntimeR2Bucket + runWithCloudBindingsAsync
+  H->>H: requestId, CORS, secureHeaders
+  H->>A: authMiddleware (public paths skip)
+  alt Bearer eliza_* or API key
+    A->>R: pass through (handler validates org)
+  else Steward cookie/JWT
+    A->>A: getCurrentUser
+    A->>R: set user on context
+  end
+  R->>S: business logic
+  S->>D: read/write
+  S-->>R: result
+  R-->>C: JSON / stream
+      </div>
+      <h3>Route discovery</h3>
+      <p><code>packages/cloud-api/&lt;path&gt;/route.ts</code> maps to <code>/api/&lt;path&gt;</code> (Next.js App Router conventions). Run <code>bun run codegen</code> in cloud-api after adding routes.</p>
+    </section>
+
+    <section id="chat">
+      <h2>4. Chat &amp; inference (what was verified working)</h2>
+      <p><strong>Critical:</strong> programmatic chat uses <code>POST /api/v1/chat/completions</code> with <code>Authorization: Bearer eliza_…</code> — not <code>/api/v1/chat</code> (Steward-session only).</p>
+      <div class="mermaid">
+flowchart TB
+  subgraph detour_chat [Detour agent chat — convex/inference.ts]
+    U[User in dashboard]
+    S[dtour-session token]
+    CV[Convex runChat / agentChatWorkflow]
+    RT{inferenceRouting\neliza_first vs openrouter_first}
+    OR[OpenRouter API\nmetered + markup]
+    EC[ElizaCloud\n/api/v1/chat/completions\nfallback unmetered]
+    U --> S --> CV --> RT
+    RT -->|primary| OR
+    RT -->|failover| EC
+  end
+
+  subgraph direct_ec [Direct ElizaCloud — verified 200]
+    KEY[eliza_ API key]
+    CC[POST /api/v1/chat/completions]
+    AI[AI SDK + gateway\n20% platform markup in route]
+    KEY --> CC --> AI
+  end
+
+  subgraph explorer [API Explorer — convex/proxy.ts]
+    EX[Try it button]
+    PX[proxy.forward action]
+    EX --> PX --> EC
+  end
+      </div>
+      <p>Handler: <code>packages/cloud-api/v1/chat/completions/route.ts</code> → <code>requireAuthOrApiKeyWithOrg</code> → AI SDK <code>generateText</code> / <code>streamText</code> → <code>calculateCost</code> billing.</p>
+    </section>
+
+    <section id="auth">
+      <h2>5. Auth — two parallel systems</h2>
+      <div class="mermaid">
+flowchart LR
+  subgraph eliza_auth [ElizaCloud auth — cloud-api/auth/*]
+    SIWS[auth/siws nonce+verify]
+    SIWE[auth/siwe]
+    ST[Steward session / refresh]
+    ANON[anonymous-session]
+    KEY[API keys v1/api-keys]
+  end
+
+  subgraph detour_auth [Detour auth — convex/*]
+    NONCE[auth.getNonce]
+    GATE[gate.verify SIWS]
+    WL[whitelist early access]
+    SESS[sessions table\ndtour-session]
+    NONCE --> GATE --> WL --> SESS
+  end
+
+  Browser --> detour_auth
+  Browser -.->|Steward stubbed| eliza_auth
+      </div>
+      <p>Detour deliberately replaced Steward login with wallet + Convex. ElizaCloud keys are server-side only (<code>ELIZACLOUD_API_KEY</code> in Convex env).</p>
+    </section>
+
+    <section id="deploy">
+      <h2>6. Agents, containers &amp; gateways</h2>
+      <div class="mermaid">
+flowchart TB
+  API[v1/apps · v1/agents · compat/agents]
+  SVC[cloud-shared/services\nContainersService · AgentGatewayRouter]
+  OP[cloud-services operator\nK8s CRDs / Hetzner]
+  GW[Gateway services\nDiscord · Telegram · X · WhatsApp]
+  API --> SVC --> OP
+  API --> GW
+      </div>
+      <p>Detour does not run this control plane — it proxies to ElizaCloud-deployed infra. Revenue surfaces with real margin: coding sandboxes (E2B), creator economy, Pro tier.</p>
+    </section>
+
+    <section id="routing">
+      <h2>7. cloud-routing (agent runtime → cloud)</h2>
+      <p>When an elizaOS agent has <code>ELIZAOS_CLOUD_API_KEY</code>, plugins call via <code>packages/cloud-routing/src/resolve.ts</code>:</p>
+      <div class="mermaid">
+flowchart LR
+  RT[AgentRuntime getSetting]
+  KEY{ELIZAOS_CLOUD_API_KEY?}
+  BASE[ELIZAOS_CLOUD_BASE_URL\nor api.elizacloud.ai fallback]
+  PROXY["/api/v1/apis/{service}"]
+  RT --> KEY -->|yes| BASE --> PROXY
+      </div>
+    </section>
+
+    <section id="surfaces">
+      <h2>8. Functional surfaces (17 areas)</h2>
+      <p>From <code>docs/elizacloud-surfaces.md</code> — each maps to route folders under <code>cloud-api/</code> and pages under <code>cloud-frontend/src/dashboard/</code>.</p>
+      <table>
+        <thead><tr><th>#</th><th>Surface</th><th>Example API mounts</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Identity &amp; Auth</td><td><code>auth/*</code>, <code>v1/oauth/*</code>, <code>v1/api-keys</code></td></tr>
+          <tr><td>2</td><td>Agents</td><td><code>v1/agents</code>, <code>my-agents/*</code>, <code>a2a</code></td></tr>
+          <tr><td>3</td><td>Chat &amp; Inference</td><td><code>v1/chat/completions</code>, <code>v1/models</code>, <code>compat/*</code></td></tr>
+          <tr><td>4</td><td>Credits &amp; Billing</td><td><code>credits/*</code>, <code>v1/billing</code>, <code>stripe/*</code></td></tr>
+          <tr><td>5</td><td>Crypto &amp; Payments</td><td><code>crypto/*</code>, <code>v1/x402</code>, <code>v1/redemptions</code></td></tr>
+          <tr><td>6</td><td>MCP</td><td><code>mcp/*</code>, <code>mcps/*</code>, <code>v1/mcps</code></td></tr>
+          <tr><td>7</td><td>Voice &amp; Audio</td><td><code>elevenlabs/*</code>, <code>v1/voice</code></td></tr>
+          <tr><td>8</td><td>Media</td><td><code>fal/proxy</code>, <code>v1/gallery</code></td></tr>
+          <tr><td>9</td><td>Apps &amp; Deploy</td><td><code>v1/apps</code>, <code>v1/domains</code>, <code>eliza-app/*</code></td></tr>
+          <tr><td>10</td><td>Social gateways</td><td><code>v1/discord</code>, <code>v1/telegram</code>, <code>v1/x</code>, …</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="files">
+      <h2>9. Top-level cloud-api route folders</h2>
+      <p>~275 mounted routes (see <code>src/_router.generated.ts</code>). Top-level directories under <code>packages/cloud-api/</code>:</p>
+      <details open>
+        <summary>cloud-api route tree (top level)</summary>
+        <div class="tree">packages/cloud-api/
+├── src/                    # Worker entry, bootstrap, middleware, codegen
+│   ├── index.ts              # Lazy-load createApp()
+│   ├── bootstrap-app.ts      # Hono stack + mountRoutes()
+│   ├── middleware/auth.ts
+│   └── _router.generated.ts  # Auto-mounted routes
+├── v1/                     # Primary versioned API (chat, agents, billing, …)
+├── auth/                   # SIWS, SIWE, steward, cli-session, pair
+├── agents/ · my-agents/    # Agent CRUD, characters, saved
+├── mcp/ · mcps/            # MCP registry, proxies, integrations
+├── eliza/ · eliza-app/     # Rooms, app provisioning, webhooks
+├── cron/                   # Scheduled jobs (billing, cleanup, metrics)
+├── crypto/ · stripe/       # Payments
+├── compat/                 # OpenAI-compatible agent API
+├── internal/               # Service-to-service
+├── webhooks/               # Inbound webhooks
+├── elevenlabs/ · fal/      # Media proxies
+├── health/ · og/ · openapi.json/
+└── __tests__/              # Route tests</div>
+      </details>
+      <details>
+        <summary>Detour overlay (convex/)</summary>
+        <div class="tree">dtour-cloud/convex/
+├── auth.ts · gate.ts       # SIWS + session (replaces Steward)
+├── inference.ts            # OpenRouter + Eliza failover, metering
+├── inferenceRouting.ts     # A/B route variants
+├── proxy.ts                # Server-side ElizaCloud forward
+├── agents.ts · agentChatWorkflow.ts
+├── design.ts · designStudioWorkflow.ts
+├── credits.ts · tokenomics.ts
+├── coding.ts · mcps.ts
+└── schema.ts               # sessions, users, inferenceUsage, …</div>
+      </details>
+      <details>
+        <summary>cloud-shared services (sample)</summary>
+        <div class="tree">packages/cloud-shared/src/lib/services/
+├── containers.ts · coding-containers.ts
+├── agent-gateway-router.ts
+├── app-credits.ts · active-billing.ts
+├── content-safety.ts · email.ts
+├── eliza-managed-launch.ts
+├── browser-tools.ts (hosted browser)
+├── deployments/discovery.ts
+└── … (50+ service modules)</div>
+      </details>
+    </section>
+
+    <section>
+      <h2>10. Milady vs Detour — session context</h2>
+      <table>
+        <thead><tr><th>Track</th><th>Repo</th><th>Recent Claude sessions</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Desktop shell</td>
+            <td><code>milady-ai/milady</code></td>
+            <td><code>b301c2c0</code> Milady-nextgen renderer; <code>9e9d21c7</code> pivot to upstream eliza</td>
+            <td>Desktop launch painful; not the cloud work</td>
+          </tr>
+          <tr>
+            <td>Cloud reseller</td>
+            <td><code>dtour-cloud</code></td>
+            <td><code>fb1b7741</code> ongoing; chat completions verified on ElizaCloud</td>
+            <td>Working path for ElizaCloud plumbing</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    Open locally: <code>open /Users/home/dtour-cloud/docs/cloud-flow-chart.html</code>
+    · Upstream: <code>/Users/home/Documents/eliza</code> branch <code>develop</code>
+  </footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "dark",
+      themeVariables: {
+        primaryColor: "#2a2450",
+        primaryTextColor: "#e8eaef",
+        primaryBorderColor: "#7c6cff",
+        lineColor: "#6b7390",
+        secondaryColor: "#1a2840",
+        tertiaryColor: "#12141c",
+        fontFamily: "Inter, system-ui, sans-serif",
+      },
+      flowchart: { curve: "basis", padding: 16 },
+    });
+  </script>
+</body>
+</html>
