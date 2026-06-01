@@ -3,6 +3,7 @@ import { anyApi } from "convex/server";
 import { useRef, useState } from "react";
 import { getDtourSessionToken } from "@/lib/session";
 import { Button, Icon } from "@/ui";
+import { useGalleryUpload } from "./useGalleryUpload";
 
 export type GalleryAsset = {
   id: string;
@@ -26,9 +27,8 @@ export function GalleryHome({
     token ? { token } : "skip",
   ) as GalleryAsset[] | undefined;
 
-  const generateUploadUrl = useMutation(anyApi.assets.generateUploadUrl);
-  const saveUploaded = useMutation(anyApi.assets.saveUploaded);
   const removeAsset = useMutation(anyApi.assets.removeAsset);
+  const { uploadImage } = useGalleryUpload(token);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -49,15 +49,7 @@ export function GalleryHome({
     setError(null);
     setUploading(true);
     try {
-      const uploadUrl = (await generateUploadUrl({ token })) as string;
-      const res = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-      const { storageId } = (await res.json()) as { storageId: string };
-      await saveUploaded({ token, storageId, name: file.name, contentType: file.type });
+      await uploadImage(file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {

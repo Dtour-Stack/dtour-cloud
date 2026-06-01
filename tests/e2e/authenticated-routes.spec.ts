@@ -36,6 +36,9 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.locator('[data-tour="canvas-toolbar"]')).toBeVisible();
     await expect(page.getByText("Start with an artboard")).toBeVisible();
     await expect(page.getByText("Canva-style")).toHaveCount(0);
+    await page.getByRole("button", { name: "Assets" }).click();
+    await expect(page.getByRole("button", { name: /Upload & use/i })).toBeVisible();
+    await page.getByRole("button", { name: "Close gallery" }).click();
 
     await page.goto("/design/sketch");
 

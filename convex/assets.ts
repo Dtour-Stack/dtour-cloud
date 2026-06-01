@@ -87,14 +87,24 @@ export const saveUploaded = mutation({
   handler: async (ctx, { token, storageId, name, contentType }) => {
     const caller = await resolveRole(ctx, token);
     if (!caller) throw new Error("Not authenticated");
-    await ctx.db.insert("assets", {
+    const assetName = name.trim() || "Untitled image";
+    const assetContentType = contentType || "image/png";
+    const createdAt = Date.now();
+    const id = await ctx.db.insert("assets", {
       owner: caller.pubkey,
       storageId,
-      name: name.trim() || "Untitled image",
-      contentType: contentType || "image/png",
-      createdAt: Date.now(),
+      name: assetName,
+      contentType: assetContentType,
+      createdAt,
     });
-    return { ok: true };
+    return {
+      ok: true,
+      id,
+      name: assetName,
+      contentType: assetContentType,
+      url: await ctx.storage.getUrl(storageId),
+      createdAt,
+    };
   },
 });
 
