@@ -27,11 +27,15 @@ import { CODING_NAV } from "./codingNav";
 import { TopUpModal } from "./TopUpModal";
 
 function wsEndpoint(backend: CodingBackend, agent: string): string {
-  if (backend === "runner" && typeof window !== "undefined") {
+  // Both cloud (runner=E2B) and self-host (your detour desktop) bridge through
+  // the same /coding-ws relay; backend=selfhost routes to your paired device.
+  if ((backend === "runner" || backend === "selfhost") && typeof window !== "undefined") {
     const token = getDtourSessionToken();
     if (!token) return "";
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    const q = new URLSearchParams({ token, agent });
+    const params: Record<string, string> = { token, agent };
+    if (backend === "selfhost") params.backend = "selfhost";
+    const q = new URLSearchParams(params);
     return `${proto}://${window.location.host}/coding-ws?${q}`;
   }
   return "";

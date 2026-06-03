@@ -1,6 +1,9 @@
+import { useMutation, useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { GuidedTour } from "@/dashboard/design/GuidedTour";
+import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
 import { useCodingSession, type CodingBackend } from "./CodingSessionContext";
 import { CODING_TOUR } from "./codingGuide";
@@ -8,7 +11,7 @@ import { CODING_TOUR } from "./codingGuide";
 const BACKENDS: { key: CodingBackend; label: string; live: boolean }[] = [
   { key: "runner", label: "Detour Cloud (E2B)", live: true },
   { key: "sandbox", label: "Sandbox (browser)", live: true },
-  { key: "selfhost", label: "Self-host", live: false },
+  { key: "selfhost", label: "Self-host (your machine)", live: true },
 ];
 
 type RelayHealth = { ok: boolean; e2b: boolean; template: string } | null;
@@ -79,6 +82,8 @@ export function CodingSetupPage() {
         </p>
       </section>
 
+      {backend === "selfhost" && <SelfHostPairing />}
+
       <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-[12px] text-white/55">
         <p className="mb-2 font-medium text-white/80">Platform status</p>
         <ul className="space-y-2">
@@ -103,5 +108,98 @@ export function CodingSetupPage() {
         </Link>
       </section>
     </div>
+  );
+}
+
+type PairedDevice = { id: string; name: string; lastSeenAt: number | null };
+
+/** Link a Detour desktop app to this account so it can serve Self-host sessions.
+ *  The app shows an 8-char code (codingDevices.startDevicePairing); entering it
+ *  here approves the pairing and mints the device's relay token. */
+function SelfHostPairing() {
+  const token = getDtourSessionToken();
+  const devices = useQuery(
+    anyApi.codingDevices.listDevices,
+    token ? { token } : "skip",
+  ) as PairedDevice[] | undefined;
+  const approve = useMutation(anyApi.codingDevices.approveDevicePairing);
+  const revoke = useMutation(anyApi.codingDevices.revokeDevice);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const onPair = async () => {
+    const c = code.trim();
+    if (!token || c.length < 4) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = (await approve({ token, code: c })) as { deviceName?: string };
+      setMsg({ ok: true, text: `Paired ${r.deviceName ?? "your desktop"}.` });
+      setCode("");
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Pairing failed" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+      <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-white/35">
+        Pair your desktop
+      </h2>
+      <p className="mb-3 text-[12px] leading-relaxed text-white/45">
+        Open the <span className="text-white/70">Detour desktop app</span> → enable Self-host →
+        it shows an 8-character code. Enter it here to link this machine. Sessions then run on your
+        own computer — no sandbox charge.
+      </p>
+      <div className="flex items-center gap-2">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="ABCD1234"
+          maxLength={8}
+          className="w-36 rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-sm uppercase tracking-widest text-white outline-none focus:border-violet-400/40"
+        />
+        <button
+          type="button"
+          onClick={onPair}
+          disabled={busy || code.trim().length < 4}
+          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
+        >
+          {busy ? "Pairing…" : "Pair"}
+        </button>
+      </div>
+      {msg && (
+        <p className={cn("mt-2 text-[12px]", msg.ok ? "text-emerald-300/90" : "text-amber-300/90")}>
+          {msg.text}
+        </p>
+      )}
+      {devices && devices.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {devices.map((d) => (
+            <li
+              key={d.id}
+              className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-[13px] text-white/70"
+            >
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                {d.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (token) void revoke({ token, id: d.id });
+                }}
+                className="text-[11px] uppercase tracking-wide text-white/35 transition hover:text-amber-300/90"
+              >
+                Unpair
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
