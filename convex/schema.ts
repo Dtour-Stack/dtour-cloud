@@ -560,4 +560,37 @@ export default defineSchema({
   })
     .index("by_owner", ["owner"])
     .index("by_owner_status", ["owner", "status"]),
+
+  // Paired detour desktop devices that may dial the relay as a Self-host backend
+  // (E3). `token` is the bearer the device presents to the relay — stored raw and
+  // indexed, mirroring the auth `sessions` table pattern.
+  codingDevices: defineTable({
+    pubkey: v.string(), // owner wallet
+    name: v.string(),
+    token: v.string(),
+    createdAt: v.number(),
+    lastSeenAt: v.optional(v.number()),
+    revoked: v.optional(v.boolean()),
+  })
+    .index("by_pubkey", ["pubkey"])
+    .index("by_token", ["token"]),
+
+  // Short-lived device-pairing handshakes (E3): the detour app requests a `code`
+  // (shown to the user) + holds a private `pollSecret`; the wallet-gated web app
+  // approves the code; the app polls with its secret to collect the device token.
+  codingDevicePairings: defineTable({
+    code: v.string(), // 8-char code shown in the app + entered/approved on the web
+    pollSecret: v.string(), // private to the requesting app; gates token retrieval
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("consumed"),
+    ),
+    deviceName: v.string(),
+    pubkey: v.optional(v.string()), // approving wallet (set at approval)
+    deviceId: v.optional(v.id("codingDevices")), // set at approval
+    deviceToken: v.optional(v.string()), // minted at approval, handed over once
+    expiresAt: v.number(), // bounds the pending (pre-approval) window
+    createdAt: v.number(),
+  }).index("by_code", ["code"]),
 });
