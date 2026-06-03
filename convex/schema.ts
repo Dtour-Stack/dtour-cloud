@@ -523,4 +523,41 @@ export default defineSchema({
   })
     .index("by_pubkey", ["pubkey"])
     .index("by_pubkey_provider", ["pubkey", "provider"]),
+
+  // Portable coding sessions — the backend-agnostic source of truth (spec §2).
+  // A session is bound to a PROJECT, not to where it runs; local + cloud
+  // backends ATTACH to it. Git history + chat history live OUTSIDE the row
+  // (in the repo and in the @convex-dev/agent thread), so a destroyed sandbox
+  // loses no history (spec §5).
+  codingSessions: defineTable({
+    owner: v.string(), // owner pubkey
+    title: v.string(),
+    // Project identity (spec §2): git remote URL (if any) + a stable fingerprint.
+    projectOrigin: v.optional(v.string()),
+    projectFingerprint: v.string(),
+    // Code pointer (spec §6).
+    branch: v.string(), // session working branch, e.g. dtour/session-<id>
+    baseRef: v.string(), // forked from: a commit sha or a branch name
+    workingChangesStorageId: v.optional(v.id("_storage")), // uncommitted-diff patch
+    // Conversation: a @convex-dev/agent thread id (backfilled, like agentChats).
+    threadId: v.optional(v.string()),
+    // Environment spec — HOW to re-warm, not the warm state itself (spec §5).
+    envSpec: v.optional(v.string()), // JSON: { setup: string[], detected: string }
+    // Active backend, stored as flat columns; normalized in codingSessionState.ts.
+    activeBackend: v.union(
+      v.literal("detached"),
+      v.literal("local"),
+      v.literal("cloud"),
+    ),
+    activeDeviceId: v.optional(v.string()),
+    activeSandboxId: v.optional(v.string()),
+    // Optional warm-environment snapshot handle (speed feature, spec §5).
+    snapshotStorageId: v.optional(v.id("_storage")),
+    snapshotSandboxId: v.optional(v.string()),
+    status: v.union(v.literal("live"), v.literal("idle"), v.literal("archived")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["owner"])
+    .index("by_owner_status", ["owner", "status"]),
 });
