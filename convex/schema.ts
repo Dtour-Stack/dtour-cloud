@@ -496,15 +496,15 @@ export default defineSchema({
     .index("by_referrer", ["referrerPubkey"])
     .index("by_code", ["code"]),
 
-  // Affiliate payout ledger. Money stored as INTEGER micro-USD (1 USD = 1e6) —
-  // float64 is exact for integers ≪ 2^53, so no precision loss. `status` is a
-  // free-form string (e.g. "pending" | "paid" | "failed").
+  // Affiliate payout request ledger. Money stored as INTEGER micro-USD
+  // (1 USD = 1e6) — float64 is exact for integers ≪ 2^53, so no precision loss.
+  // `status` is a free-form string (e.g. "requested" | "paid" | "failed").
   affiliatePayouts: defineTable({
     pubkey: v.string(), // affiliate being paid
     amountMicroUsd: v.number(), // integer micro-USD value at request time
     status: v.string(),
     at: v.number(),
-    // Paid out as $ELIZA to an EVM/Solana wallet (mirrors ElizaCloud redemption).
+    // Requested as $ELIZA to an EVM/Solana wallet.
     network: v.optional(v.string()),
     address: v.optional(v.string()),
     amountEliza: v.optional(v.number()), // $ELIZA tokens at request-time price

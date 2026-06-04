@@ -7,6 +7,7 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { previewText } from "./agentTrace";
+import { Logger } from "./logger";
 import { agentNamespace, getRag, ragConfigured } from "./ragInstance";
 import { resolveRole } from "./rbac";
 
@@ -20,6 +21,7 @@ export type KnowledgeHit = {
 export type KnowledgeSearchResult = {
   configured: boolean;
   hits: KnowledgeHit[];
+  error?: "search_failed";
 };
 
 async function requireOwnedAgentId(
@@ -91,8 +93,11 @@ export const search = internalAction({
         })),
       };
     } catch (e) {
-      console.error("knowledge.search failed", e);
-      return { configured: true, hits: [] };
+      Logger.error("[Knowledge] search failed", {
+        agentId: String(args.agentId),
+        reason: e instanceof Error ? e.message : String(e),
+      });
+      return { configured: true, hits: [], error: "search_failed" };
     }
   },
 });

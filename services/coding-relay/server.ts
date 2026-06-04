@@ -25,6 +25,7 @@ import {
   encodeToDevice,
   parseWebFrame,
 } from "./broker";
+import { Logger } from "./logger";
 import { saveWorkspaceFromSandbox } from "./workspaceSave";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -447,7 +448,9 @@ Bun.serve<WSData>({
   },
 });
 
-console.log(
-  `coding-relay listening on :${PORT} — e2b ${E2B_API_KEY ? "configured" : "NOT configured"}, ` +
-    `selfhost broker on, convex ${CONVEX_URL}`,
-);
+Logger.info("[CodingRelay] listening", {
+  port: PORT,
+  e2bConfigured: !!E2B_API_KEY,
+  selfhostBroker: true,
+  convexUrl: CONVEX_URL,
+});

@@ -93,11 +93,15 @@ export const agentTurn = workflow
           kind: "memory",
           title: !knowledge.configured
             ? "Knowledge base not configured"
+            : knowledge.error
+              ? "Knowledge retrieval failed"
             : knowledgeHits.length
               ? `Retrieved ${knowledgeHits.length} knowledge chunks`
               : "No matching knowledge for this turn",
           detail: !knowledge.configured
             ? "Set OPENROUTER_API_KEY or OPENAI_API_KEY on Convex to enable @convex-dev/rag."
+            : knowledge.error
+              ? "Semantic retrieval failed; this turn continued without retrieved knowledge."
             : knowledgeHits.length
               ? knowledgeHits.map((h) => previewText(h.text, 80)).join(" · ")
               : "Instructions are indexed; add documents under Instructions → Knowledge.",

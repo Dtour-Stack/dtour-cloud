@@ -1,6 +1,7 @@
 import { McpGateway } from "convex-mcp-gateway";
 import { components, internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
+import { Logger } from "./logger";
 
 const gateway = new McpGateway(components.mcpGateway);
 
@@ -21,9 +22,10 @@ export default internalMutation({
     }
 
     if (!process.env.API_TOKENS_ENCRYPTION_KEY) {
-      console.warn(
-        "[init] API_TOKENS_ENCRYPTION_KEY is unset — sk_* API keys and encrypted provider secrets are disabled until set (see scripts/generate-api-tokens-key.sh).",
-      );
+      Logger.warn("[Init] API token encryption key unset", {
+        apiKeysEnabled: false,
+        encryptedProviderSecretsEnabled: false,
+      });
     }
   },
 });

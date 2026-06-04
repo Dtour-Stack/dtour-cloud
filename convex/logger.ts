@@ -1,0 +1,30 @@
+type LogContext = Record<string, string | number | boolean | null>;
+
+type StderrWriter = {
+  write: (message: string) => void;
+};
+
+type ProcessLike = {
+  stderr?: StderrWriter;
+};
+
+function stderr(): StderrWriter | null {
+  const runtime = globalThis as typeof globalThis & { process?: ProcessLike };
+  return runtime.process?.stderr ?? null;
+}
+
+function write(level: "info" | "warn" | "error", message: string, context?: LogContext) {
+  stderr()?.write(`${JSON.stringify({ level, message, context: context ?? {} })}\n`);
+}
+
+export const Logger = {
+  info(message: string, context?: LogContext) {
+    write("info", message, context);
+  },
+  warn(message: string, context?: LogContext) {
+    write("warn", message, context);
+  },
+  error(message: string, context?: LogContext) {
+    write("error", message, context);
+  },
+};
