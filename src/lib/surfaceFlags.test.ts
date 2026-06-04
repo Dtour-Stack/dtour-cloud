@@ -15,6 +15,9 @@ describe("surfaceFlags", () => {
   test("marks integrated-but-beta surfaces as open beta", () => {
     expect(isRouteEnabled("/design/sketch", DEFAULT_SURFACE_FLAGS)).toBe(true);
     expect(surfaceLabelForRoute("/design/sketch", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
+    expect(isRouteEnabled("/instances", DEFAULT_SURFACE_FLAGS)).toBe(true);
+    expect(surfaceLabelForRoute("/instances", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
+    expect(surfaceMetaForRoute("/instances")?.title).toBe("Remote Runtime");
   });
 
   test("keeps planned surfaces behind coming soon gates", () => {

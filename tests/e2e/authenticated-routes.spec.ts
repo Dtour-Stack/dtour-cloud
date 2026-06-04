@@ -56,6 +56,14 @@ test.describe("authenticated dashboard routes", () => {
     await page.getByRole("button", { name: "Copy approval link" }).click();
     await expect(page.getByText("Approval link copied.")).toBeVisible();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(approvalUrl);
+
+    await page.goto("/instances");
+    await expect(page).toHaveURL(/\/instances$/);
+    await expect(page.getByRole("heading", { name: "Remote Runtime" })).toBeVisible();
+    await expect(page.getByText("24/7 remote")).toBeVisible();
+    await expect(page.getByText("Web UI access")).toBeVisible();
+    await expect(page.getByText("Agent-to-Agent endpoint")).toBeVisible();
+    await expect(page.getByText("Runtime endpoints")).toBeVisible();
   });
 
   test("design studio exposes generate preview and removes AI components inventory", async ({
