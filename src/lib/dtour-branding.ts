@@ -1,8 +1,8 @@
 /**
  * Detour Cloud — Branding + config.
  *
- * $DTOUR gates access to the cloud; holders of >= 0.5% of supply get a
- * 20% discount on usage.
+ * $DTOUR tracks cloud holder status; supported billing paths can apply holder
+ * rates for wallets with >= 0.5% of supply.
  */
 
 import type { BrandingConfig } from "@elizaos/shared/config/branding";
@@ -39,6 +39,6 @@ export const DTOUR_AFFILIATE_CODE = "AFF-0GOWANBA";
 
 // ── Holder discount ──────────────────────────────────────────────────────────
 
-/** Hold >= 0.5% of supply → 20% off usage. */
+/** Hold >= 0.5% of supply → holder rate on supported billing paths. */
 export const DTOUR_DISCOUNT_THRESHOLD = 0.005; // fraction of total supply
 export const DTOUR_HOLDER_DISCOUNT = 0.2; // 20% off

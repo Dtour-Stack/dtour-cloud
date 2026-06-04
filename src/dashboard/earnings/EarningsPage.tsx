@@ -45,7 +45,7 @@ export default function EarningsPage() {
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-white/60">
           Earnings come from the <span className="text-white">affiliate program</span> — your share
-          of the fee on what your referrals spend.{" "}
+          of referred coding sandbox fees.{" "}
           <Link to="/profile/affiliates" className="text-purple-300 hover:underline">
             Manage affiliates & withdraw →
           </Link>

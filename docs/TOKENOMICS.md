@@ -21,9 +21,10 @@ securities/legal disclaimer.
 > cap, simulate-before-send, and an idempotent payout ledger; LP
 > `5ZZLXY1YGvkexPgFQjH5pnhviaDsRut56PgEiYeAyTRE` excluded). See §7.6. **Buyback
 > is documented-but-not-implemented** — no buyback script ships; the `buyback`
-> config block and §6 below document intent only. And the 20% holder discount is
-> **not enforced in live billing** — billing is not wired up, so today the
-> discount is informational (eligibility-check) only.
+> config block and §6 below document intent only. Holder-rate billing is
+> **path-specific**: coding sandboxes apply the holder rate today, while
+> `convex/tokens.ts:holderDiscount` is only an eligibility check for surfaces
+> that have not explicitly wired it into their charge path.
 
 ---
 
@@ -56,16 +57,16 @@ snapshot; see §5.1.)
 
 There are exactly two token utilities. Both are settled; nothing else is promised.
 
-1. **Holding $DTOUR = access to Detour Cloud.** The login gate connects a Solana
-   wallet, verifies a SIWS signature, and (when the on-chain check is enabled)
-   issues a session only to wallets holding $DTOUR. See `CLAUDE.md` → "Auth".
+1. **$DTOUR = Detour Cloud holder status.** Public beta account creation is open
+   with a Solana wallet signature. $DTOUR remains the token used for holder
+   tiers and any token-gated surfaces that are explicitly enabled.
 
-2. **Holders of ≥ 0.5% of supply get 20% off usage.** 0.5% of the fixed 1e9
+2. **Holders of ≥ 0.5% of supply get supported holder rates.** 0.5% of the fixed 1e9
    supply is **5,000,000 $DTOUR**. A wallet holding **≥ 5,000,000 $DTOUR**
-   qualifies for a **20% discount** on Detour Cloud usage. (Detour resells
-   ElizaOS Cloud at a flat 20% markup, so this discount roughly hands the markup
-   back to large holders.) The threshold is **inclusive** — exactly 5,000,000
-   qualifies.
+   qualifies for holder-rate billing where the charge path supports it, starting
+   with coding sandboxes. Do not claim discounts on inference, MCP, top-ups, or
+   other surfaces unless that specific path applies the discount. The threshold
+   is **inclusive** — exactly 5,000,000 qualifies.
 
 ### What the model is NOT
 
@@ -374,10 +375,10 @@ These values match the frontend constants in `src/lib/dtour-branding.ts`
 (`DTOUR_DISCOUNT_THRESHOLD`, `DTOUR_HOLDER_DISCOUNT`), and the eligibility
 denominator is the live total supply (§5.2).
 
-> **The discount is not yet enforced in live billing.** Billing is not wired up
-> in Detour Cloud, so `convex/tokens.ts:holderDiscount` only *reports*
-> eligibility — nothing currently applies a 20% reduction to a charge. Wiring the
-> discount into billing is future work.
+> **Eligibility is not billing.** `convex/tokens.ts:holderDiscount` only reports
+> whether a wallet qualifies. Coding sandbox billing has its own holder-rate
+> branch in `convex/coding.ts`; other surfaces must wire the eligibility result
+> into their own charge path before public copy can claim a discount there.
 
 ### 7.6 Admin Tokenomics surface — config, dry-run, Execute (built)
 
@@ -536,9 +537,9 @@ as an investment.**
 - There is **no promised return, no APY, no interest rate, no guaranteed
   payout**, and **no emissions** (the mint authority is revoked; supply is fixed
   at 1e9). Nothing in this document should be read as a promise of profit.
-- The 20% usage discount is a **product discount** tied to holding a threshold
-  amount of the token, **not** a financial yield. It is **not currently enforced
-  in billing** (§7.5).
+- The holder rate is a **product discount** tied to holding a threshold amount
+  of the token, **not** a financial yield. It applies only on billing paths that
+  explicitly enforce it (§7.5).
 - Distributing rewards funded by fees, framed around token holdings, can
   implicate securities, money-transmission, and consumer-protection law in some
   jurisdictions. **Obtain qualified legal counsel before any public launch of a

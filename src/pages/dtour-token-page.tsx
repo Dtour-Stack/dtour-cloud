@@ -1,8 +1,8 @@
 /**
  * $DTOUR Token — public-facing token page.
  *
- * Settled utility only: access to Detour Cloud, plus a platform-markup waiver
- * for large holders. No staking/yield/burn/revenue-split promises.
+ * Settled utility only: Detour Cloud holder status and supported holder-rate
+ * billing paths. No staking/yield/burn/revenue-split promises.
  * Same visual language as the landing page: dark glass, grid panels, Inter.
  */
 
@@ -46,7 +46,7 @@ export default function DtourTokenPage() {
       {/* ─── Hero ─── */}
       <section className="relative z-10 flex flex-col items-center px-6 pt-16 text-center md:pt-20">
         <div className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-purple-300 backdrop-blur-sm">
-          Access token
+          Holder token
         </div>
         <h1
           className="mt-6 text-5xl font-bold tracking-[-0.02em] md:text-7xl"
@@ -57,8 +57,8 @@ export default function DtourTokenPage() {
           </span>
         </h1>
         <p className="mt-4 max-w-md text-base text-white/60 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
-          Your key to Detour Cloud. Hold $DTOUR to get in — hold enough and your
-          usage drops 20%.
+          The Detour Cloud holder token. Public beta is open; large holders get
+          the live coding sandbox holder rate where billing supports it.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <a
@@ -106,22 +106,22 @@ export default function DtourTokenPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             What $DTOUR does
           </h2>
-          <p className="mt-2 text-sm text-white/45">Two things, and they're real.</p>
+          <p className="mt-2 text-sm text-white/45">Simple utility while the beta rails come online.</p>
         </div>
         <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-2">
           <div className="bg-black/30 p-6 backdrop-blur-md">
             <h3 className="text-sm font-semibold text-white">Access to the cloud</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45">
-              Holding $DTOUR is your key into Detour Cloud — deploy agents, run
-              workflows, and use the full ElizaOS stack on hosted infra.
+              Public beta accounts are open with a Solana wallet signature.
+              $DTOUR remains the holder-status token for Detour Cloud.
             </p>
           </div>
           <div className="bg-black/30 p-6 backdrop-blur-md">
-            <h3 className="text-sm font-semibold text-white">20% off at 0.5%</h3>
+            <h3 className="text-sm font-semibold text-white">Holder rate at 0.5%</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45">
               Hold <span className="text-white/70">0.5% of supply (5M $DTOUR)</span> or
-              more and get a flat <span className="text-white/70">20% discount</span> on
-              everything you run. The holder rate.
+              more and get the live holder rate on supported billing paths, starting with
+              coding sandboxes.
             </p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function DtourTokenPage() {
       {/* ─── CTA ─── */}
       <section className="relative z-10 mx-auto mt-20 max-w-md px-6 pb-24 text-center">
         <h2 className="text-xl font-bold" style={{ textShadow: shadow }}>Get in</h2>
-        <p className="mt-2 text-sm text-white/45">Hold $DTOUR. Use the cloud.</p>
+        <p className="mt-2 text-sm text-white/45">Join the beta. Track your holder status.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <a
             href={`https://pump.fun/coin/${DTOUR_MINT}`}

@@ -48,6 +48,25 @@ type Me = {
   creatorRewardsEligible?: boolean;
 } | null;
 
+type Credits =
+  | {
+      balanceUsd: number;
+      balanceMicroUsd: number;
+      holder: boolean;
+      starterClaimed: boolean;
+      starterUsd: number;
+    }
+  | null
+  | undefined;
+
+const TEST_CREDITS: Exclude<Credits, null | undefined> = {
+  balanceUsd: 0.25,
+  balanceMicroUsd: 250_000,
+  holder: true,
+  starterClaimed: true,
+  starterUsd: 0.25,
+};
+
 const TIERS = [
   { name: "VIP", min: 10_000_000 },
   { name: "Operator", min: 5_000_000 },
@@ -63,6 +82,10 @@ function truncate(addr: string): string {
   return addr.length > 12 ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : addr;
 }
 
+function formatUsd(n: number): string {
+  return `$${n.toFixed(2)}`;
+}
+
 export function DashboardHome() {
   const testUser = readDtourPlaywrightUser();
   const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
@@ -72,11 +95,22 @@ export function DashboardHome() {
     token && !testUser ? { token } : "skip",
   ) as Me | undefined;
   const me = testUser ?? meQuery;
+  const creditsQuery = useQuery(
+    anyApi.coding.myCredits,
+    token && !testUser ? { token } : "skip",
+  ) as Credits;
+  const credits = testUser ? TEST_CREDITS : creditsQuery;
 
   const loading = me === undefined;
+  const creditsLoading = credits === undefined;
   const name = me?.username ? `@${me.username}` : me ? truncate(me.pubkey) : "";
   const balance = me?.balance ?? 0;
   const lifetime = me?.plan === "lifetime";
+  const creditBalance = credits?.balanceUsd ?? 0;
+  const starterUsd = credits?.starterUsd ?? 0.25;
+  const starterReady = credits?.starterClaimed === true;
+  const showStarterCta =
+    starterReady && creditBalance <= Math.max(starterUsd, 0.25) + 0.000001;
   const launcher = LAUNCHER;
 
   return (
@@ -159,12 +193,48 @@ export function DashboardHome() {
         />
         <StatCard
           label="Credits"
-          loading={loading}
-          value={lifetime ? "Unlimited" : "—"}
-          sub={lifetime ? "Lifetime access" : "Connect billing to track"}
+          loading={creditsLoading}
+          value={credits ? formatUsd(creditBalance) : "—"}
+          sub={
+            credits
+              ? [
+                  starterReady
+                    ? `${formatUsd(starterUsd)} starter credit claimed`
+                    : `${formatUsd(starterUsd)} starter credit pending`,
+                  lifetime ? "lifetime plan active" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "Credit wallet unavailable"
+          }
           icon={<Icon.Activity size={16} />}
         />
       </div>
+
+      {showStarterCta && (
+        <Panel
+          className="fade-up mt-4 flex flex-wrap items-center justify-between gap-4 border-emerald-400/20 bg-emerald-400/[0.04] p-4"
+          style={{ animationDelay: "90ms" }}
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-100">
+              <Icon.Zap size={15} />
+              Starter credit is ready
+            </div>
+            <p className="mt-1 text-[12px] text-emerald-100/65">
+              Your {formatUsd(starterUsd)} beta credit is live. Try a first agent turn, then top up when you need paid coding time.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link to="/agents" className={buttonClasses("primary", "sm")}>
+              Try Agents <Icon.ArrowUpRight size={14} />
+            </Link>
+            <Link to="/profile/billing" className={buttonClasses("secondary", "sm")}>
+              Billing
+            </Link>
+          </div>
+        </Panel>
+      )}
 
       {/* Two-column body */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

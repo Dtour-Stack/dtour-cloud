@@ -17,6 +17,9 @@ test.describe("public Detour routes", () => {
 
     await expect(page.getByRole("heading", { name: "$DTOUR", level: 1 })).toBeVisible();
     await expect(page.getByText("DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy")).toBeVisible();
+    await expect(page.getByText("Holder token", { exact: true })).toBeVisible();
+    await expect(page.getByText("Holder rate at 0.5%")).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Detour Cloud" })).toBeVisible();
+    await expect(page.getByText("everything you run")).toHaveCount(0);
   });
 });

@@ -95,8 +95,7 @@ export function AppShell({
       }
     });
   }, [token, testUser, attributeRef]);
-  // Auto-provision the user's own affiliate code + invite link on first session,
-  // so every signup can invite friends and earn $ELIZA from day one.
+  // Auto-provision the user's own affiliate code + invite link on first session.
   const provisionAffiliate = useMutation(anyApi.affiliates.getOrCreateCode);
   useEffect(() => {
     if (token && !testUser) void provisionAffiliate({ token }).catch(() => {});

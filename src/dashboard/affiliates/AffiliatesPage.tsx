@@ -81,9 +81,9 @@ export function AffiliatesHome() {
         <div>
           <h1 className="text-xl font-semibold text-white">Affiliate program</h1>
           <p className="mt-1 text-sm text-white/50">
-            Share your link to earn {share}% of the platform fee on your referrals' top-ups and MCP
-            usage — forever. Earnings are paid as <span className="text-white">$ELIZA</span> to any
-            EVM or Solana wallet. It costs your referrals nothing extra.
+            Share your link to earn {share}% of the platform fee on referred coding sandbox usage
+            while the beta affiliate rail is live. Earnings are paid as{" "}
+            <span className="text-white">$ELIZA</span> to any EVM or Solana wallet.
           </p>
         </div>
 
@@ -97,8 +97,8 @@ export function AffiliatesHome() {
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <div className="text-xs uppercase tracking-widest text-white/50">Your invite link</div>
           <p className="mt-1 text-xs text-white/45">
-            You earn a share of the platform fee on what your referrals spend — accrues as they use
-            paid features.
+            You earn a share of referred coding sandbox fees. Top-ups and MCP connections do not
+            accrue affiliate earnings yet.
           </p>
           <div className="mt-2 flex items-center gap-2">
             <code className="flex-1 break-all rounded bg-black/40 px-3 py-2 font-mono text-xs text-white">

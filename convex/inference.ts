@@ -479,20 +479,23 @@ export const openRouterCreditStatus = action({
     const me = (await ctx.runQuery(api.users.me, { token })) as { role: Role } | null;
     if (!me || !atLeast(me.role, "admin")) throw new Error("Forbidden");
     const key = process.env.OPENROUTER_API_KEY;
+    const reserve = openRouterReserve();
     if (!key) {
       return {
         configured: false,
         status: null,
         paid: { ok: false as const },
         free: { ok: false as const },
+        reserve,
       };
     }
     const keyStatus = await getOpenRouterKeyStatus(ctx, key);
     return {
       configured: true,
       status: keyStatus,
-      paid: keyStatus ? assessOpenRouterCredits(keyStatus, "paid", openRouterReserve()) : null,
-      free: keyStatus ? assessOpenRouterCredits(keyStatus, "free", openRouterReserve()) : null,
+      paid: keyStatus ? assessOpenRouterCredits(keyStatus, "paid", reserve) : null,
+      free: keyStatus ? assessOpenRouterCredits(keyStatus, "free", reserve) : null,
+      reserve,
     };
   },
 });

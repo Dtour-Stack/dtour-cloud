@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action, internalMutation } from "./_generated/server";
+import { STARTER_CREDIT_USD, USD_MICRO, starterCreditSignature } from "./creditConstants";
 import { logEvent } from "./events";
 
 const DTOUR_MINT = "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy";
@@ -10,7 +11,7 @@ const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
 // Where top-up payments land — a Detour-controlled wallet (treasury pool). Same
 // owner for both assets; each asset lands in that owner's per-mint token account.
 const CREDITS_TREASURY = "AtFGjEjRPVogS4P6VHg159Gz1axDKFfauqnZWapKQbzK";
-const USD = 1_000_000;
+const USD = USD_MICRO;
 
 async function rpc(method: string, params: unknown): Promise<any> {
   const url = process.env.SOLANA_RPC_URL || DEFAULT_RPC;
@@ -223,8 +224,6 @@ export const applyTopUp = internalMutation({
 // inference doesn't wall new users at signup. Everyone gets it — INCLUDING
 // lifetime accounts (lifetime also never gets charged for inference, but the
 // grant is universal). Idempotent via a "starter:<pubkey>" ledger marker.
-const STARTER_USD = 0.25;
-
 /** Grant the one-time starter credit if not already granted. Idempotent. */
 export const claimStarter = action({
   args: { token: v.string() },
@@ -241,13 +240,13 @@ export const claimStarter = action({
 export const _grantStarter = internalMutation({
   args: { pubkey: v.string() },
   handler: async (ctx, { pubkey }): Promise<{ granted: boolean; amountUsd?: number }> => {
-    const sig = `starter:${pubkey}`;
+    const sig = starterCreditSignature(pubkey);
     const existing = await ctx.db
       .query("creditTopUps")
       .withIndex("by_signature", (q) => q.eq("signature", sig))
       .unique();
     if (existing) return { granted: false };
-    const usdMicro = Math.round(STARTER_USD * USD);
+    const usdMicro = Math.round(STARTER_CREDIT_USD * USD);
     await ctx.db.insert("creditTopUps", {
       signature: sig,
       pubkey,
@@ -263,7 +262,7 @@ export const _grantStarter = internalMutation({
     if (row) await ctx.db.patch(row._id, { balanceMicroUsd: after, updatedAt: Date.now() });
     else await ctx.db.insert("creditBalances", { pubkey, balanceMicroUsd: after, updatedAt: Date.now() });
     await logEvent(ctx, "credits.starter", { pubkey, data: { usdMicro } });
-    return { granted: true, amountUsd: STARTER_USD };
+    return { granted: true, amountUsd: STARTER_CREDIT_USD };
   },
 });
 

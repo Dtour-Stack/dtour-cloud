@@ -5,6 +5,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { STARTER_CREDIT_USD, USD_MICRO, starterCreditSignature } from "./creditConstants";
 import { logEvent } from "./events";
 import { requireRole } from "./rbac";
 
@@ -25,7 +26,7 @@ export const WORKSPACE_MAX_BYTES = 5 * 1024 * 1024; // 5 MiB compressed archive 
 const DTOUR_SUPPLY = 989_000_000;
 const HOLDER_THRESHOLD = 0.005;
 
-const USD = 1_000_000; // micro-USD per dollar
+const USD = USD_MICRO;
 
 async function sessionPubkey(
   ctx: QueryCtx | MutationCtx,
@@ -110,10 +111,16 @@ export const myCredits = query({
     const pubkey = await sessionPubkey(ctx, token);
     if (!pubkey) return null;
     const micro = await balanceMicro(ctx, pubkey);
+    const starter = await ctx.db
+      .query("creditTopUps")
+      .withIndex("by_signature", (q) => q.eq("signature", starterCreditSignature(pubkey)))
+      .unique();
     return {
       balanceUsd: micro / USD,
       balanceMicroUsd: micro,
       holder: await holderQualifies(ctx, pubkey),
+      starterClaimed: !!starter,
+      starterUsd: starter ? starter.usdMicro / USD : STARTER_CREDIT_USD,
     };
   },
 });

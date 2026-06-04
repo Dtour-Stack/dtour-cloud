@@ -3,8 +3,8 @@ import { AppShell } from "@/dashboard/AppShell";
 import { Icon } from "@/ui";
 
 const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
-  { title: "Getting started", body: "Connect a Solana wallet, hold $DTOUR, and you're in.", to: "/dashboard" },
-  { title: "$DTOUR access & discount", body: "Holding ≥0.5% of supply waives the markup (20% off).", to: "/token" },
+  { title: "Getting started", body: "Connect a Solana wallet and create a beta account.", to: "/dashboard" },
+  { title: "$DTOUR holder tiers", body: "Large holders get the live coding sandbox holder rate where billing supports it.", to: "/token" },
   { title: "Agents", body: "Create lightweight agents — persona + model, no container.", to: "/agents" },
   { title: "Workflows & Design", body: "Compose generation + agent graphs visually.", to: "/design" },
   {
@@ -12,7 +12,7 @@ const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
     body: "E2B ([open-source](https://github.com/e2b-dev/e2b)) + in-browser Sandbox. OpenCode, Codex, Claude, Pi — save keys under Agents in the Coding sidebar, open Guide on /coding.",
     to: "/coding",
   },
-  { title: "Affiliates", body: "Earn a share of the platform fee on referrals.", to: "/profile/affiliates" },
+  { title: "Affiliates", body: "Earn a share of referred coding sandbox fees.", to: "/profile/affiliates" },
   { title: "API", body: "Programmatic access — mint a key, call the Detour API.", to: "/api-keys" },
   { title: "elizaOS docs", body: "The underlying agent runtime documentation.", href: "https://docs.elizaos.ai" },
 ];

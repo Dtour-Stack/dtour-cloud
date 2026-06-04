@@ -27,8 +27,8 @@ export function BillingHome() {
         <div>
           <h1 className="text-xl font-semibold text-white">Billing</h1>
           <p className="mt-1 text-sm text-white/50">
-            USD credits power paid features (coding sandboxes). Top up with $DTOUR at the live rate —
-            volatility risk is taken once, never mid-session.
+            USD credits power paid features: coding sandboxes today, plus metered inference where the
+            paid gateway is enabled. Top up with $DTOUR or USDC; conversion is locked at top-up.
           </p>
         </div>
 
@@ -39,13 +39,13 @@ export function BillingHome() {
               ${(credits?.balanceUsd ?? 0).toFixed(2)}
             </div>
             <Button onClick={() => setTopUp(true)}>
-              <Icon.Plus size={14} /> Top up with $DTOUR
+              <Icon.Plus size={14} /> Top up credits
             </Button>
           </div>
           <div className="mt-3 text-xs text-white/45">
-            {credits?.holder ? "Holder rate" : "Standard rate"}
+            {credits?.holder ? "Coding holder rate" : "Standard coding rate"}
             {rate != null ? ` · ~$${rate.toFixed(2)}/sandbox-hr` : ""}
-            {credits?.holder ? " · 20% holder discount applied" : ""}
+            {credits?.holder ? " · sandbox discount applied" : ""}
           </div>
         </div>
 
@@ -55,7 +55,7 @@ export function BillingHome() {
             <li>• Coding sandboxes are metered per second at E2B's real cost × markup.</li>
             <li>• Holders of ≥0.5% $DTOUR get 20% off coding sandboxes, applied automatically.</li>
             <li>• A small minimum charge per session covers overhead.</li>
-            <li>• Chat and image generation are metered at the gateway's real cost × markup (holder discount applies).</li>
+            <li>• Paid chat and image generation debit credits at gateway cost × configured markup when enabled.</li>
             <li>• Prefer the “Free — rate-limited” model for zero-cost inference (no credits used, daily cap).</li>
           </ul>
         </div>

@@ -63,10 +63,10 @@ export default function DtourLoginPage() {
               {/* Holder callout */}
               <div className="border-t border-white/10 pt-4 text-center">
                 <p className="text-xs text-white/50">
-                  $DTOUR gives usage discounts and holder tiers
+                  Public beta is open; $DTOUR tracks holder tiers
                 </p>
                 <p className="mt-1 text-[10px] text-white/30">
-                  Hold 0.5% of supply or more for 20% off usage
+                  0.5%+ holders get the coding sandbox holder rate
                 </p>
               </div>
 

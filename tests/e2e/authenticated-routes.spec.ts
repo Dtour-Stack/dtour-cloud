@@ -16,6 +16,9 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("link", { name: /Coding/i })).toBeVisible();
     await expect(page.getByText("Open beta").first()).toBeVisible();
     await expect(page.getByText("Coming soon").first()).toBeVisible();
+    await expect(page.getByText("$0.25 starter credit claimed")).toBeVisible();
+    await expect(page.getByText("Starter credit is ready")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Try Agents/i })).toBeVisible();
   });
 
   test("open beta users can reach beta dashboards", async ({ page }) => {
@@ -89,6 +92,12 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("button", { name: "Admin", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Requests/i })).toBeVisible();
+    await expect(page.getByText("OpenRouter credit health")).toBeVisible();
+    await expect(page.getByText("Remaining balance")).toBeVisible();
+    await expect(page.getByText("$4.25", { exact: true })).toBeVisible();
+    await expect(page.getByText("Paid traffic", { exact: true })).toBeVisible();
+    await expect(page.getByText("Free traffic", { exact: true })).toBeVisible();
+    await expect(page.getByText("OpenRouter credit warning:")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open Admin Detour" })).toBeVisible();
 
     await page.getByRole("button", { name: "Open Admin Detour" }).click();
@@ -113,5 +122,24 @@ test.describe("authenticated dashboard routes", () => {
     await expect(
       page.getByText("Programmatic access keys are being hardened before public launch."),
     ).toBeVisible();
+  });
+
+  test("billing, affiliate, and docs copy matches open beta rails", async ({ page }) => {
+    await page.goto("/profile/billing");
+
+    await expect(
+      page.getByText("Paid chat and image generation debit credits at gateway cost"),
+    ).toBeVisible();
+    await expect(page.getByText("holder discount applies")).toHaveCount(0);
+
+    await page.goto("/profile/affiliates");
+    await expect(
+      page.getByText("Top-ups and MCP connections do not accrue affiliate earnings yet."),
+    ).toBeVisible();
+
+    await page.goto("/docs");
+    await expect(page.getByText("Connect a Solana wallet and create a beta account.")).toBeVisible();
+    await expect(page.getByText("Earn a share of referred coding sandbox fees.")).toBeVisible();
+    await expect(page.getByText("waives the markup")).toHaveCount(0);
   });
 });
