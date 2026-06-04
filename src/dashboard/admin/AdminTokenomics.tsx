@@ -155,9 +155,9 @@ export function AdminTokenomics() {
       <header className="fade-up">
         <h1 className="text-2xl font-semibold tracking-tight">Tokenomics</h1>
         <p className="mt-1 text-[13px] text-white/45">
-          Configure the creator-fee split + holder discount, and preview a
-          distribution. $DTOUR holders ≥0.5% of supply get 20% off; rewards are a
-          share of real fees — no emissions.
+          Configure the creator-fee split, preview holder distributions, and tune
+          the metered-inference markup below. Coding sandboxes use the live
+          holder rate; rewards are a share of real fees — no emissions.
         </p>
       </header>
 

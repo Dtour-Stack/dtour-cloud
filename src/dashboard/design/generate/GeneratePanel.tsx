@@ -113,7 +113,7 @@ const STARTER_HTML = `<!doctype html>
         <div class="top">
           <div>
             <h1>Creator command dashboard</h1>
-            <p>Track agents, tasks, rewards, and model health from one focused workspace.</p>
+            <p>Track agents, tasks, usage, and model health from one focused workspace.</p>
           </div>
           <button class="pill" id="mode">Live mode</button>
         </div>
@@ -121,7 +121,7 @@ const STARTER_HTML = `<!doctype html>
           <header><h2>Workspace health</h2><span class="accent">Ready</span></header>
           <div class="cards">
             <div class="card"><div class="label">Agents</div><div class="value">12</div></div>
-            <div class="card"><div class="label">Creator rewards</div><div class="value">$842</div></div>
+            <div class="card"><div class="label">Credit usage</div><div class="value">$24</div></div>
             <div class="card"><div class="label">Tasks queued</div><div class="value">31</div></div>
           </div>
         </section>
