@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
+import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { GuidedTour } from "@/dashboard/design/GuidedTour";
@@ -178,6 +179,7 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
 
   const canApproveLinkedCode = Boolean(token && info?.status === "pending" && !busy);
   const linkedDeviceName = info?.status === "pending" ? info.deviceName : null;
+  const approvalUrl = typeof window === "undefined" ? "" : window.location.href;
   const linkedStatus =
     info === undefined
       ? "Checking pairing code"
@@ -199,32 +201,51 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
         <div className="space-y-3">
           <p className="text-[13px] leading-relaxed text-white/60">
             Link{" "}
-            <span className="font-medium text-white/90">{linkedDeviceName ?? "this desktop"}</span>{" "}
+            <span className="font-medium text-white/90">
+              {linkedDeviceName ?? "this desktop"}
+            </span>{" "}
             to run coding sessions on your own machine with no sandbox charge.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="w-fit rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm tracking-widest text-white/75">
-              {normalizedPrefillCode}
-            </code>
-            <button
-              type="button"
-              onClick={() => approveCode(normalizedPrefillCode)}
-              disabled={!canApproveLinkedCode}
-              className="w-fit rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
-            >
-              {busy
-                ? "Approving..."
-                : linkedDeviceName
-                  ? `Approve ${linkedDeviceName}`
-                  : "Approve desktop"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void copyApprovalLink()}
-              className="w-fit rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
-            >
-              Copy approval link
-            </button>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:pt-1">
+              <code className="w-fit rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm tracking-widest text-white/75">
+                {normalizedPrefillCode}
+              </code>
+              <button
+                type="button"
+                onClick={() => approveCode(normalizedPrefillCode)}
+                disabled={!canApproveLinkedCode}
+                className="w-fit rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
+              >
+                {busy
+                  ? "Approving..."
+                  : linkedDeviceName
+                    ? `Approve ${linkedDeviceName}`
+                    : "Approve desktop"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void copyApprovalLink()}
+                className="w-fit rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                Copy approval link
+              </button>
+            </div>
+            {approvalUrl && (
+              <div className="order-first flex w-fit flex-col items-center gap-2 rounded-xl border border-white/10 bg-black/30 p-3 sm:order-none">
+                <div className="rounded-lg bg-white p-2">
+                  <QRCodeSVG
+                    value={approvalUrl}
+                    size={104}
+                    role="img"
+                    aria-label="Approval QR code"
+                  />
+                </div>
+                <span className="text-center text-[10px] font-medium uppercase tracking-wide text-white/35">
+                  Scan to approve
+                </span>
+              </div>
+            )}
           </div>
           <p
             className={cn(
@@ -256,8 +277,8 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
         <>
           <p className="mb-3 text-[12px] leading-relaxed text-white/45">
             Open the <span className="text-white/70">Detour desktop app</span> → enable Self-host →
-            scan its approval link, or enter the 8-character code it shows. Sessions then run on
-            your own computer — no sandbox charge.
+            scan its QR, copy its approval link, or enter the 8-character code it shows. Sessions
+            then run on your own computer — no sandbox charge.
           </p>
           <div className="flex items-center gap-2">
             <input
