@@ -45,6 +45,7 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("heading", { name: "Approve this desktop" })).toBeVisible();
     await expect(page.getByText("ABCD1234")).toBeVisible();
     await expect(page.getByRole("button", { name: /Approve desktop/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Copy approval link" })).toBeVisible();
   });
 
   test("design studio exposes generate preview and removes AI components inventory", async ({

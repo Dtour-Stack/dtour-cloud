@@ -141,6 +141,7 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
   const [code, setCode] = useState(normalizedPrefillCode);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   useEffect(() => {
     if (deepLinked) setCode(normalizedPrefillCode);
@@ -159,6 +160,19 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "Pairing failed" });
     } finally {
       setBusy(false);
+    }
+  };
+
+  const copyApprovalLink = async () => {
+    if (!navigator.clipboard) {
+      setCopyState("failed");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
     }
   };
 
@@ -204,6 +218,13 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
                   ? `Approve ${linkedDeviceName}`
                   : "Approve desktop"}
             </button>
+            <button
+              type="button"
+              onClick={() => void copyApprovalLink()}
+              className="w-fit rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              Copy approval link
+            </button>
           </div>
           <p
             className={cn(
@@ -213,6 +234,18 @@ function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
           >
             {linkedStatus}
           </p>
+          {copyState !== "idle" && (
+            <p
+              className={cn(
+                "text-[12px]",
+                copyState === "copied" ? "text-emerald-300/90" : "text-amber-300/90",
+              )}
+            >
+              {copyState === "copied"
+                ? "Approval link copied."
+                : "Could not copy approval link."}
+            </p>
+          )}
           {msg && (
             <p className={cn("text-[12px]", msg.ok ? "text-emerald-300/90" : "text-amber-300/90")}>
               {msg.text}
