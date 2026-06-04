@@ -82,8 +82,8 @@ export function AffiliatesHome() {
           <h1 className="text-xl font-semibold text-white">Affiliate program</h1>
           <p className="mt-1 text-sm text-white/50">
             Share your link to earn {share}% of the platform fee on referred coding sandbox usage
-            while the beta affiliate rail is live. Earnings are paid as{" "}
-            <span className="text-white">$ELIZA</span> to any EVM or Solana wallet.
+            while the beta affiliate rail is live. Pending earnings can be requested as{" "}
+            <span className="text-white">$ELIZA</span> after a payout wallet is saved.
           </p>
         </div>
 
@@ -152,7 +152,7 @@ export function AffiliatesHome() {
         {/* Payout */}
         <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <div>
-            <div className="text-sm text-white">Withdraw</div>
+            <div className="text-sm text-white">Payout request</div>
             <div className="text-xs text-white/45">
               Pending {stats?.pendingEliza.toFixed(2) ?? "0.00"} $ELIZA
               {stats && stats.elizaPriceUsd > 0 ? ` (~$${stats.pendingUsd.toFixed(2)})` : ""}
@@ -163,7 +163,7 @@ export function AffiliatesHome() {
             disabled={!stats || stats.pendingEliza <= 0 || !stats.payoutAddress}
             onClick={payout}
           >
-            Withdraw $ELIZA
+            Request $ELIZA payout
           </Button>
         </div>
 

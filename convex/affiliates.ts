@@ -1,14 +1,12 @@
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { type MutationCtx, type QueryCtx, action, mutation, query } from "./_generated/server";
+import { affiliateEarningsMicroForUsage } from "./affiliateEarnings";
 import { logEvent } from "./events";
 
-// White-label of ElizaCloud's affiliate program: an affiliate earns a share of
-// the MARKUP on their referrals' top-ups + usage, paid out as $ELIZA to an EVM
-// or Solana wallet (mirrors ElizaCloud — earnings are denominated in $ELIZA,
-// referral links use the ?ref= convention, withdrawal goes to EVM/Solana).
+// White-label affiliate rail: referrers earn a share of realized margin on
+// referred coding sandbox usage, requested as $ELIZA to an EVM or Solana wallet.
 const DEFAULT_SHARE_BPS = 2000; // 20%
-const MARKUP_FRACTION = 1.0; // 2× pricing → markup is half the price (see coding.ts)
 const USD = 1_000_000;
 
 // $ELIZA token — addresses from the vendored ElizaCloud config (eliza-token-price).
@@ -53,7 +51,7 @@ async function elizaPriceUsd(): Promise<number> {
   }
 }
 
-/** Pending (unpaid) earnings in micro-USD for an affiliate — markup share only. */
+/** Pending (unpaid) earnings in micro-USD for an affiliate — coding margin share only. */
 async function pendingMicroFor(
   ctx: QueryCtx | MutationCtx,
   pubkey: string,
@@ -69,8 +67,16 @@ async function pendingMicroFor(
       .query("codingUsage")
       .withIndex("by_pubkey", (q) => q.eq("pubkey", r.referredPubkey))
       .collect();
-    const spend = usage.reduce((s, u) => s + (u.priceMicroUsd ?? 0), 0);
-    earnedMicro += spend * (MARKUP_FRACTION / (1 + MARKUP_FRACTION)) * (shareBps / 10000);
+    earnedMicro += usage.reduce(
+      (sum, u) =>
+        sum +
+        affiliateEarningsMicroForUsage({
+          costMicroUsd: u.costMicroUsd,
+          priceMicroUsd: u.priceMicroUsd,
+          shareBps,
+        }),
+      0,
+    );
   }
   earnedMicro = Math.round(earnedMicro);
   const paid = (

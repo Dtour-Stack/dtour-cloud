@@ -32,8 +32,9 @@ export default function EarningsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Earnings</h1>
           <p className="mt-1 text-sm text-white/50">
-            Your affiliate revenue, paid as <span className="text-white">$ELIZA</span> to an EVM or
-            Solana wallet. Dev/tester accounts are also marked for creator reward splits.
+            Your affiliate revenue from referred coding sandbox margin, shown in{" "}
+            <span className="text-white">$ELIZA</span> terms for payout requests. Dev/tester
+            accounts are also marked for creator reward splits.
           </p>
         </div>
 
@@ -47,7 +48,7 @@ export default function EarningsPage() {
           Earnings come from the <span className="text-white">affiliate program</span> — your share
           of referred coding sandbox fees.{" "}
           <Link to="/profile/affiliates" className="text-purple-300 hover:underline">
-            Manage affiliates & withdraw →
+            Manage affiliates & request payout →
           </Link>
         </div>
         {me?.creatorRewardsEligible && (

@@ -13,6 +13,9 @@ test.describe("public Detour routes", () => {
     await expect(page.getByText("Real tool use")).toHaveCount(0);
     await expect(page.getByText("Full REST API per agent")).toHaveCount(0);
     await expect(page.getByText("App and instance deployment are planned surfaces")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Surfaces In View" })).toBeVisible();
+    await expect(page.getByText("Launch gated")).toBeVisible();
+    await expect(page.getByText("Embed anywhere")).toHaveCount(0);
   });
 
   test("token page renders access-token details", async ({ page }) => {

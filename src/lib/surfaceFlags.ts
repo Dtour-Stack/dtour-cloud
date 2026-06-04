@@ -42,7 +42,7 @@ export const ROUTE_SURFACE_META: Record<string, RouteSurfaceMeta> = {
     status: "live",
     defaultEnabled: true,
     title: "Affiliates",
-    description: "$ELIZA referral links and payout wallet settings.",
+    description: "$ELIZA referral links and payout request settings.",
   },
   "/billing": {
     flag: "surface_billing",
@@ -56,7 +56,7 @@ export const ROUTE_SURFACE_META: Record<string, RouteSurfaceMeta> = {
     status: "live",
     defaultEnabled: true,
     title: "Affiliates",
-    description: "$ELIZA referral links and payout wallet settings.",
+    description: "$ELIZA referral links and payout request settings.",
   },
   "/analytics": {
     flag: "surface_analytics",

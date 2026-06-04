@@ -146,6 +146,8 @@ test.describe("authenticated dashboard routes", () => {
     await expect(
       page.getByText("Top-ups and MCP connections do not accrue affiliate earnings yet."),
     ).toBeVisible();
+    await expect(page.getByText(/Pending earnings can be requested as \$ELIZA/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Request $ELIZA payout" })).toBeVisible();
 
     await page.goto("/docs");
     await expect(page.getByText("Connect a Solana wallet and create a beta account.")).toBeVisible();

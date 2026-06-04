@@ -114,24 +114,24 @@ export default function DtourLandingPage() {
         </div>
       </section>
 
-      {/* ─── Deploy Targets ─── */}
+      {/* ─── Rollout Targets ─── */}
       <section className="relative z-10 mx-auto max-w-4xl px-6 pb-20">
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
-            Deploy Anywhere
+            Surfaces In View
           </h2>
-          <p className="mt-2 text-sm text-white/50">One agent. Multiple surfaces.</p>
+          <p className="mt-2 text-sm text-white/50">Live beta paths plus gated rollout targets.</p>
         </div>
         <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-4">
           {[
-            { label: "Detour Cloud", sub: "Hosted ElizaCloud infra" },
-            { label: "macOS", sub: "Swoosh menu-bar app" },
-            { label: "iPhone", sub: "Swoosh iOS companion" },
-            { label: "Self-Hosted", sub: "Your own VPS / server" },
-            { label: "Discord", sub: "Bot in any server" },
-            { label: "Telegram", sub: "Bot in any group" },
-            { label: "Twitter / X", sub: "Autonomous posting" },
-            { label: "REST API", sub: "Embed anywhere" },
+            { label: "Detour Cloud", sub: "Open beta dashboard" },
+            { label: "macOS", sub: "Swoosh runtime path" },
+            { label: "iPhone", sub: "Companion path" },
+            { label: "Self-Hosted", sub: "Pairing beta" },
+            { label: "Discord", sub: "Connector planned" },
+            { label: "Telegram", sub: "Connector planned" },
+            { label: "Twitter / X", sub: "Connector planned" },
+            { label: "REST API", sub: "Launch gated" },
           ].map((d) => (
             <div key={d.label} className="bg-black/30 p-5 text-center backdrop-blur-md transition-colors hover:bg-black/40">
               <div className="text-sm font-semibold text-white">{d.label}</div>

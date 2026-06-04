@@ -28,7 +28,7 @@ billing/UX layer only. Against the **point-solution clouds** we win by bundling.
 | Pricing visibility | opaque token math | **transparent USD price preview** before every run | "No surprise markup" is the bar OpenRouter/Vercel set |
 | Holder perk | none | **$DTOUR holder rate on supported billing paths** (coding sandboxes today) | Real, sustainable perk — but a *niche* one (see note) |
 | Onboarding | generic | **custom dashboard + curated templates** | Speed-to-value is the #1 conversion lever |
-| Community earning | per-user affiliate we can't differentiate | **Detour-native affiliate paid in credits** | Earnings recirculate; no cash outflow |
+| Community earning | per-user affiliate we can't differentiate | **Detour-native affiliate on referred coding margin today; credit payouts planned** | Keeps live earnings inside shipped rails while the credit-payout rail is built |
 
 ### vs the point clouds (OpenRouter / Vercel / Together / Fal / E2B / Modal)
 
