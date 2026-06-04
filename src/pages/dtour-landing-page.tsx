@@ -99,12 +99,12 @@ export default function DtourLandingPage() {
         </div>
         <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-3">
           {[
-            { title: "Autonomous Agents", desc: "Deploy agents that chat, reason, use tools, and act. Full personality, memory, and session persistence." },
-            { title: "Plugins & MCP", desc: "Connect any MCP server or ElizaOS plugin — DeFi protocols, databases, APIs. Real tool use." },
-            { title: "Skills & Workflows", desc: "Replayable workflows. Skills your agent learns. Automate complex multi-step tasks." },
-            { title: "Multi-Platform Chat", desc: "Deploy to Discord, Telegram, Twitter/X, or embed via REST API in your own app." },
-            { title: "API Keys & Webhooks", desc: "Full REST API per agent. Webhook triggers, session management, programmatic control." },
-            { title: "Containerized Deploy", desc: "Deploy full-stack apps alongside your agents. Custom UIs, dashboards, frontends." },
+            { title: "Autonomous Agents", desc: "Create agents for chat, design, and coding workflows while runtime deploy surfaces finish hardening." },
+            { title: "Plugins & MCP", desc: "Browse the MCP direction now; live tool execution opens after transport, auth, and metering are verified." },
+            { title: "Skills & Workflows", desc: "Build and preview workflow-shaped automations before connecting them to paid production rails." },
+            { title: "Multi-Platform Chat", desc: "Gateway connectors are on the roadmap; today the beta focuses on web chat, design, and coding surfaces." },
+            { title: "API Keys & Webhooks", desc: "Developer docs and route status are open; programmatic keys stay gated until launch hardening is complete." },
+            { title: "Containerized Deploy", desc: "App and instance deployment are planned surfaces, pending verified provisioning and spend controls." },
           ].map((f) => (
             <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-colors hover:bg-black/40">
               <h3 className="text-sm font-semibold text-white">{f.title}</h3>

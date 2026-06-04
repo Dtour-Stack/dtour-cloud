@@ -16,7 +16,7 @@ const TABS = [
 
 export default function DevelopersPage() {
   const flags = useFlags();
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("explorer");
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("docs");
   const active = TABS.find((t) => t.key === tab) ?? TABS[0];
   const activeLabel = surfaceLabelForRoute(active.route, flags);
   return (

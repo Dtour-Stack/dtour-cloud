@@ -118,6 +118,11 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("button", { name: /Create/i })).toHaveCount(0);
 
     await page.goto("/developers");
+    await expect(page.getByRole("button", { name: "Docs Open beta", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "API Explorer Coming soon", exact: true }).click();
+    await expect(
+      page.getByText("Live proxy calls will open after metering and key auth are hardened."),
+    ).toBeVisible();
     await page.getByRole("button", { name: "API Keys Coming soon", exact: true }).click();
     await expect(
       page.getByText("Programmatic access keys are being hardened before public launch."),
@@ -141,5 +146,10 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("Connect a Solana wallet and create a beta account.")).toBeVisible();
     await expect(page.getByText("Earn a share of referred coding sandbox fees.")).toBeVisible();
     await expect(page.getByText("waives the markup")).toHaveCount(0);
+
+    await page.goto("/api-explorer");
+    await expect(
+      page.getByText("Live proxy calls will open after metering and key auth are hardened."),
+    ).toBeVisible();
   });
 });

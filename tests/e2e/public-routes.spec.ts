@@ -10,6 +10,9 @@ test.describe("public Detour routes", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Get Started" })).toBeVisible();
     await expect(page.getByRole("link", { name: "$DTOUR Token" })).toBeVisible();
+    await expect(page.getByText("Real tool use")).toHaveCount(0);
+    await expect(page.getByText("Full REST API per agent")).toHaveCount(0);
+    await expect(page.getByText("App and instance deployment are planned surfaces")).toBeVisible();
   });
 
   test("token page renders access-token details", async ({ page }) => {

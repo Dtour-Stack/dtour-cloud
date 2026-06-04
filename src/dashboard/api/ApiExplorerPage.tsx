@@ -72,6 +72,7 @@ const GROUPS: { group: string; routes: Route[] }[] = [
 ];
 
 const COLOR: Record<string, string> = { GET: "text-sky-300", POST: "text-emerald-300" };
+const CALLABLE_METHODS = new Set(["GET"]);
 
 export default function ApiExplorerPage({ embedded = false }: { embedded?: boolean } = {}) {
   const token = getDtourSessionToken();
@@ -93,6 +94,10 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
 
   async function send() {
     if (!token) return;
+    if (!CALLABLE_METHODS.has(method)) {
+      setResp("Write and metered calls stay disabled until credit metering and API-key auth are enforced.");
+      return;
+    }
     setBusy(true);
     setResp(null);
     try {
@@ -115,7 +120,7 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
         <div>
           <h1 className="text-xl font-semibold text-white">API Explorer</h1>
           <p className="mt-1 text-sm text-white/50">
-            The Detour API (proxied to ElizaCloud).{" "}
+            Route catalog for the Detour API proxy. Live calls stay limited to read-only checks until metering and API-key auth are hardened.{" "}
             {apiKeysLabel === "Coming soon" ? (
               <>
                 API keys are behind launch hardening.{" "}
@@ -180,7 +185,7 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
             <div className="mb-2 text-xs uppercase tracking-widest text-white/45">{g.group}</div>
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
               {g.routes.map((r) => {
-                const unavailable = r.flag ? flags[r.flag] !== true : false;
+                const unavailable = (r.flag ? flags[r.flag] !== true : false) || !CALLABLE_METHODS.has(r.method);
                 return (
                   <button
                     type="button"
@@ -206,7 +211,7 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
                     <span className="ml-auto text-xs text-white/40">{r.desc}</span>
                     {unavailable && (
                       <Badge tone="warning" className="px-1.5 py-0 text-[9px]">
-                        Coming soon
+                        {CALLABLE_METHODS.has(r.method) ? "Coming soon" : "Metering first"}
                       </Badge>
                     )}
                   </button>

@@ -15,42 +15,48 @@ hub **one at a time** — check them off as they land.
 
 ---
 
-## 1. Identity & Auth  ☐
+## 1. Identity & Auth  ◐
 Wallet + session auth. Dtour replaces the login with the **$DTOUR token gate**
 (SIWS + on-chain balance, in Convex) — these are the ElizaCloud equivalents.
 - **API:** `auth/siws/nonce`, `auth/siws/verify`, `auth/siwe/nonce`, `auth/siwe/verify`, `auth/steward-session`, `auth/steward-refresh`, `auth/cli-session`, `auth/pair`, `auth/logout`, `auth/anonymous-session`, `auth/migrate-anonymous`, `internal/auth/token`, `internal/auth/refresh`, `.well-known/jwks.json`, `v1/oauth/*`, `v1/api-keys` (3)
 - **Dashboard:** `api-keys`, `security`, `security/permissions`, `settings`
-- **Dtour:** gate via Convex; api-keys/permissions can proxy later.
+- **Dtour:** Convex SIWS token gate and sessions are live; API keys and
+  permissions stay planned until programmatic auth is actually enforced.
 
-## 2. Agents  ☐
+## 2. Agents  ◐
 Create, save, run agents; agent-to-agent + per-agent MCP.
 - **API:** `v1/agents` (3), `agents/:id/a2a`, `agents/:id/mcp`, `my-agents/characters`, `my-agents/saved`, `my-agents/saved/:id`, `a2a`, `compat/agents` (+ `:id`, `availability`, `jobs/:jobId` — OpenAI-compatible)
 - **Dashboard:** `agents`, `agents/[id]`, `my-agents`
-- **Dtour:** proxy; core white-label product surface.
+- **Dtour:** basic chat/agent surfaces are open; full deploy/runtime and per-agent
+  MCP remain planned.
 
-## 3. Chat & Inference  ☐
+## 3. Chat & Inference  ◐
 LLM chat/completions, responses, message routing, model catalog.
 - **API:** `v1/chat` (2), `v1/responses`, `v1/messages`, `v1/models` (3), `v1/pricing`, `compat/*` (OpenAI-compatible endpoint), `v1/eliza` (5), `eliza/rooms`, `eliza/rooms/:roomId`, `v1/search`, `v1/rpc`
 - **Dashboard:** `api-explorer`, `chat` (`/chat/[characterRef]`)
-- **Dtour:** proxy + markup on inference billing.
+- **Dtour:** OpenRouter/Eliza routing and reserve checks exist; complete
+  per-call credit metering is still the keystone before broad promotion.
 
-## 4. Credits & Billing  ☐
+## 4. Credits & Billing  ◐
 Credit balance, top-ups, auto-top-up, quotas, invoices, Stripe.
 - **API:** `credits/balance`, `credits/transactions`, `v1/credits` (4), `v1/topup` (3), `auto-top-up/trigger`, `v1/billing` (3), `v1/stripe` (2), `stripe` (2), `quotas/usage`, `invoices/list`, `invoices/:id`, `stats/account`, `v1/app-credits` (2)
 - **Dashboard:** `billing`, `billing/success`, `invoices`, `invoices/[id]`
-- **Dtour:** **markup (+20%)** applied here — this is the revenue surface.
+- **Dtour:** credit balances, starter credit, Solana top-ups, and coding billing
+  are live; invoices, auto-top-up, and complete inference billing remain planned.
 
-## 5. Crypto & Payments  ☐
+## 5. Crypto & Payments  ◐
 On-chain payments, x402, Solana, redemptions, referrals, affiliates.
 - **API:** `crypto/payments` (+`:id`), `crypto/direct-payments`, `crypto/status`, `crypto/webhook`, `v1/x402` (5), `v1/solana` (2), `v1/redemptions` (5), `v1/referrals` (2), `v1/affiliates` (2), `v1/payment-requests`, `signup-code/redeem`
 - **Dashboard:** `affiliates`, `earnings`
-- **Dtour:** ties into $DTOUR economy; proxy + dtour fee split.
+- **Dtour:** $DTOUR gate and credit top-ups are live; affiliate earnings only
+  apply to referred coding sandbox fees until additional metered bases ship.
 
 ## 6. MCP (Model Context Protocol)  ☐
 Hosted MCP servers + proxy/registry/streaming.
 - **API:** `mcp` (+`info`,`list`,`proxy/:mcpId`,`registry`,`stream`), `mcps/*` (asana, jira, zoom, time, weather, crypto), `v1/mcps` (2), `eliza-app/connections`
 - **Dashboard:** `mcps`
-- **Dtour:** proxy; key differentiator (tool use).
+- **Dtour:** catalog/connection surfaces are planned; no live tool execution claim
+  until transport, auth, and metering are verified.
 
 ## 7. Voice & Audio  ☐
 TTS, STT, voice catalog/cloning.
@@ -58,11 +64,12 @@ TTS, STT, voice catalog/cloning.
 - **Dashboard:** (within agent/settings)
 - **Dtour:** proxy + markup.
 
-## 8. Media Generation  ☐
+## 8. Media Generation  ◐
 Image/video generation via fal + gallery.
 - **API:** `fal/proxy`, `v1/video` (2), `v1/gallery` (4)
 - **Dashboard:** (gallery)
-- **Dtour:** proxy + markup.
+- **Dtour:** gallery/media UI exists, but broad paid media generation still needs
+  complete credit metering and spend controls.
 
 ## 9. Apps & Deployments  ☐
 Containerized full-stack app deploys + custom domains.
@@ -82,11 +89,12 @@ Document upload/storage/processing for agents.
 - **Dashboard:** `documents`
 - **Dtour:** proxy.
 
-## 12. Analytics & Stats  ☐
+## 12. Analytics & Stats  ◐
 Usage analytics, exports, projections, reporting.
 - **API:** `analytics/overview`, `analytics/breakdown`, `analytics/export`, `analytics/projections`, `v1/track`, `v1/reports`, `stats/account`
 - **Dashboard:** `analytics`
-- **Dtour:** proxy; could surface dtour-specific metrics.
+- **Dtour:** dashboard/admin analytics and OpenRouter health are live; unified
+  spend-by-surface depends on complete metering.
 
 ## 13. Organizations & Teams  ☐
 Org membership, invites, permissions.

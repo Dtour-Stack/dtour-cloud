@@ -84,7 +84,7 @@ export const ROUTE_SURFACE_META: Record<string, RouteSurfaceMeta> = {
     status: "beta",
     defaultEnabled: true,
     title: "Developers",
-    description: "API explorer, docs, and developer entry points.",
+    description: "Docs, launch status, and hardened developer entry points.",
   },
   "/docs": {
     flag: "surface_developers",
@@ -95,10 +95,10 @@ export const ROUTE_SURFACE_META: Record<string, RouteSurfaceMeta> = {
   },
   "/api-explorer": {
     flag: "surface_api_explorer",
-    status: "beta",
-    defaultEnabled: true,
+    status: "planned",
+    defaultEnabled: false,
     title: "API explorer",
-    description: "Try proxied ElizaCloud API routes from the dashboard.",
+    description: "Live proxy calls will open after metering and key auth are hardened.",
   },
   "/account-hub": {
     flag: "surface_account_hub",

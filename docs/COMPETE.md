@@ -180,7 +180,7 @@ have" is honest: `true` = real extension of existing code; `false` = net-new.
 
 | # | Feature | Why it wins customers | Days | Uses what we have | Revenue / retention impact |
 |---|---|---|---|---|---|
-| **0** | **Honesty pass — fix 3 live broken promises** (affiliate "top-ups & MCP usage" copy, "both earn bonus credits on signup", holder-discount label) | Cheapest trust win; stops shipping lies we already display | **0.5** | ✅ copy/labels only | High (trust); no $ but removes a live credibility risk. **No dependency — do in parallel.** |
+| **0** | **Honesty pass — keep live copy inside shipped rails** (affiliate scope, starter-credit behavior, holder-rate labels, MCP/API/deploy claims) | Cheapest trust win; stops shipping lies while beta rails are still gated | **done, then ongoing** | ✅ copy/labels/gates only | High trust; keep repeating before each new launch surface. |
 | **1** | **Meter inference into credits (KEYSTONE)** — gate + debit chat/media/model calls like coding does; interim flat per-request floor first, token-accurate once the wholesale table lands; new `inferenceUsage` ledger | Plugs the 100%-of-non-coding margin leak; **unlocks every usage-denominated feature below** | **3–5** | ✅ reuses `canStart`/`computePrice`/`creditBalances` pattern | **Highest** — converts the default surfaces (chat/media) from pure cost to margin |
 | **2** | **USDC top-up rail (Solana)** — generalize the $DTOUR rail with an `asset` discriminator; 1:1, no oracle | Predictable stablecoin pay = removes the #1 friction (token volatility) for mainstream users | **1.5** | ✅ ~90% reuse of `credits.ts` | High acquisition; safer than $DTOUR; default the picker to USDC |
 | **3** | **Unified usage dashboard** — spend-by-surface, tokens, top models, live credit burn-down on `/analytics` | Cost control + observability is a top-3 buyer value and a costly retrofit; build it in now | **2** | ✅ extends `analytics.overview` + new ledger | High retention; needs #1 first |
@@ -223,14 +223,17 @@ sits there — lean into _"earn from real usage, paid from real fees."_
 
 ## 5. NOT doing / checks we can't cash
 
-### A. Live lies to FIX first (these get fixed in #0, not listed as non-goals)
+### A. Honesty constraints now enforced in copy/gates
 
-- Affiliate copy claims earnings on **"top-ups and MCP usage"** — code
-  (`pendingMicroFor`) pays **coding markup only**. → fix copy or fix accrual.
-- Affiliate invite card: **"you both earn bonus credits when a friend signs up"**
-  — `attribute()` grants **nothing**. → implement (#9) or delete the line.
-- **Holder 20% discount advertised but not enforced** in billing. → label
-  "coming to billing" until #4 ships, then enforce.
+- Affiliate copy must say earnings accrue from referred coding sandbox fees only
+  until `pendingMicroFor` includes another metered base.
+- Referral copy must not promise two-sided signup credits until #9 ships on first
+  real top-up.
+- Holder copy must say holder rates apply only on supported billing paths,
+  currently coding sandboxes. Do not claim inference, MCP, or top-up discounts
+  until those charge paths enforce them.
+- MCP, API-key, webhook, gateway, and container deploy copy must stay gated or
+  "planned" until auth, metering, and runtime verification are complete.
 
 ### B. Deliberate non-goals (do NOT promise these)
 
@@ -238,11 +241,11 @@ sits there — lean into _"earn from real usage, paid from real fees."_
 |---|---|
 | **Base / EVM USDC** | EVM verify is a fundamentally different shape (ERC-20 Transfer log via `eth_getTransactionReceipt`, new RPC, wagmi/viem stack); our $DTOUR-gated auth can't bind an EVM address to a Solana login pubkey. **v2 only on real EVM demand** — do not build the abstraction now. |
 | **Real MCP execution** | `mcps.ts` only stores id strings — no transport, no tool registration, no execution. Mark "coming soon"; don't imply tools run. Remove/disable the dead `tools.search` workflow node so it stops erroring as if mis-wired. |
-| **Programmatic API-key product** | API keys are **display-only** — `keyHash`/`by_prefix` are never read; `proxy.forward` auths by session, not key. Either wire real key-auth or **hide the Developers surface** — don't ship a fake key system. |
+| **Programmatic API-key product** | API keys are **display-only** — `keyHash`/`by_prefix` are never read; `proxy.forward` auths by session, not key. Keep API keys and live proxy execution behind launch gates until real key-auth and metering ship. |
 | **Out-pricing OpenRouter on raw tokens** | +5.5% / +0% is a bar we can't beat as a reseller paying wholesale. We compete on the **bundle + crypto rail**, not raw-token price. |
 | **Staking / yield / emissions / buyback-as-promise** | $DTOUR is **access + discount only**, funded by pump.fun creator fees. No emissions, no yield, no buyback commitment (buyback is documented-intent only). |
 | **Backend feature parity races vs ElizaCloud** | We resell the same infra. We can't win there; we win on UX + economics. |
-| **`proxy.forward` as a free inference faucet** | Until #1, the API Explorer can run arbitrary ElizaCloud calls for $0. Gate+meter it, or restrict to read-only/GET, before promoting it. |
+| **`proxy.forward` as a free inference faucet** | Until #1, API Explorer must stay gated and any enabled catalog mode must restrict live calls to read-only/GET. Meter before promoting POST/chat/media routes. |
 
 ---
 
