@@ -1,5 +1,5 @@
 /**
- * Detour Markup — 20% on top of ElizaOS Cloud billing. That's it.
+ * Default upstream resale markup attached to proxy requests that consume it.
  */
 
 import type { MiddlewareHandler } from "hono";

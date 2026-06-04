@@ -150,11 +150,13 @@ test.describe("authenticated dashboard routes", () => {
     await page.goto("/docs");
     await expect(page.getByText("Connect a Solana wallet and create a beta account.")).toBeVisible();
     await expect(page.getByText("Earn a share of referred coding sandbox fees.")).toBeVisible();
+    await expect(page.getByText("Programmatic access docs and launch status")).toBeVisible();
     await expect(page.getByText("waives the markup")).toHaveCount(0);
 
     await page.goto("/api-explorer");
     await expect(
       page.getByText("Live proxy calls will open after metering and key auth are hardened."),
     ).toBeVisible();
+    await expect(page.getByText("Mint a key")).toHaveCount(0);
   });
 });

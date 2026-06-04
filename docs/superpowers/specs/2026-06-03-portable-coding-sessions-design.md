@@ -55,7 +55,7 @@ The **local agent** and the **cloud sandbox** are then **two symmetric backends*
 **Cloud backend** — extends the existing `services/coding-relay` + E2B path:
 - Provisions an E2B sandbox, clones the session branch, builds the file tree, runs the repo's tooling (§6), runs the agent against the prompt, streams PTY + structured events back.
 - Re-attachable: a destroyed sandbox is reprovisioned from the session (branch + workingChanges + env spec) with **zero history loss** (history lives in git + Convex, §5).
-- Billed through the existing `convex/coding.ts` ledger (E2B cost × markup, holder discount).
+- Billed through the existing `convex/coding.ts` ledger (E2B cost × markup, coding holder rate where supported).
 
 **Local backend** — a new small **dtour-agent** in the user's macOS session:
 - Runs as a **LaunchAgent** (user context → has the user's `~/.ssh`, git config, keychain; survives screen lock), `RunAtLoad` + `KeepAlive`.

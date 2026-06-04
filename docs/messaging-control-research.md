@@ -93,11 +93,11 @@ elizacloud.ai has no public pricing page; these are ElizaCloud's **hardcoded rat
 Raw provider (AWS/Hetzner)
   → ×1.2  ElizaCloud price        = DETOUR COST      (agent ≈ $7.20/mo)
      → ×1.2  Detour resale        = DETOUR FLOOR     (agent ≈ $8.64/mo)
-        → ×0.8 $DTOUR holder      = holder price     (≈ $6.91/mo)
+        → holder-rate adjustment  = only after that billing path explicitly supports it
 ```
 **Rule: Detour minimum profitable price = ElizaCloud's price × 1.2.** Passing the ElizaCloud price straight through nets $0.
 
-> ⚠️ **Markup to decide:** the $DTOUR/ElizaCloud resale convention is **×1.2 (20%)** (CLAUDE.md / tokenomics). But `convex/coding.ts` marks **raw E2B up ×1.5 (50%)** — a *different* product (raw infra, not an ElizaCloud resale). Recommendation: **×1.2 for everything sourced from ElizaCloud** (agents/inference/gateway), keep ×1.5 only for raw-E2B coding. Founder to confirm. Both then take the 20% holder discount.
+> ⚠️ **Markup to decide:** the $DTOUR/ElizaCloud resale convention is **×1.2 (20%)** (CLAUDE.md / tokenomics). But `convex/coding.ts` marks **raw E2B up ×1.5 (50%)** — a *different* product (raw infra, not an ElizaCloud resale). Recommendation: **×1.2 for everything sourced from ElizaCloud** (agents/inference/gateway), keep ×1.5 only for raw-E2B coding. Founder to confirm. Do not apply or advertise a holder rate on these add-ons until the specific charge path enforces it and the UI previews it.
 
 ### Self-host transport floor (layer A, if not reselling ElizaCloud transport)
 - **Telegram:** Cloudflare Worker webhook — free to 100k req/day, then **$5/mo flat** for ~10M req, **shared across all users**. ≈ **$0.05/user/mo** at 100 users. Serverless, multiplexes ~infinitely.
@@ -112,7 +112,7 @@ Raw provider (AWS/Hetzner)
 | **iMessage** | $0 marginal (user's Mac) | **$15–20/mo premium** (the differentiator) |
 | **Bundle (all 3)** | — | **$15–20/mo** flat |
 
-- Apply the **20% $DTOUR-holder discount** to the add-on.
+- Keep $DTOUR holder rates off these add-ons until their billing path explicitly supports them.
 - **Meter agent-runtime + inference to the user's credit balance at ×1.2** — the add-on price buys *channel access*; **credits buy the compute**, so Detour never eats variable cost.
 
 ### Cheapest "make money from day one"

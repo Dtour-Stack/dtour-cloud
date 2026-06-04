@@ -130,7 +130,7 @@ export default function ApiExplorerPage({ embedded = false }: { embedded?: boole
               </>
             ) : (
               <>
-                Mint a key in{" "}
+                Manage programmatic access in{" "}
                 <Link to="/api-keys" className="text-purple-300 hover:underline">API Keys</Link>.
               </>
             )}

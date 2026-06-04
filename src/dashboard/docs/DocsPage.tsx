@@ -13,7 +13,7 @@ const TOPICS: { title: string; body: string; to?: string; href?: string }[] = [
     to: "/coding",
   },
   { title: "Affiliates", body: "Earn a share of referred coding sandbox fees.", to: "/profile/affiliates" },
-  { title: "API", body: "Programmatic access — mint a key, call the Detour API.", to: "/api-keys" },
+  { title: "API", body: "Programmatic access docs and launch status; keys stay gated until auth and metering hardening lands.", to: "/api-keys" },
   { title: "elizaOS docs", body: "The underlying agent runtime documentation.", href: "https://docs.elizaos.ai" },
 ];
 

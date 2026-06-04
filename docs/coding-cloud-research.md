@@ -31,7 +31,7 @@ A **white-label E2B reseller with a terminal-only coding surface.** Cleanly sepa
 | Route | File | Purpose |
 | --- | --- | --- |
 | `/coding` | `CodingDashboardPage.tsx` | Terminal (wterm) + WebSocket bridge to the relay; credit display |
-| `/coding/setup` | `CodingSetupPage.tsx` | Backend picker: **runner** (E2B), **sandbox** (browser WASM bash), **selfhost** (stub) |
+| `/coding/setup` | `CodingSetupPage.tsx` | Backend picker: **runner** (E2B), **sandbox** (browser WASM bash), **selfhost** (paired desktop via approval link/manual code) |
 | `/coding/:agent` | `CodingKeysPage.tsx` | Per-agent encrypted API keys (OpenCode/Codex/Claude/Pi) |
 | `/coding/draft` | `CodingDraftPage.tsx` / `DraftLabSection.tsx` | Lightweight agent smoke-test (inference only) |
 | `/coding/saves` | `WorkspaceSavesSection.tsx` | tar.gz workspace snapshots → Convex storage ($0.05 flat) |
@@ -42,13 +42,13 @@ Terminal tech: `@wterm/react` + `@wterm/just-bash` (WASM bash for the free brows
 Bun WebSocket server in Docker. `/coding-ws?token=…&agent=…` → validates dtour session → **credit gate** (`coding.canStart`, min $0.01) → spins **E2B Sandbox** (2 vCPU / 0.5 GiB, 15-min hard cap) → bootstraps env + decrypts the selected agent's key → pipes PTY I/O ↔ WS → on close, `coding.recordSession` meters + debits.
 
 ### Billing (`convex/coding.ts`)
-Raw E2B cost (CPU $0.000014/vCPU-s + RAM $0.0000045/GiB-s) × **1.5 markup**, **20% holder discount** (≥0.5% of $DTOUR supply), $0.01/session min. ~$0.04–0.05/hr non-holder. Ledgers: `creditBalances`, `codingUsage`, `codingWorkspaces`, `codingProviderSecrets` (AES-256-GCM, keys never sent to browser).
+Raw E2B cost (CPU $0.000014/vCPU-s + RAM $0.0000045/GiB-s) × **1.5 markup**, **20% holder rate on coding sandboxes** (≥0.5% of $DTOUR supply), $0.01/session min. ~$0.04–0.05/hr non-holder. Ledgers: `creditBalances`, `codingUsage`, `codingWorkspaces`, `codingProviderSecrets` (AES-256-GCM, keys never sent to browser).
 
 ### Agent integration
 **Draft Lab** does single-turn agent inference (`draftLab.quickTurn`) — **no code execution**, separate ledger. Agents cannot yet run code in the terminal or spawn subagents/workflows there.
 
 ### What's missing (the build surface)
-Code editor (Monaco/CodeMirror) · file tree · LSP · agent-in-the-terminal (run code, spawn subagents/workflows) · persistent shared workspace across agent turns · "self-host" backend (stub) · any SSH / remote-machine / connect-your-computer path (none).
+Code editor (Monaco/CodeMirror) · file tree · LSP · agent-in-the-terminal (run code, spawn subagents/workflows) · persistent shared workspace across agent turns · hardened self-host operational UX beyond pairing/relay · any SSH / remote-machine / connect-your-computer path (none).
 
 ---
 

@@ -42,12 +42,12 @@ Reuse the runtime already vendored in dtour-cloud. It boots a real AgentRuntime 
 
 ## Fees and billing (pass all fees to Eliza)
 
-Detour Cloud is a white-label reseller: ALL underlying usage fees pass through to ElizaOS Cloud, and Detour Cloud charges the $DTOUR-gated user with its flat 20% markup on top. The cloud agent must therefore route every billable operation through ElizaOS Cloud, not through direct provider accounts.
+Detour Cloud is a white-label reseller: underlying usage fees should pass through ElizaCloud where that path is the source of truth, and Detour charges the $DTOUR-gated user through explicitly wired billing paths. The cloud agent must therefore route billable ElizaCloud operations through ElizaCloud, not through direct provider accounts.
 
 - **Inference:** the cloud agent's LLM provider is ElizaOS Cloud (the `elizacloud` plugin + `ELIZAOS_CLOUD_API_KEY`, which the vendored `buildRuntimeSettings` already wires). It does NOT use the desktop's direct provider keys (the codex-chatgpt subscription, OpenRouter, raw Anthropic/OpenAI) for billable calls, because those bypass ElizaCloud billing.
 - **Media / audio / embeddings / web search:** route through ElizaCloud's billable surfaces where they incur cost, so those fees pass too.
 - **Free / non-metered operations** (X via cookie auth, GMGN HTTP, channel sends) do not flow through ElizaCloud billing and run directly.
-- **Detour's take:** the 20% markup is applied at the Detour Cloud billing layer (Convex + the existing reseller plumbing), on top of the pass-through ElizaCloud cost.
+- **Detour's take:** markup is applied at the Detour Cloud billing layer (Convex + the existing reseller plumbing) only where that charge path explicitly supports it.
 
 ## The agent: portable plugin subset
 

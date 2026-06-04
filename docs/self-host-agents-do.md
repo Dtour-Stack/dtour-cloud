@@ -42,7 +42,7 @@ as a hardening pass.
                                             ├─ PVC (DO block storage) — agent memory
                                             └─ image: DOCR/eliza-runtime:<ver>
  inference: serverless (DO Gradient / providers / ElizaCloud) — NOT self-run GPU by default
- metering: Prometheus → Convex → $DTOUR billing (holder discount)
+ metering: Prometheus → Convex → $DTOUR billing (holder rate only after the path supports it)
 ```
 
 | # | Component | DO building block | Notes |
@@ -57,7 +57,7 @@ as a hardening pass.
 | 8 | Inference | **serverless** (DO Gradient serverless inference / OpenAI/Anthropic/ElizaCloud, BYO keys) | **avoid running idle GPUs**; only add a GPU pool for self-hosted open models |
 | 9 | State | DO Block Storage (PVC) + Convex/Postgres + DO Spaces (artifacts) | per-agent memory + assets |
 | 10 | Secrets | external-secrets / sealed-secrets + KMS | per-tenant; never bake into images |
-| 11 | Metering/billing | Prometheus (CPU/mem/GPU-sec/req) → Convex → $DTOUR | mirrors ElizaCloud `cron/container-billing`; apply holder discount |
+| 11 | Metering/billing | Prometheus (CPU/mem/GPU-sec/req) → Convex → $DTOUR | mirrors ElizaCloud `cron/container-billing`; apply holder rates only after the charge path enforces them |
 | 12 | Observability | Prometheus + Grafana + Loki + traces | per-tenant dashboards |
 | 13 | Security | Pod Security "restricted", egress allowlist, image scanning, signed images | gVisor is the backstop, not the only layer |
 

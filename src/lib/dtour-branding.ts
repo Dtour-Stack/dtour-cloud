@@ -30,14 +30,14 @@ export const DTOUR_TOTAL_SUPPLY = 1_000_000_000;
 
 // ── Pricing ──────────────────────────────────────────────────────────────────
 
-/** 20% markup on all ElizaOS Cloud billing */
+/** Legacy upstream resale markup for billing paths that explicitly use it. */
 export const DTOUR_MARKUP = 1.2;
 
 // ── Affiliate ────────────────────────────────────────────────────────────────
 
 export const DTOUR_AFFILIATE_CODE = "AFF-0GOWANBA";
 
-// ── Holder discount ──────────────────────────────────────────────────────────
+// ── Holder rate ──────────────────────────────────────────────────────────────
 
 /** Hold >= 0.5% of supply → holder rate on supported billing paths. */
 export const DTOUR_DISCOUNT_THRESHOLD = 0.005; // fraction of total supply
