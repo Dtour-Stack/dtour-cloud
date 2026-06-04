@@ -133,6 +133,21 @@ export const pollDevicePairing = mutation({
   },
 });
 
+export const pairingInfo = query({
+  args: { code: v.string() },
+  handler: async (ctx, { code }) => {
+    const row = await ctx.db
+      .query("codingDevicePairings")
+      .withIndex("by_code", (q) => q.eq("code", normalizeCode(code)))
+      .unique();
+    if (!row) return null;
+    return {
+      deviceName: row.deviceName,
+      status: effectiveStatus(row, Date.now()),
+    };
+  },
+});
+
 // ── relay: validate a device bearer token ─────────────────────────────────────
 export const deviceByToken = query({
   args: { token: v.string() },

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { GuidedTour } from "@/dashboard/design/GuidedTour";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
@@ -16,9 +16,15 @@ const BACKENDS: { key: CodingBackend; label: string; live: boolean }[] = [
 
 type RelayHealth = { ok: boolean; e2b: boolean; template: string } | null;
 
+function normalizePairCode(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+/g, "");
+}
+
 export function CodingSetupPage() {
   const { backend, setBackend } = useCodingSession();
   const [relay, setRelay] = useState<RelayHealth>(null);
+  const [params] = useSearchParams();
+  const pairCode = normalizePairCode(params.get("pair") ?? "");
 
   useEffect(() => {
     fetch("/coding-health")
@@ -82,7 +88,7 @@ export function CodingSetupPage() {
         </p>
       </section>
 
-      {backend === "selfhost" && <SelfHostPairing />}
+      {(backend === "selfhost" || pairCode) && <SelfHostPairing prefillCode={pairCode} />}
 
       <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-[12px] text-white/55">
         <p className="mb-2 font-medium text-white/80">Platform status</p>
@@ -113,29 +119,41 @@ export function CodingSetupPage() {
 
 type PairedDevice = { id: string; name: string; lastSeenAt: number | null };
 
-/** Link a Detour desktop app to this account so it can serve Self-host sessions.
- *  The app shows an 8-char code (codingDevices.startDevicePairing); entering it
- *  here approves the pairing and mints the device's relay token. */
-function SelfHostPairing() {
+type PairingInfo =
+  | { deviceName: string; status: "pending" | "approved" | "consumed" | "expired" }
+  | null
+  | undefined;
+
+function SelfHostPairing({ prefillCode = "" }: { prefillCode?: string }) {
   const token = getDtourSessionToken();
+  const normalizedPrefillCode = normalizePairCode(prefillCode);
+  const deepLinked = normalizedPrefillCode.length > 0;
   const devices = useQuery(
     anyApi.codingDevices.listDevices,
     token ? { token } : "skip",
   ) as PairedDevice[] | undefined;
+  const info = useQuery(
+    anyApi.codingDevices.pairingInfo,
+    deepLinked ? { code: normalizedPrefillCode } : "skip",
+  ) as PairingInfo;
   const approve = useMutation(anyApi.codingDevices.approveDevicePairing);
   const revoke = useMutation(anyApi.codingDevices.revokeDevice);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(normalizedPrefillCode);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const onPair = async () => {
-    const c = code.trim();
+  useEffect(() => {
+    if (deepLinked) setCode(normalizedPrefillCode);
+  }, [deepLinked, normalizedPrefillCode]);
+
+  const approveCode = async (raw: string) => {
+    const c = normalizePairCode(raw);
     if (!token || c.length < 4) return;
     setBusy(true);
     setMsg(null);
     try {
-      const r = (await approve({ token, code: c })) as { deviceName?: string };
-      setMsg({ ok: true, text: `Paired ${r.deviceName ?? "your desktop"}.` });
+      const result = (await approve({ token, code: c })) as { deviceName: string };
+      setMsg({ ok: true, text: `Paired ${result.deviceName}.` });
       setCode("");
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "Pairing failed" });
@@ -144,37 +162,93 @@ function SelfHostPairing() {
     }
   };
 
+  const canApproveLinkedCode = Boolean(token && info?.status === "pending" && !busy);
+  const linkedDeviceName = info?.status === "pending" ? info.deviceName : null;
+  const linkedStatus =
+    info === undefined
+      ? "Checking pairing code"
+      : info === null
+        ? "Pairing code not found"
+        : info.status === "pending"
+          ? `Ready to approve ${info.deviceName}`
+          : info.status === "expired"
+            ? "Pairing code expired"
+            : "Pairing code already used";
+
   return (
     <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
       <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-white/35">
-        Pair your desktop
+        {deepLinked ? "Approve this desktop" : "Pair your desktop"}
       </h2>
-      <p className="mb-3 text-[12px] leading-relaxed text-white/45">
-        Open the <span className="text-white/70">Detour desktop app</span> → enable Self-host →
-        it shows an 8-character code. Enter it here to link this machine. Sessions then run on your
-        own computer — no sandbox charge.
-      </p>
-      <div className="flex items-center gap-2">
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="ABCD1234"
-          maxLength={8}
-          className="w-36 rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-sm uppercase tracking-widest text-white outline-none focus:border-violet-400/40"
-        />
-        <button
-          type="button"
-          onClick={onPair}
-          disabled={busy || code.trim().length < 4}
-          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
-        >
-          {busy ? "Pairing…" : "Pair"}
-        </button>
-      </div>
-      {msg && (
-        <p className={cn("mt-2 text-[12px]", msg.ok ? "text-emerald-300/90" : "text-amber-300/90")}>
-          {msg.text}
-        </p>
+
+      {deepLinked ? (
+        <div className="space-y-3">
+          <p className="text-[13px] leading-relaxed text-white/60">
+            Link{" "}
+            <span className="font-medium text-white/90">{linkedDeviceName ?? "this desktop"}</span>{" "}
+            to run coding sessions on your own machine with no sandbox charge.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <code className="w-fit rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm tracking-widest text-white/75">
+              {normalizedPrefillCode}
+            </code>
+            <button
+              type="button"
+              onClick={() => approveCode(normalizedPrefillCode)}
+              disabled={!canApproveLinkedCode}
+              className="w-fit rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
+            >
+              {busy
+                ? "Approving..."
+                : linkedDeviceName
+                  ? `Approve ${linkedDeviceName}`
+                  : "Approve desktop"}
+            </button>
+          </div>
+          <p
+            className={cn(
+              "text-[12px]",
+              info?.status === "pending" ? "text-emerald-300/90" : "text-white/40",
+            )}
+          >
+            {linkedStatus}
+          </p>
+          {msg && (
+            <p className={cn("text-[12px]", msg.ok ? "text-emerald-300/90" : "text-amber-300/90")}>
+              {msg.text}
+            </p>
+          )}
+        </div>
+      ) : (
+        <>
+          <p className="mb-3 text-[12px] leading-relaxed text-white/45">
+            Open the <span className="text-white/70">Detour desktop app</span> → enable Self-host →
+            scan its approval link, or enter the 8-character code it shows. Sessions then run on
+            your own computer — no sandbox charge.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              value={code}
+              onChange={(e) => setCode(normalizePairCode(e.target.value))}
+              placeholder="ABCD1234"
+              maxLength={8}
+              className="w-36 rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-sm uppercase tracking-widest text-white outline-none focus:border-violet-400/40"
+            />
+            <button
+              type="button"
+              onClick={() => approveCode(code)}
+              disabled={busy || normalizePairCode(code).length < 4}
+              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
+            >
+              {busy ? "Pairing..." : "Pair"}
+            </button>
+          </div>
+          {msg && (
+            <p className={cn("mt-2 text-[12px]", msg.ok ? "text-emerald-300/90" : "text-amber-300/90")}>
+              {msg.text}
+            </p>
+          )}
+        </>
       )}
       {devices && devices.length > 0 && (
         <ul className="mt-4 space-y-2">
