@@ -1,9 +1,20 @@
-import { useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
+import type { ComponentProps, ReactNode } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
+import {
+  canLaunchRemote,
+  remoteRuntimeUrl,
+  remoteStatusLabel,
+  type RemoteRuntimeAccess,
+  type RemoteRuntimeDomainMode,
+  type RemoteRuntimeMode,
+  type RemoteRuntimeStatus,
+} from "@/lib/remoteRuntime";
 import { getDtourSessionToken } from "@/lib/session";
-import { Icon } from "@/ui";
+import { Badge, Button, Icon, cn } from "@/ui";
 
 type Agent = {
   id: string;
@@ -13,9 +24,57 @@ type Agent = {
   plugins: string[];
 };
 
+type RemoteDeployment = {
+  agentId: string;
+  mode: RemoteRuntimeMode;
+  status: RemoteRuntimeStatus;
+  upstreamAgentId: string | null;
+  upstreamJobId: string | null;
+  domainMode: RemoteRuntimeDomainMode;
+  detourSubdomain: string;
+  customDomain: string | null;
+  webVisibility: RemoteRuntimeAccess;
+  apiVisibility: RemoteRuntimeAccess;
+  a2aEnabled: boolean;
+  mcpEnabled: boolean;
+  webUiUrl: string;
+  apiBaseUrl: string;
+  lastHeartbeatAt: number | null;
+  lastSyncedAt: number | null;
+  lastError: string | null;
+};
+
+type InstanceRow = {
+  agent: Agent;
+  deployment: RemoteDeployment;
+};
+
+type Draft = Pick<
+  RemoteDeployment,
+  | "mode"
+  | "domainMode"
+  | "webVisibility"
+  | "apiVisibility"
+  | "a2aEnabled"
+  | "mcpEnabled"
+> & {
+  customDomain: string;
+};
+
+type OpenWebUiResult =
+  | { ready: true; url: string }
+  | { ready: false; message: string; retryAfterMs: number };
+type BadgeTone = NonNullable<ComponentProps<typeof Badge>["tone"]>;
+
+const field =
+  "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[12px] text-white outline-none transition focus:border-purple-400/50";
+
 export default function InstancesPage() {
   const token = getDtourSessionToken();
-  const agents = useQuery(anyApi.agents.list, token ? { token } : "skip") as Agent[] | undefined;
+  const rows = useQuery(
+    anyApi.remoteAgentDeployments.list,
+    token ? { token } : "skip",
+  ) as InstanceRow[] | undefined;
 
   return (
     <AppShell title="Instances">
@@ -28,43 +87,387 @@ export default function InstancesPage() {
           </p>
         </div>
 
-        {agents === undefined ? (
+        {rows === undefined ? (
           <p className="text-sm text-white/40">Loading…</p>
-        ) : agents.length === 0 ? (
+        ) : rows.length === 0 ? (
           <Empty />
         ) : (
           <div className="space-y-2">
-            {agents.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="rounded-lg bg-white/5 p-2 text-white/70">
-                    <Icon.Bot size={16} />
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium text-white">{a.name}</div>
-                    <div className="text-xs text-white/40">
-                      {a.type} · {a.model}
-                      {a.plugins.length > 0 ? ` · ${a.plugins.length} plugin(s)` : ""}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 text-xs text-emerald-300">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> on-demand
-                  </span>
-                  <Link to={`/agents/${a.id}`} className="text-xs text-purple-300 hover:underline">
-                    Open
-                  </Link>
-                </div>
-              </div>
+            {rows.map((row) => (
+              <InstanceCard key={row.agent.id} row={row} token={token} />
             ))}
           </div>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }) {
+  const configureRemote = useMutation(anyApi.remoteAgentDeployments.configure);
+  const deployRemote = useAction(anyApi.remoteAgentDeployments.deploy);
+  const syncRemote = useAction(anyApi.remoteAgentDeployments.sync);
+  const openRemote = useAction(anyApi.remoteAgentDeployments.openWebUi);
+  const suspendRemote = useAction(anyApi.remoteAgentDeployments.suspend);
+  const [draft, setDraft] = useState<Partial<Draft>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const { agent, deployment } = row;
+  const active = {
+    mode: draft.mode ?? deployment.mode,
+    domainMode: draft.domainMode ?? deployment.domainMode,
+    customDomain: draft.customDomain ?? deployment.customDomain ?? "",
+    webVisibility: draft.webVisibility ?? deployment.webVisibility,
+    apiVisibility: draft.apiVisibility ?? deployment.apiVisibility,
+    a2aEnabled: draft.a2aEnabled ?? deployment.a2aEnabled,
+    mcpEnabled: draft.mcpEnabled ?? deployment.mcpEnabled,
+  };
+  const projectedWebUrl = remoteRuntimeUrl(
+    agent.id,
+    active.domainMode,
+    active.customDomain,
+  );
+  const canDeploy =
+    active.mode === "remote_24_7" &&
+    (deployment.status === "not_configured" || canLaunchRemote(deployment.status));
+
+  function patch(next: Partial<Draft>) {
+    setDraft((current) => ({ ...current, ...next }));
+  }
+
+  function configureArgs() {
+    return {
+      token,
+      agentId: agent.id,
+      mode: active.mode,
+      domainMode: active.domainMode,
+      ...(active.domainMode === "custom"
+        ? { customDomain: active.customDomain }
+        : {}),
+      webVisibility: active.webVisibility,
+      apiVisibility: active.apiVisibility,
+      a2aEnabled: active.a2aEnabled,
+      mcpEnabled: active.mcpEnabled,
+    };
+  }
+
+  async function run(label: string, task: () => Promise<string | null>) {
+    if (!token) return;
+    setBusy(label);
+    setNotice(null);
+    try {
+      const message = await task();
+      setDraft({});
+      setNotice(message);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="rounded-lg bg-white/5 p-2 text-white/70">
+            <Icon.Bot size={16} />
+          </span>
+          <div>
+            <div className="text-sm font-medium text-white">{agent.name}</div>
+            <div className="text-xs text-white/40">
+              {agent.type} · {agent.model}
+              {agent.plugins.length > 0 ? ` · ${agent.plugins.length} plugin(s)` : ""}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <StatusBadge status={deployment.status} mode={deployment.mode} />
+          <Link
+            to={`/agents/${agent.id}`}
+            className="text-xs text-purple-300 hover:underline"
+          >
+            Open
+          </Link>
+        </div>
+      </div>
+
+      <details className="mt-4 border-t border-white/10 pt-3">
+        <summary className="cursor-pointer text-xs font-medium text-white/55 transition hover:text-white">
+          Remote controls
+        </summary>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Field label="Runtime">
+            <select
+              value={active.mode}
+              onChange={(e) => patch({ mode: e.target.value as RemoteRuntimeMode })}
+              className={field}
+            >
+              <option value="on_demand">On-demand</option>
+              <option value="remote_24_7">24/7 remote</option>
+            </select>
+          </Field>
+          <Field label="Domain">
+            <select
+              value={active.domainMode}
+              onChange={(e) =>
+                patch({ domainMode: e.target.value as RemoteRuntimeDomainMode })
+              }
+              className={field}
+            >
+              <option value="detour">detour.ninja</option>
+              <option value="custom">Custom domain</option>
+            </select>
+          </Field>
+          {active.domainMode === "custom" ? (
+            <Field label="Custom domain">
+              <input
+                value={active.customDomain}
+                onChange={(e) => patch({ customDomain: e.target.value })}
+                placeholder="agent.example.com"
+                className={field}
+              />
+            </Field>
+          ) : (
+            <Readout label="Detour domain" value={projectedWebUrl} />
+          )}
+          <Field label="Web UI">
+            <select
+              value={active.webVisibility}
+              onChange={(e) =>
+                patch({ webVisibility: e.target.value as RemoteRuntimeAccess })
+              }
+              className={field}
+            >
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
+          </Field>
+          <Field label="Agent API">
+            <select
+              value={active.apiVisibility}
+              onChange={(e) =>
+                patch({ apiVisibility: e.target.value as RemoteRuntimeAccess })
+              }
+              className={field}
+            >
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
+          </Field>
+          <Toggle
+            label="A2A endpoint"
+            checked={active.a2aEnabled}
+            onChange={(checked) => patch({ a2aEnabled: checked })}
+          />
+          <Toggle
+            label="MCP endpoint"
+            checked={active.mcpEnabled}
+            onChange={(checked) => patch({ mcpEnabled: checked })}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-2 border-t border-white/10 pt-4 text-xs sm:grid-cols-2">
+          <Readout
+            label="Web URL"
+            value={deployment.webUiUrl ?? projectedWebUrl}
+            meta={`${active.webVisibility} policy`}
+          />
+          <Readout
+            label="API base"
+            value={deployment.apiBaseUrl}
+            meta={`${active.apiVisibility} policy`}
+          />
+          <Readout
+            label="A2A"
+            value={active.a2aEnabled ? `${deployment.apiBaseUrl}/a2a` : "disabled"}
+          />
+          <Readout
+            label="MCP"
+            value={active.mcpEnabled ? `${deployment.apiBaseUrl}/mcp` : "disabled"}
+          />
+        </div>
+
+        {deployment.lastError ? (
+          <p className="mt-3 rounded-lg border border-red-400/15 bg-red-400/5 px-3 py-2 text-xs text-red-200/90">
+            {deployment.lastError}
+          </p>
+        ) : null}
+        {notice ? <p className="mt-3 text-xs text-white/50">{notice}</p> : null}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={busy !== null}
+            onClick={() =>
+              run("save", async () => {
+                await configureRemote(configureArgs());
+                return "Remote policy saved.";
+              })
+            }
+          >
+            Save
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={busy !== null || !canDeploy}
+            onClick={() =>
+              run("deploy", async () => {
+                await configureRemote(configureArgs());
+                await deployRemote({ token, agentId: agent.id });
+                return "Remote deployment started.";
+              })
+            }
+          >
+            Deploy 24/7
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={busy !== null || !deployment.upstreamAgentId}
+            onClick={() =>
+              run("sync", async () => {
+                await syncRemote({ token, agentId: agent.id });
+                return "Remote status synced.";
+              })
+            }
+          >
+            Sync
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={busy !== null || !deployment.upstreamAgentId}
+            onClick={() =>
+              run("open", async () => {
+                const result = (await openRemote({
+                  token,
+                  agentId: agent.id,
+                })) as OpenWebUiResult;
+                if (result.ready) {
+                  window.open(result.url, "_blank", "noopener,noreferrer");
+                  return "Web UI opened.";
+                }
+                return result.message;
+              })
+            }
+          >
+            Open Web UI
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy !== null || !deployment.upstreamAgentId}
+            onClick={() =>
+              run("suspend", async () => {
+                await suspendRemote({ token, agentId: agent.id });
+                return "Suspend requested.";
+              })
+            }
+          >
+            Suspend
+          </Button>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function StatusBadge({
+  status,
+  mode,
+}: {
+  status: RemoteRuntimeStatus;
+  mode: RemoteRuntimeMode;
+}) {
+  const tone: BadgeTone =
+    status === "running"
+      ? "success"
+      : status === "error"
+        ? "danger"
+        : status === "queued" || status === "provisioning" || status === "creating"
+          ? "warning"
+          : "neutral";
+  return (
+    <Badge tone={tone}>
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          status === "running"
+            ? "bg-emerald-400"
+            : status === "error"
+              ? "bg-red-300"
+              : status === "queued" ||
+                  status === "provisioning" ||
+                  status === "creating"
+                ? "bg-amber-300"
+                : "bg-white/35",
+        )}
+      />
+      {mode === "remote_24_7" ? "24/7" : "on-demand"} · {remoteStatusLabel(status)}
+    </Badge>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="space-y-1.5">
+      <span className="block text-[10px] font-medium uppercase tracking-widest text-white/40">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+      <span className="text-xs text-white/70">{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-purple-500"
+      />
+    </label>
+  );
+}
+
+function Readout({
+  label,
+  value,
+  meta,
+}: {
+  label: string;
+  value: string;
+  meta?: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-widest text-white/40">
+          {label}
+        </span>
+        {meta ? <span className="text-[10px] text-white/35">{meta}</span> : null}
+      </div>
+      <div className="mt-1 truncate font-mono text-[11px] text-white/65">{value}</div>
+    </div>
   );
 }
 
