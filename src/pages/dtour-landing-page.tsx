@@ -104,7 +104,7 @@ export default function DtourLandingPage() {
             { title: "Skills & Workflows", desc: "Build and preview workflow-shaped automations before connecting them to paid production rails." },
             { title: "Multi-Platform Chat", desc: "Gateway connectors are on the roadmap; today the beta focuses on web chat, design, and coding surfaces." },
             { title: "API Keys & Webhooks", desc: "Developer docs and route status are open; programmatic keys stay gated until launch hardening is complete." },
-            { title: "Remote Runtime", desc: "24/7 agent provisioning is in open beta with domain, Web UI, and endpoint controls." },
+            { title: "Containerized Deploy", desc: "App and instance deployment are planned surfaces, pending verified provisioning and spend controls." },
           ].map((f) => (
             <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-colors hover:bg-black/40">
               <h3 className="text-sm font-semibold text-white">{f.title}</h3>

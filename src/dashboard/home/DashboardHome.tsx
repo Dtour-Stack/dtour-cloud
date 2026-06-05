@@ -28,7 +28,7 @@ const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode
   { to: "/developers", label: "Developers", desc: "Docs & API status", icon: <Icon.Plug size={16} /> },
   { to: "/account-hub", label: "Account", desc: "Profile, security, settings", icon: <Icon.User size={16} /> },
   { to: "/analytics", label: "Analytics", desc: "Usage & spend", icon: <Icon.Activity size={16} /> },
-  { to: "/instances", label: "Runtime", desc: "24/7 agents & domains", icon: <Icon.LayoutGrid size={16} /> },
+  { to: "/instances", label: "Instances", desc: "Running agents", icon: <Icon.LayoutGrid size={16} /> },
   { to: "/mcps", label: "MCPs", desc: "Tool execution pending", icon: <Icon.Zap size={16} /> },
   { to: "/apps", label: "My Apps", desc: "Publishing planned", icon: <Icon.LayoutGrid size={16} /> },
   { to: "/earnings", label: "Earnings", desc: "Payouts planned", icon: <Icon.Coins size={16} /> },

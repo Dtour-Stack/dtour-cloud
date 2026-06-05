@@ -114,41 +114,6 @@ export default defineSchema({
     priceUsd: v.optional(v.number()),
   }).index("by_owner", ["owner"]),
 
-  remoteAgentDeployments: defineTable({
-    agentId: v.id("agents"),
-    owner: v.string(),
-    mode: v.union(v.literal("on_demand"), v.literal("remote_24_7")),
-    status: v.union(
-      v.literal("not_configured"),
-      v.literal("configured"),
-      v.literal("creating"),
-      v.literal("queued"),
-      v.literal("provisioning"),
-      v.literal("running"),
-      v.literal("suspended"),
-      v.literal("error"),
-      v.literal("unknown"),
-    ),
-    upstreamAgentId: v.optional(v.string()),
-    upstreamJobId: v.optional(v.string()),
-    domainMode: v.union(v.literal("detour"), v.literal("custom")),
-    detourSubdomain: v.string(),
-    customDomain: v.optional(v.string()),
-    webVisibility: v.union(v.literal("private"), v.literal("public")),
-    apiVisibility: v.union(v.literal("private"), v.literal("public")),
-    a2aEnabled: v.boolean(),
-    mcpEnabled: v.boolean(),
-    webUiUrl: v.optional(v.string()),
-    apiBaseUrl: v.optional(v.string()),
-    lastHeartbeatAt: v.optional(v.number()),
-    lastSyncedAt: v.optional(v.number()),
-    lastError: v.optional(v.string()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_agent", ["agentId"])
-    .index("by_owner", ["owner"]),
-
   // MCP servers a user has connected (the catalog lives in code).
   mcpConnections: defineTable({
     pubkey: v.string(),

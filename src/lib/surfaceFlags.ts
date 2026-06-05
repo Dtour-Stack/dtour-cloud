@@ -158,10 +158,10 @@ export const ROUTE_SURFACE_META: Record<string, RouteSurfaceMeta> = {
   },
   "/instances": {
     flag: "surface_instances",
-    status: "beta",
-    defaultEnabled: true,
-    title: "Remote Runtime",
-    description: "24/7 agent provisioning, domains, Web UI access, and API endpoint policy.",
+    status: "planned",
+    defaultEnabled: false,
+    title: "Instances",
+    description: "Cloud runtime instances will open after container provisioning is verified.",
   },
   "/earnings": {
     flag: "surface_earnings",
