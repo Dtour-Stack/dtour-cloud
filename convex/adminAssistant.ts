@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import {
   action,
   internalMutation,
@@ -202,6 +201,26 @@ export const createThread = mutation({
       data: { threadId },
     });
     return { threadId };
+  },
+});
+
+export const deleteThread = mutation({
+  args: { token: v.string(), threadId: v.id("adminAssistantThreads") },
+  handler: async (ctx, { token, threadId }) => {
+    const caller = await requireRole(ctx, token, "admin");
+    const thread = await ctx.db.get(threadId);
+    if (!thread || thread.owner !== caller.pubkey) throw new Error("Thread not found");
+    const messages = await ctx.db
+      .query("adminAssistantMessages")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .collect();
+    for (const message of messages) await ctx.db.delete(message._id);
+    await ctx.db.delete(threadId);
+    await logEvent(ctx, "adminAssistant.thread.delete", {
+      pubkey: caller.pubkey,
+      data: { threadId },
+    });
+    return { ok: true };
   },
 });
 

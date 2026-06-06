@@ -8,8 +8,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { getDtourSessionToken } from "@/lib/session";
+import { SlashCommandMenu } from "@/dashboard/chat/SlashCommandMenu";
 import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
+import { getDtourSessionToken } from "@/lib/session";
+import {
+  type SlashCommand,
+  slashCommandForInput,
+  slashCommandHelp,
+} from "@/lib/slashCommands";
 import { Button, cn, Icon, IconButton } from "@/ui";
 import {
   AiConversation,
@@ -69,15 +75,14 @@ type Overview =
     }
   | undefined;
 
-type Thread =
-  | {
-      id: string;
-      title: string;
-      createdAt: number;
-      updatedAt: number;
-    }
-  | null
-  | undefined;
+type ThreadRow = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type Thread = ThreadRow | null | undefined;
 
 type Message = {
   id: string;
@@ -113,6 +118,28 @@ type IntegrationStatus = {
 const tabs = ["workflows", "chat", "applicants"] as const;
 type Tab = (typeof tabs)[number];
 
+const ADMIN_SLASH_COMMANDS: SlashCommand[] = [
+  { id: "new", command: "/new", label: "New chat", description: "Start a new Admin Detour chat" },
+  { id: "delete", command: "/delete", label: "Delete chat", description: "Delete the current admin chat" },
+  { id: "workflows", command: "/workflows", label: "Workflows", description: "Open admin workflows" },
+  { id: "applicants", command: "/applicants", label: "Applicants", description: "Open tester applicants" },
+  { id: "status", command: "/status", label: "Status check", description: "Ask for integration status" },
+  { id: "help", command: "/help", label: "Command list", description: "Show available slash commands" },
+];
+
+const TEST_THREADS: ThreadRow[] = [
+  {
+    id: "test-admin-thread",
+    title: "Admin Detour",
+    createdAt: 1,
+    updatedAt: 2,
+  },
+];
+
+const TEST_MESSAGES: Record<string, Message[]> = {
+  "test-admin-thread": [],
+};
+
 function fmtDate(ms: number) {
   return new Date(ms).toLocaleDateString(undefined, {
     month: "short",
@@ -127,21 +154,31 @@ function shortPubkey(value: string | null) {
 export function AdminDetourAssistant() {
   const testUser = readDtourPlaywrightUser();
   const token = testUser ? null : getDtourSessionToken();
+  const [testThreads, setTestThreads] = useState<ThreadRow[]>(TEST_THREADS);
+  const [testMessages, setTestMessages] = useState<Record<string, Message[]>>(TEST_MESSAGES);
   const overview = useQuery(
     anyApi.adminAssistant.overview,
     token ? { token } : "skip",
   ) as Overview;
-  const currentThread = useQuery(
+  const threadsQuery = useQuery(
+    anyApi.adminAssistant.threads,
+    token ? { token } : "skip",
+  ) as ThreadRow[] | undefined;
+  const currentThreadQuery = useQuery(
     anyApi.adminAssistant.currentThread,
     token ? { token } : "skip",
   ) as Thread;
+  const threads = testUser ? testThreads : threadsQuery;
+  const currentThread = testUser ? (testThreads[0] ?? null) : currentThreadQuery;
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const threadId = activeThreadId ?? currentThread?.id ?? null;
-  const messages = useQuery(
+  const messagesQuery = useQuery(
     anyApi.adminAssistant.messages,
     token && threadId ? { token, threadId } : "skip",
   ) as Message[] | undefined;
+  const messages = testUser && threadId ? (testMessages[threadId] ?? []) : messagesQuery;
   const createThread = useMutation(anyApi.adminAssistant.createThread);
+  const deleteThread = useMutation(anyApi.adminAssistant.deleteThread);
   const sendMessage = useAction(anyApi.adminAssistant.sendMessage);
   const draftTesterFollowUp = useAction(anyApi.adminAssistant.draftTesterFollowUp);
   const sendTesterFollowUp = useAction(anyApi.adminAssistant.sendTesterFollowUp);
@@ -155,15 +192,21 @@ export function AdminDetourAssistant() {
   const [sending, setSending] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [scores, setScores] = useState<Record<string, Score>>({});
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (currentThread?.id) setActiveThreadId(currentThread.id);
-  }, [currentThread?.id]);
+    if (!activeThreadId && currentThread?.id) setActiveThreadId(currentThread.id);
+  }, [activeThreadId, currentThread?.id]);
+
+  useEffect(() => {
+    if (!activeThreadId || !threads) return;
+    if (threads.some((thread) => thread.id === activeThreadId)) return;
+    setActiveThreadId(threads[0]?.id ?? null);
+  }, [activeThreadId, threads]);
 
   useEffect(() => {
     if (!open || !token || threadId || currentThread !== null) return;
@@ -178,11 +221,6 @@ export function AdminDetourAssistant() {
       setStatus(value as IntegrationStatus);
     });
   }, [open, token, integrationStatus]);
-
-  useEffect(() => {
-    if (!open) return;
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -204,11 +242,104 @@ export function AdminDetourAssistant() {
     return id;
   }
 
+  async function startNewThread() {
+    setError(null);
+    setNotice(null);
+    setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
+    if (testUser) {
+      const now = Date.now();
+      const id = `test-admin-thread-${now}`;
+      setTestThreads((prev) => [
+        { id, title: "Admin Detour", createdAt: now, updatedAt: now },
+        ...prev,
+      ]);
+      setTestMessages((prev) => ({ ...prev, [id]: [] }));
+      setActiveThreadId(id);
+      setTab("chat");
+      setNotice("Started a new admin chat.");
+      return;
+    }
+    if (!token) return;
+    const { threadId: id } = (await createThread({
+      token,
+      title: "Admin Detour",
+    })) as { threadId: string };
+    setActiveThreadId(id);
+    setTab("chat");
+    setNotice("Started a new admin chat.");
+  }
+
+  async function deleteActiveThread() {
+    const id = threadId;
+    if (!id || sending) return;
+    setError(null);
+    setNotice(null);
+    const nextThreadId = (threads ?? []).find((thread) => thread.id !== id)?.id ?? null;
+    if (testUser) {
+      setTestThreads((prev) => prev.filter((thread) => thread.id !== id));
+      setTestMessages((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setActiveThreadId(nextThreadId);
+      setNotice("Deleted admin chat.");
+      return;
+    }
+    if (!token) return;
+    await deleteThread({ token, threadId: id });
+    setActiveThreadId(nextThreadId);
+    setNotice("Deleted admin chat.");
+  }
+
+  async function runSlashCommand(id: string) {
+    switch (id) {
+      case "new":
+        await startNewThread();
+        break;
+      case "delete":
+        await deleteActiveThread();
+        break;
+      case "workflows":
+        setTab("workflows");
+        setNotice("Opened workflows.");
+        break;
+      case "applicants":
+        setTab("applicants");
+        setNotice("Opened applicants.");
+        break;
+      case "status":
+        await submit("Check the current admin integration and credit status.", "integration_status");
+        break;
+      case "help":
+        setNotice(`Commands: ${slashCommandHelp(ADMIN_SLASH_COMMANDS)}`);
+        break;
+      default:
+        setNotice("Unknown command. Type /help.");
+    }
+  }
+
   async function submit(text: string, workflow?: string) {
     const clean = text.trim();
-    if (!token || !clean || sending) return;
+    if (!clean || sending) return;
+    if (!workflow) {
+      const slashCommand = slashCommandForInput(ADMIN_SLASH_COMMANDS, clean);
+      if (slashCommand) {
+        setInput("");
+        if (inputRef.current) inputRef.current.style.height = "auto";
+        await runSlashCommand(slashCommand.id);
+        return;
+      }
+      if (clean.startsWith("/")) {
+        setNotice("Unknown command. Type /help.");
+        return;
+      }
+    }
+    if (!token) return;
     setSending(true);
     setError(null);
+    setNotice(null);
     if (!workflow) setInput("");
     if (inputRef.current) inputRef.current.style.height = "auto";
     try {
@@ -416,10 +547,24 @@ export function AdminDetourAssistant() {
 
           {tab === "chat" && (
             <ChatPane
+              threads={threads}
+              activeThreadId={threadId}
               messages={messages}
               sending={sending}
               input={input}
+              notice={notice}
               inputRef={inputRef}
+              onSelectThread={(id) => {
+                setActiveThreadId(id);
+                setNotice(null);
+              }}
+              onNewThread={() => void startNewThread()}
+              onDeleteThread={() => void deleteActiveThread()}
+              onSlashCommand={(command) => {
+                setInput("");
+                if (inputRef.current) inputRef.current.style.height = "auto";
+                void runSlashCommand(command.id);
+              }}
               onChange={(value) => {
                 setInput(value);
                 autoGrow();
@@ -526,28 +671,89 @@ function WorkflowPane({
 }
 
 function ChatPane({
+  threads,
+  activeThreadId,
   messages,
   sending,
   input,
+  notice,
   inputRef,
+  onSelectThread,
+  onNewThread,
+  onDeleteThread,
+  onSlashCommand,
   onChange,
   onKeyDown,
   onSubmit,
 }: {
+  threads: ThreadRow[] | undefined;
+  activeThreadId: string | null;
   messages: Message[] | undefined;
   sending: boolean;
   input: string;
+  notice: string | null;
   inputRef: RefObject<HTMLTextAreaElement | null>;
+  onSelectThread: (threadId: string) => void;
+  onNewThread: () => void;
+  onDeleteThread: () => void;
+  onSlashCommand: (command: SlashCommand) => void;
   onChange: (value: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (e?: FormEvent) => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new chat content
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-white/10 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onNewThread}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/15 bg-white px-3 text-[12px] font-medium text-black transition hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+          >
+            <Icon.SquarePen size={13} />
+            New chat
+          </button>
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+            {threads === undefined ? (
+              <span className="rounded-full border border-white/10 px-3 py-1.5 text-[12px] text-white/35">
+                Loading chats...
+              </span>
+            ) : threads.length === 0 ? (
+              <span className="rounded-full border border-white/10 px-3 py-1.5 text-[12px] text-white/35">
+                No saved chats
+              </span>
+            ) : (
+              threads.map((thread) => (
+                <button
+                  key={thread.id}
+                  type="button"
+                  onClick={() => onSelectThread(thread.id)}
+                  className={cn(
+                    "max-w-40 shrink-0 truncate rounded-full border px-3 py-1.5 text-[12px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+                    thread.id === activeThreadId
+                      ? "border-white/20 bg-white/10 text-white"
+                      : "border-white/10 text-white/45 hover:bg-white/[0.06] hover:text-white",
+                  )}
+                >
+                  {thread.title}
+                </button>
+              ))
+            )}
+          </div>
+          <IconButton
+            label="Delete chat"
+            disabled={!activeThreadId || sending}
+            onClick={onDeleteThread}
+          >
+            <Icon.Trash />
+          </IconButton>
+        </div>
+      </div>
       <AiConversation>
         <div className="px-4 py-5">
           {messages === undefined ? (
@@ -591,7 +797,17 @@ function ChatPane({
       </AiConversation>
 
       <div className="shrink-0 border-t border-white/10 p-3">
-        <AiPromptInputFrame onSubmit={onSubmit}>
+        {notice && (
+          <div className="mb-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] text-white/60">
+            {notice}
+          </div>
+        )}
+        <AiPromptInputFrame onSubmit={onSubmit} className="relative">
+          <SlashCommandMenu
+            commands={ADMIN_SLASH_COMMANDS}
+            input={input}
+            onPick={onSlashCommand}
+          />
           <AiPromptInputTextarea
             ref={inputRef}
             value={input}

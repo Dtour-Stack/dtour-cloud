@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { SlashCommandMenu } from "@/dashboard/chat/SlashCommandMenu";
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import {
   buildChatMenuItems,
@@ -20,6 +21,11 @@ import {
   writeAutoRunTools,
 } from "@/lib/chatComposerMenu";
 import { getDtourSessionToken } from "@/lib/session";
+import {
+  type SlashCommand,
+  slashCommandForInput,
+  slashCommandHelp,
+} from "@/lib/slashCommands";
 import { useFlags } from "@/lib/useFlags";
 import { cn, Icon } from "@/ui";
 import {
@@ -67,6 +73,20 @@ type Agent =
   | undefined;
 type PanelMode = "context" | "cloud";
 
+const USER_SLASH_COMMANDS: SlashCommand[] = [
+  { id: "new", command: "/new", label: "New chat", description: "Start a new saved chat" },
+  { id: "clear", command: "/clear", label: "Clear chat", description: "Clear messages in this chat" },
+  { id: "cloud", command: "/cloud", label: "Cloud panel", description: "Open runtime, endpoints, and mesh" },
+  { id: "context", command: "/context", label: "Context panel", description: "Open turn trace and resources" },
+  { id: "instructions", command: "/instructions", label: "Instructions", description: "Open system prompt and knowledge" },
+  { id: "gallery", command: "/gallery", label: "Gallery", description: "Attach an image from Gallery" },
+  { id: "image", command: "/image", label: "Generate image", description: "Open image generation" },
+  { id: "mcp", command: "/mcp", label: "MCP tools", description: "Open saved MCP servers" },
+  { id: "plugins", command: "/plugins", label: "Plugins", description: "Manage Eliza plugins" },
+  { id: "design", command: "/design", label: "Design Studio", description: "Open this agent in Design" },
+  { id: "help", command: "/help", label: "Command list", description: "Show available slash commands" },
+];
+
 /** Dismiss a popover on outside-click or Escape. */
 function useDismiss(open: boolean, ref: RefObject<HTMLElement | null>, close: () => void) {
   useEffect(() => {
@@ -113,6 +133,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
   const [showElizaPlugins, setShowElizaPlugins] = useState(false);
   const [attachUrl, setAttachUrl] = useState<string | null>(null); // gallery image
   const [sendError, setSendError] = useState<string | null>(null);
+  const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoRunTools, setAutoRunTools] = useState(() => readAutoRunTools(agentId));
   const [panelOpen, setPanelOpen] = useState(true);
@@ -150,6 +171,61 @@ export function AgentChat({ agentId }: { agentId: string }) {
     const { chatId: id } = (await createChat({ token, agentId })) as { chatId: string };
     setSearchParams({ chat: id });
     setSelectedTurnId(null);
+  }
+
+  async function runSlashCommand(id: string) {
+    setSendError(null);
+    setCommandNotice(null);
+    switch (id) {
+      case "new":
+        await startNewChat();
+        setCommandNotice("Started a new chat.");
+        break;
+      case "clear":
+        if (token && chatId) {
+          await clearChat({ token, chatId });
+          setCommandNotice("Cleared this chat.");
+        }
+        break;
+      case "cloud":
+        setPanelMode("cloud");
+        setPanelOpen(true);
+        setCommandNotice("Opened Cloud.");
+        break;
+      case "context":
+        setPanelMode("context");
+        setPanelOpen(true);
+        setCommandNotice("Opened Context.");
+        break;
+      case "instructions":
+        setShowInstructions(true);
+        setCommandNotice("Opened Instructions.");
+        break;
+      case "gallery":
+        setPickerOpen(true);
+        setCommandNotice("Opened Gallery.");
+        break;
+      case "image":
+        setShowGenerateImage(true);
+        setCommandNotice("Opened image generation.");
+        break;
+      case "mcp":
+        setShowMcpTools(true);
+        setCommandNotice("Opened MCP tools.");
+        break;
+      case "plugins":
+        setShowElizaPlugins(true);
+        setCommandNotice("Opened plugins.");
+        break;
+      case "design":
+        navigate(`/design?agent=${agentId}`);
+        break;
+      case "help":
+        setCommandNotice(`Commands: ${slashCommandHelp(USER_SLASH_COMMANDS)}`);
+        break;
+      default:
+        setCommandNotice("Unknown command. Type /help.");
+    }
   }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new content
@@ -192,10 +268,23 @@ export function AgentChat({ agentId }: { agentId: string }) {
     e?.preventDefault();
     const text = input.trim();
     if (!token || !chatId || (!text && !attachUrl) || sending) return;
+    const slashCommand = slashCommandForInput(USER_SLASH_COMMANDS, text);
+    if (slashCommand) {
+      setInput("");
+      setAttachUrl(null);
+      if (taRef.current) taRef.current.style.height = "auto";
+      await runSlashCommand(slashCommand.id);
+      return;
+    }
+    if (text.startsWith("/")) {
+      setCommandNotice("Unknown command. Type /help.");
+      return;
+    }
     const img = attachUrl;
     setInput("");
     setAttachUrl(null);
     setSendError(null);
+    setCommandNotice(null);
     if (taRef.current) taRef.current.style.height = "auto";
     setSending(true);
     try {
@@ -350,6 +439,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
             showGalleryButton={chatGalleryAttachEnabled(flags)}
             showVoiceButton={chatVoiceInputEnabled(flags)}
             autoRunTools={autoRunTools}
+            slashCommands={USER_SLASH_COMMANDS}
             onAttachClick={() => setPickerOpen(true)}
             onClearAttach={() => setAttachUrl(null)}
             onChange={(v) => {
@@ -369,6 +459,12 @@ export function AgentChat({ agentId }: { agentId: string }) {
               writeAutoRunTools(agentId, next);
               setAutoRunTools(next);
             }}
+            onSlashCommand={(command) => {
+              setInput("");
+              setAttachUrl(null);
+              if (taRef.current) taRef.current.style.height = "auto";
+              void runSlashCommand(command.id);
+            }}
           />
           <p className="mt-2 text-center text-[11px] text-white/25">
             Detour Cloud routes the model · Enter to send · Shift+Enter for a new line
@@ -376,6 +472,11 @@ export function AgentChat({ agentId }: { agentId: string }) {
           {sendError && (
             <p className="mt-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-[12px] text-red-100/85">
               {sendError}
+            </p>
+          )}
+          {commandNotice && (
+            <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-center text-[12px] text-white/60">
+              {commandNotice}
             </p>
           )}
         </div>
@@ -485,6 +586,7 @@ function Composer({
   showGalleryButton,
   showVoiceButton,
   autoRunTools,
+  slashCommands,
   onAttachClick,
   onClearAttach,
   onChange,
@@ -497,6 +599,7 @@ function Composer({
   onOpenElizaPlugins,
   onOpenDesignStudio,
   onToggleAutoRun,
+  onSlashCommand,
 }: {
   agentId: string;
   model: string;
@@ -507,6 +610,7 @@ function Composer({
   showGalleryButton: boolean;
   showVoiceButton: boolean;
   autoRunTools: boolean;
+  slashCommands: readonly SlashCommand[];
   onAttachClick: () => void;
   onClearAttach: () => void;
   onChange: (v: string) => void;
@@ -519,11 +623,14 @@ function Composer({
   onOpenElizaPlugins: () => void;
   onOpenDesignStudio: () => void;
   onToggleAutoRun: () => void;
+  onSlashCommand: (command: SlashCommand) => void;
 }) {
   return (
     <AiPromptInputFrame
       onSubmit={onSubmit}
+      className="relative"
     >
+      <SlashCommandMenu commands={slashCommands} input={input} onPick={onSlashCommand} />
       {attachUrl && (
         <div className="px-3 pt-3">
           <AiAttachmentPreview src={attachUrl} alt="attachment" onRemove={onClearAttach} />

@@ -154,6 +154,15 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("button", { name: "workflows" })).toBeVisible();
     await expect(page.getByRole("button", { name: "chat" })).toBeVisible();
     await expect(page.getByRole("button", { name: "applicants" })).toBeVisible();
+
+    await page.getByRole("button", { name: "chat" }).click();
+    await expect(page.getByRole("button", { name: "New chat" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Delete chat" })).toBeVisible();
+    await page.getByPlaceholder("Message Admin Detour...").fill("/");
+    await expect(page.getByRole("button", { name: "Run /new" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Run /delete" })).toBeVisible();
+    await page.getByRole("button", { name: "Run /help" }).click();
+    await expect(page.getByText("Commands: /new")).toBeVisible();
   });
 
   test("backed dashboard surfaces are open while unsafe explorer calls stay gated", async ({ page }) => {
