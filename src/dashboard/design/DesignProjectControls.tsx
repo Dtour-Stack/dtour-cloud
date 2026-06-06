@@ -8,8 +8,8 @@ import {
 } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
-import { DEFAULT_PROJECT_NAME, designPath } from "./designProject";
 import { useDesignProject } from "./DesignProjectContext";
+import { designPath } from "./designProject";
 
 type SaveState = "idle" | "saving" | "saved";
 
@@ -36,7 +36,14 @@ export function DesignProjectControls({
     anyApi.design.listProjects,
     token && !isTestAuth ? { token } : "skip",
   ) as
-    | { name: string; updatedAt: number; hasStudio: boolean; hasSketch: boolean; hasWorkflow: boolean }[]
+    | {
+        name: string;
+        updatedAt: number;
+        hasStudio: boolean;
+        hasSketch: boolean;
+        hasWorkflow: boolean;
+        hasInfra: boolean;
+      }[]
     | null
     | undefined;
   const projects = isTestAuth ? [] : remoteProjects;
@@ -137,7 +144,7 @@ export function DesignProjectControls({
                   >
                     <span className="font-medium">{p.name}</span>
                     <span className="text-[10px] text-white/35">
-                      {[p.hasStudio && "Studio", p.hasSketch && "Sketch", p.hasWorkflow && "Flow"]
+                      {[p.hasStudio && "Studio", p.hasSketch && "Sketch", p.hasWorkflow && "Flow", p.hasInfra && "Infra"]
                         .filter(Boolean)
                         .join(" · ") || "Empty"}
                     </span>

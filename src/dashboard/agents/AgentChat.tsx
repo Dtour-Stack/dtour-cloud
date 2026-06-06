@@ -13,11 +13,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { GalleryPicker } from "@/dashboard/gallery/GalleryPicker";
 import {
   buildChatMenuItems,
+  type ChatMenuActionId,
   chatGalleryAttachEnabled,
   chatVoiceInputEnabled,
   readAutoRunTools,
   writeAutoRunTools,
-  type ChatMenuActionId,
 } from "@/lib/chatComposerMenu";
 import { getDtourSessionToken } from "@/lib/session";
 import { useFlags } from "@/lib/useFlags";
@@ -40,6 +40,7 @@ import {
   AiRoundAction,
 } from "@/ui/ai-elements";
 
+import { AgentCloudDashboard } from "./AgentCloudDashboard";
 import { AgentTurnPanel } from "./AgentTurnPanel";
 import { ElizaPluginsModal } from "./ElizaPluginsModal";
 import { GenerateImageModal } from "./GenerateImageModal";
@@ -64,6 +65,7 @@ type Agent =
     }
   | null
   | undefined;
+type PanelMode = "context" | "cloud";
 
 /** Dismiss a popover on outside-click or Escape. */
 function useDismiss(open: boolean, ref: RefObject<HTMLElement | null>, close: () => void) {
@@ -88,6 +90,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const chatId = searchParams.get("chat");
+  const panelParam = searchParams.get("panel");
   const token = getDtourSessionToken();
   const agent = useQuery(
     anyApi.agents.get,
@@ -113,6 +116,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoRunTools, setAutoRunTools] = useState(() => readAutoRunTools(agentId));
   const [panelOpen, setPanelOpen] = useState(true);
+  const [panelMode, setPanelMode] = useState<PanelMode>("context");
   const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -122,9 +126,22 @@ export function AgentChat({ agentId }: { agentId: string }) {
   }, [agentId]);
 
   useEffect(() => {
+    if (panelParam !== "cloud") return;
+    setPanelMode("cloud");
+    setPanelOpen(true);
+  }, [panelParam]);
+
+  useEffect(() => {
     if (!token || chatId) return;
     void getOrCreateDefaultChat({ token, agentId }).then(({ chatId: id }) => {
-      setSearchParams({ chat: id }, { replace: true });
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set("chat", id);
+          return next;
+        },
+        { replace: true },
+      );
     });
   }, [token, agentId, chatId, getOrCreateDefaultChat, setSearchParams]);
 
@@ -146,6 +163,7 @@ export function AgentChat({ agentId }: { agentId: string }) {
   useEffect(() => {
     if (sending && latestAssistantId) {
       setSelectedTurnId(latestAssistantId);
+      setPanelMode("context");
       setPanelOpen(true);
       return;
     }
@@ -163,6 +181,11 @@ export function AgentChat({ agentId }: { agentId: string }) {
     if (!ta) return;
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 220)}px`;
+  }
+
+  function togglePanel(mode: PanelMode) {
+    setPanelMode(mode);
+    setPanelOpen((open) => !(open && panelMode === mode));
   }
 
   async function send(e?: FormEvent) {
@@ -224,16 +247,29 @@ export function AgentChat({ agentId }: { agentId: string }) {
           </button>
           <button
             type="button"
-            onClick={() => setPanelOpen((v) => !v)}
+            onClick={() => togglePanel("context")}
             className={cn(
               "flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] transition",
-              panelOpen
+              panelOpen && panelMode === "context"
                 ? "bg-white/10 text-white"
                 : "text-white/45 hover:bg-white/10 hover:text-white",
             )}
           >
             <Icon.PanelRight size={14} />
             Context
+          </button>
+          <button
+            type="button"
+            onClick={() => togglePanel("cloud")}
+            className={cn(
+              "flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] transition",
+              panelOpen && panelMode === "cloud"
+                ? "bg-white/10 text-white"
+                : "text-white/45 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            <Icon.LayoutGrid size={14} />
+            Cloud
           </button>
           {token && chatId && hasMessages && (
             <button
@@ -277,9 +313,10 @@ export function AgentChat({ agentId }: { agentId: string }) {
                     key={m.id}
                     onClick={() => {
                       setSelectedTurnId(m.id);
+                      setPanelMode("context");
                       setPanelOpen(true);
                     }}
-                    active={selectedTurnId === m.id && panelOpen}
+                    active={selectedTurnId === m.id && panelOpen && panelMode === "context"}
                   >
                     <AiMessageAvatar>
                       <Icon.Bot size={14} />
@@ -347,27 +384,45 @@ export function AgentChat({ agentId }: { agentId: string }) {
 
       {panelOpen && (
         <>
-          <AgentTurnPanel
-            traceRaw={selectedTrace ?? null}
-            sending={sending}
-            agentName={name}
-            onClose={() => setPanelOpen(false)}
-            className="hidden w-[min(380px,38vw)] shrink-0 lg:flex"
-          />
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <button
-              type="button"
-              aria-label="Close context panel"
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setPanelOpen(false)}
-            />
+          {panelMode === "context" ? (
             <AgentTurnPanel
               traceRaw={selectedTrace ?? null}
               sending={sending}
               agentName={name}
               onClose={() => setPanelOpen(false)}
-              className="absolute bottom-0 right-0 top-0 w-full max-w-md shadow-2xl"
+              className="hidden w-[min(380px,38vw)] shrink-0 lg:flex"
             />
+          ) : (
+            <AgentCloudDashboard
+              agentId={agentId}
+              agentName={name}
+              onClose={() => setPanelOpen(false)}
+              className="hidden w-[min(460px,42vw)] shrink-0 lg:flex"
+            />
+          )}
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <button
+              type="button"
+              aria-label={panelMode === "context" ? "Close context panel" : "Close cloud panel"}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setPanelOpen(false)}
+            />
+            {panelMode === "context" ? (
+              <AgentTurnPanel
+                traceRaw={selectedTrace ?? null}
+                sending={sending}
+                agentName={name}
+                onClose={() => setPanelOpen(false)}
+                className="absolute bottom-0 right-0 top-0 w-full max-w-md shadow-2xl"
+              />
+            ) : (
+              <AgentCloudDashboard
+                agentId={agentId}
+                agentName={name}
+                onClose={() => setPanelOpen(false)}
+                className="absolute bottom-0 right-0 top-0 w-full max-w-md shadow-2xl"
+              />
+            )}
           </div>
         </>
       )}
@@ -1028,7 +1083,7 @@ function InstructionsModal({
 
 function TypingDots() {
   return (
-    <span className="inline-flex items-center gap-1 py-1.5" aria-label="thinking">
+    <span className="inline-flex items-center gap-1 py-1.5" aria-label="thinking" role="status">
       {[0, 150, 300].map((d) => (
         <span
           key={d}

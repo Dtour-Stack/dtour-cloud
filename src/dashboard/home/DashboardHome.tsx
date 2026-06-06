@@ -1,15 +1,24 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { Link } from "react-router-dom";
-import { remoteStatusLabel, type RemoteRuntimeAccess, type RemoteRuntimeDomainMode, type RemoteRuntimeFallbackStatus, type RemoteRuntimeMeshMode, type RemoteRuntimeMode, type RemoteRuntimeProvider, type RemoteRuntimeProviderStrategy, type RemoteRuntimeStatus } from "@/lib/remoteRuntime";
-import { getDtourSessionToken } from "@/lib/session";
-import { useFlags } from "@/lib/useFlags";
-import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
 import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
 } from "@/lib/playwright-dtour-auth";
-import { CloudBuilderPanel } from "./CloudBuilderPanel";
+import {
+  type RemoteRuntimeAccess,
+  type RemoteRuntimeDomainMode,
+  type RemoteRuntimeFallbackStatus,
+  type RemoteRuntimeMeshMode,
+  type RemoteRuntimeMode,
+  type RemoteRuntimeProvider,
+  type RemoteRuntimeProviderStrategy,
+  type RemoteRuntimeStatus,
+  remoteStatusLabel,
+} from "@/lib/remoteRuntime";
+import { getDtourSessionToken } from "@/lib/session";
+import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
+import { useFlags } from "@/lib/useFlags";
 import {
   Badge,
   buttonClasses,
@@ -21,6 +30,7 @@ import {
   Skeleton,
   StatCard,
 } from "@/ui";
+import { CloudBuilderPanel } from "./CloudBuilderPanel";
 
 const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode }[] = [
   { to: "/coding", label: "Coding", desc: "Sandboxed coding agents", icon: <Icon.Zap size={16} /> },
@@ -95,6 +105,21 @@ type InstanceSummary = {
   deployment: DeploymentSummary;
 };
 
+type ExternalConnectionSummary = {
+  id: string;
+  agentId: string;
+  label: string;
+  provider: string;
+  baseUrl: string;
+  apiBaseUrl: string | null;
+  a2aUrl: string | null;
+  mcpUrl: string | null;
+  authMode: string;
+  meshMode: string;
+  meshHostname: string | null;
+  status: string;
+};
+
 const TEST_CREDITS: Exclude<Credits, null | undefined> = {
   balanceUsd: 0.25,
   balanceMicroUsd: 250_000,
@@ -141,6 +166,11 @@ export function DashboardHome() {
     token && !testUser ? { token } : "skip",
   ) as InstanceSummary[] | undefined;
   const instanceRows = testUser ? [] : instanceRowsQuery;
+  const externalConnectionsQuery = useQuery(
+    anyApi.agentExternalConnections.listAll,
+    token && !testUser ? { token } : "skip",
+  ) as ExternalConnectionSummary[] | undefined;
+  const externalConnections = testUser ? [] : (externalConnectionsQuery ?? []);
   const agents = instanceRows?.map((row) => row.agent);
   const deployments = instanceRows?.map((row) => row.deployment);
   const loadedRows = instanceRows ?? [];
@@ -289,7 +319,7 @@ export function DashboardHome() {
         >
           <SectionHeading
             title="Your agents"
-            description="Create agents, then shape their cloud runtime, endpoints, and connection surfaces."
+            description="Create agents, then open Agent Cloud for deploy status, API access, endpoint privacy, and workflow bindings."
             action={
               <Link to="/agents" className={buttonClasses("secondary", "sm")}>
                 <Icon.Plus size={14} /> New agent
@@ -305,7 +335,7 @@ export function DashboardHome() {
             <EmptyState
               icon={<Icon.Bot size={20} />}
               title="No agents yet"
-              description="Create an agent, then use Cloud Builder below to map runtime, API, MCP, A2A, mesh, firewall, volumes, plugins, mobile, and desktop pairing."
+              description="Create an agent, then open Agent Cloud to deploy 24/7, expose API/MCP/A2A, and bind workflow subgraphs."
               action={
                 <Link to="/agents" className={buttonClasses("secondary", "sm")}>
                   Create agent <Icon.ArrowUpRight size={14} />
@@ -347,6 +377,7 @@ export function DashboardHome() {
             token={testUser ? null : token}
             agents={agents ?? []}
             deployments={deployments ?? []}
+            externalConnections={externalConnections}
           />
         </Panel>
 

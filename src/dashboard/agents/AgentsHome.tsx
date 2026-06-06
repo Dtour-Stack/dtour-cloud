@@ -4,8 +4,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ELIZA_PLUGINS } from "@/dashboard/design/workflow/registry";
 import { getDtourSessionToken } from "@/lib/session";
-import { useFlag, useFlags } from "@/lib/useFlags";
-import { generateAgentConfig } from "./aiGenerate";
+import { useFlags } from "@/lib/useFlags";
 import {
   Badge,
   Button,
@@ -16,6 +15,7 @@ import {
   SectionHeading,
   Skeleton,
 } from "@/ui";
+import { generateAgentConfig } from "./aiGenerate";
 
 type Agent = {
   id: string;
@@ -67,6 +67,7 @@ export function AgentsHome() {
 
   const freeModelIds = models.filter((m) => m.free && m.id !== "freetour").map((m) => m.id);
   const paidModelIds = models.filter((m) => !m.free && m.id !== "freetour").map((m) => m.id);
+  const firstAgentId = agents?.[0]?.id ?? null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -219,9 +220,9 @@ export function AgentsHome() {
               </p>
             </div>
             <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-white/55">
+              <div className="mb-1.5 text-[12px] font-medium text-white/55">
                 Plugins {plugins.length > 0 && <span className="text-white/35">· {plugins.length} attached</span>}
-              </label>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {ELIZA_PLUGINS.map((p) => {
                   const on = plugins.includes(p);
@@ -304,27 +305,81 @@ export function AgentsHome() {
       <Panel className="fade-up p-6">
         <SectionHeading
           title="Deploy & connect"
-          description="More ways to bring agents to Detour Cloud — arriving with the builders phase."
+          description="Deploy Detour runtimes, connect outside endpoints, and migrate existing cloud/app agents into the same mesh."
         />
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Soon icon={<Icon.Zap size={16} />} title="Deploy a HuggingFace model" desc="One-click deploy to ElizaCloud, via Detour." />
-          <Soon icon={<Icon.Plug size={16} />} title="Connect an endpoint" desc="Add your own agent's URL or x402 endpoint." />
-          <Soon icon={<Icon.Bot size={16} />} title="Link a cloud / app agent" desc="Provision or link agents from the app or your phone." />
+          <ConnectCard
+            icon={<Icon.Zap size={16} />}
+            label="Deploy"
+            title="Deploy a HuggingFace model"
+            desc="Use Agent Cloud to deploy 24/7 or connect a Hugging Face endpoint through Detour."
+            actionLabel={firstAgentId ? "Open deploy controls" : "Create agent first"}
+            onClick={() =>
+              firstAgentId
+                ? navigate(`/agents/${firstAgentId}?panel=cloud&connect=huggingface`)
+                : setOpen(true)
+            }
+          />
+          <ConnectCard
+            icon={<Icon.Plug size={16} />}
+            label="Connect"
+            title="Connect an endpoint"
+            desc="Add API, A2A, MCP, x402, auth, and mesh details for an agent hosted somewhere else."
+            actionLabel={firstAgentId ? "Connect endpoint" : "Create agent first"}
+            onClick={() =>
+              firstAgentId
+                ? navigate(`/agents/${firstAgentId}?panel=cloud&connect=endpoint`)
+                : setOpen(true)
+            }
+          />
+          <ConnectCard
+            icon={<Icon.Bot size={16} />}
+            label="Migrate"
+            title="Link a cloud / app agent"
+            desc="Start the migration helper and reuse the linked agent across workflows and cloud builder."
+            actionLabel={firstAgentId ? "Start migration" : "Create agent first"}
+            onClick={() =>
+              firstAgentId
+                ? navigate(`/agents/${firstAgentId}?panel=cloud&connect=migration`)
+                : setOpen(true)
+            }
+          />
         </div>
       </Panel>
     </div>
   );
 }
 
-function Soon({ icon, title, desc }: { icon: ReactNode; title: string; desc: string }) {
+function ConnectCard({
+  icon,
+  label,
+  title,
+  desc,
+  actionLabel,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  title: string;
+  desc: string;
+  actionLabel: string;
+  onClick: () => void;
+}) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <div className="flex items-center gap-2 text-white/40">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+    >
+      <div className="flex items-center gap-2 text-white/45">
         {icon}
-        <span className="text-[10px] uppercase tracking-widest">Soon</span>
+        <span className="text-[10px] uppercase tracking-widest">{label}</span>
       </div>
       <p className="mt-2 text-sm font-medium text-white/80">{title}</p>
       <p className="mt-1 text-[12px] text-white/40">{desc}</p>
-    </div>
+      <span className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-purple-200">
+        {actionLabel} <Icon.ArrowUpRight size={13} />
+      </span>
+    </button>
   );
 }

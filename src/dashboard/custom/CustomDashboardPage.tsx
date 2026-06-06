@@ -1,19 +1,29 @@
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
-import { withDashboardPreviewPolicy, type CustomDashboardData } from "@/dashboard/custom/dashboardPreview";
+import { type CustomDashboardData, withDashboardPreviewPolicy } from "@/dashboard/custom/dashboardPreview";
 import { getDtourSessionToken } from "@/lib/session";
 import { buttonClasses, Icon } from "@/ui";
 
 export default function CustomDashboardPage() {
   const { dashboardId } = useParams();
+  const navigate = useNavigate();
   const token = getDtourSessionToken();
+  const deleteDashboard = useMutation(anyApi.design.deleteDashboard);
   const name = dashboardId ? decodeURIComponent(dashboardId) : "";
   const dashboard = useQuery(
     anyApi.design.getDashboard,
     token && name ? { token, name } : "skip",
   ) as CustomDashboardData | null | undefined;
+
+  async function handleDelete() {
+    if (!token || !name) return;
+    const ok = window.confirm(`Delete "${dashboard?.title ?? name}"?`);
+    if (!ok) return;
+    await deleteDashboard({ token, name });
+    navigate("/dashboard");
+  }
 
   return (
     <AppShell title={name || "Custom dashboard"} context="custom" bare>
@@ -41,18 +51,27 @@ export default function CustomDashboardPage() {
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 bg-[#0d0d0d]/95 px-4">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-white">{dashboard.title}</div>
-              <div className="text-[11px] text-white/35">Custom Detour dashboard</div>
+            <div className="text-[11px] text-white/35">Custom Detour dashboard</div>
+          </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                className={buttonClasses("secondary", "sm")}
+              >
+                <Icon.Trash size={14} /> Delete
+              </button>
+              <Link to="/design/generate" className={buttonClasses("secondary", "sm")}>
+                <Icon.Wand size={14} /> Generate another
+              </Link>
             </div>
-            <Link to="/design/generate" className={buttonClasses("secondary", "sm")}>
-              <Icon.Wand size={14} /> Generate another
-            </Link>
           </div>
           <div className="min-h-0 flex-1 p-3">
             <iframe
               title={dashboard.title}
               sandbox="allow-scripts"
               referrerPolicy="no-referrer"
-              srcDoc={withDashboardPreviewPolicy(dashboard.html)}
+              srcDoc={withDashboardPreviewPolicy(dashboard.html, dashboard.sources)}
               className="h-full w-full rounded-2xl border border-white/12 bg-white"
             />
           </div>

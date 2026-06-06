@@ -6,8 +6,7 @@ import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
 import { Badge, Button, Icon, Panel } from "@/ui";
 import { designPath } from "../designProject";
-import { GALLERY_PROJECT_ID } from "./defaultProjects";
-import { listDefaultProjects } from "./defaultProjects";
+import { GALLERY_PROJECT_ID, listDefaultProjects } from "./defaultProjects";
 
 type ProjectRow = {
   name: string;
@@ -15,6 +14,7 @@ type ProjectRow = {
   hasStudio: boolean;
   hasSketch: boolean;
   hasWorkflow: boolean;
+  hasInfra: boolean;
 };
 
 export function ProjectsOverview() {
@@ -49,9 +49,8 @@ export function ProjectsOverview() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
           <p className="mt-1 max-w-xl text-[13px] text-white/45">
-            Each project keeps its own Studio canvas, Sketch board, and workflow graph. Open a
-            surface from the Design sidebar — the same project name carries across Studio, Sketch,
-            and Workflows.
+            Each project keeps its own Studio canvas, Sketch board, workflow graph, and infra
+            topology. The same project name carries across every builder surface.
           </p>
         </div>
         <Button size="sm" disabled={busy || !token} onClick={() => void handleNew()}>
@@ -89,26 +88,53 @@ export function ProjectsOverview() {
 }
 
 function surfaceLabel(p: ProjectRow) {
-  return [p.hasStudio && "Studio", p.hasSketch && "Sketch", p.hasWorkflow && "Workflows"]
+  return [p.hasStudio && "Studio", p.hasSketch && "Sketch", p.hasWorkflow && "Workflows", p.hasInfra && "Infra"]
     .filter(Boolean)
     .join(" · ");
 }
 
 function ProjectCard({ project: p }: { project: ProjectRow }) {
+  const token = getDtourSessionToken();
+  const deleteProject = useMutation(anyApi.design.deleteProject);
+  const [deleting, setDeleting] = useState(false);
   const updated = new Date(p.updatedAt).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
+  async function handleDelete() {
+    if (!token || deleting) return;
+    const ok = window.confirm(`Delete "${p.name}" and its design docs?`);
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await deleteProject({ token, name: p.name });
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Could not delete project");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Panel className="flex flex-col gap-3 p-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white">{p.name}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium text-white">{p.name}</span>
+          </div>
+          <p className="mt-1 text-[11px] text-white/40">
+            {surfaceLabel(p) || "Empty"} · updated {updated}
+          </p>
         </div>
-        <p className="mt-1 text-[11px] text-white/40">
-          {surfaceLabel(p) || "Empty"} · updated {updated}
-        </p>
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={() => void handleDelete()}
+          className="flex h-8 shrink-0 items-center justify-center rounded-lg px-2 text-[11px] text-red-300/75 transition hover:bg-red-500/10 hover:text-red-200 disabled:opacity-50"
+        >
+          {deleting ? "Deleting..." : "Delete"}
+        </button>
       </div>
       <div className="flex flex-wrap gap-2">
         <Link
@@ -128,6 +154,12 @@ function ProjectCard({ project: p }: { project: ProjectRow }) {
           className="rounded-full border border-white/12 px-3 py-1 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
         >
           Workflows
+        </Link>
+        <Link
+          to={designPath("infra", p.name)}
+          className="rounded-full border border-white/12 px-3 py-1 text-[12px] text-white/75 transition hover:bg-white/10 hover:text-white"
+        >
+          Infra
         </Link>
       </div>
     </Panel>

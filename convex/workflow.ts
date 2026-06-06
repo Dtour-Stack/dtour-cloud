@@ -15,6 +15,8 @@ import { resolveRole } from "./rbac";
 type GNode = { id: string; type: string; values?: Record<string, unknown> };
 type GEdge = { source: { node: string; port: string }; target: { node: string; port: string } };
 type NodeState = { status: "idle" | "running" | "done" | "error"; output?: string; error?: string };
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+type JsonRecord = { [key: string]: JsonValue };
 
 /** Subscribe to a run's live per-node status. */
 export const getRun = query({
@@ -370,8 +372,24 @@ export const runWorkflowAction = action({
 
 // Output port names for elizaOS nodes (so downstream isn't marked blocked).
 const ELIZA_OUTPUTS: Record<string, string[]> = {
+  "eliza.agent": ["agent", "message"],
+  "eliza.agent.endpoint": ["endpoint"],
+  "eliza.agent.runtime": ["agent"],
   "eliza.character": ["agent"],
+  "eliza.character.identity": ["identity"],
+  "eliza.character.knowledge": ["knowledge"],
+  "eliza.character.lore": ["lore"],
+  "eliza.character.memory": ["context"],
+  "eliza.character.style": ["style"],
+  "eliza.character.system": ["system"],
   "eliza.plugin": ["plugin"],
+  "eliza.plugin.actions": ["actions"],
+  "eliza.plugin.bundle": ["plugin"],
+  "eliza.plugin.evaluators": ["evaluators"],
+  "eliza.plugin.manifest": ["manifest"],
+  "eliza.plugin.mcp": ["tools"],
+  "eliza.plugin.providers": ["providers"],
+  "eliza.plugin.secrets": ["secrets"],
   "eliza.message": ["message"],
   "eliza.provider": ["context"],
   "eliza.action": ["message"],
@@ -396,26 +414,51 @@ async function videoCostUsd(baseUrl: string): Promise<number> {
       headers: key ? { authorization: `Bearer ${key}` } : {},
     });
     if (!res.ok) return FALLBACK;
-    const j = (await res.json()) as any;
-    // Tolerate a few plausible shapes: a keyed map or an array of entries.
-    const entry =
-      j?.["generate-video"] ??
-      j?.pricing?.["generate-video"] ??
-      (Array.isArray(j?.pricing)
-        ? j.pricing.find((p: any) => p?.id === "generate-video" || p?.name === "generate-video")
-        : undefined) ??
-      (Array.isArray(j)
-        ? j.find((p: any) => p?.id === "generate-video" || p?.name === "generate-video")
-        : undefined);
-    const min =
-      entry?.estimatedRange?.min ??
-      entry?.priceRange?.min ??
-      entry?.min ??
-      entry?.price;
+    const entry = pricingEntry((await res.json()) as JsonValue);
+    const min = entry ? priceMin(entry) : null;
     return typeof min === "number" && Number.isFinite(min) && min > 0 ? min : FALLBACK;
   } catch {
     return FALLBACK;
   }
+}
+
+function isJsonRecord(value: JsonValue): value is JsonRecord {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function pricingEntry(value: JsonValue): JsonRecord | null {
+  if (Array.isArray(value)) {
+    return value.find(isGenerateVideoEntry) ?? null;
+  }
+  if (!isJsonRecord(value)) return null;
+  const direct = value["generate-video"];
+  if (isJsonRecord(direct)) return direct;
+  const pricing = value.pricing;
+  if (Array.isArray(pricing)) return pricing.find(isGenerateVideoEntry) ?? null;
+  if (isJsonRecord(pricing)) {
+    const keyed = pricing["generate-video"];
+    if (isJsonRecord(keyed)) return keyed;
+  }
+  return null;
+}
+
+function isGenerateVideoEntry(value: JsonValue): value is JsonRecord {
+  return isJsonRecord(value) && (value.id === "generate-video" || value.name === "generate-video");
+}
+
+function priceMin(entry: JsonRecord): number | null {
+  const estimated = entry.estimatedRange;
+  const range = entry.priceRange;
+  return (
+    numberValue(isJsonRecord(estimated) ? estimated.min : null) ??
+    numberValue(isJsonRecord(range) ? range.min : null) ??
+    numberValue(entry.min) ??
+    numberValue(entry.price)
+  );
+}
+
+function numberValue(value: JsonValue | undefined): number | null {
+  return typeof value === "number" ? value : null;
 }
 
 /** Chat/completions text generation through ElizaCloud. */

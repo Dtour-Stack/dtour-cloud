@@ -4,7 +4,7 @@
  * target; the returned JSON is validated + re-id'd so a model can never produce a
  * graph that breaks the editor.
  */
-import { defaultValues, ELIZA_PLUGINS, getDef, NODE_DEFS } from "./registry";
+import { defaultSubgraph, defaultValues, ELIZA_PLUGINS, getDef, NODE_DEFS } from "./registry";
 import type { Graph } from "./templates";
 import type { Edge, NodeDef, NodeInstance } from "./types";
 
@@ -66,6 +66,7 @@ function normalize(raw: unknown): Graph {
     const newId = `n_${nodes.length}`;
     if (node.id) idMap.set(node.id, newId);
     const col = nodes.length;
+    const subgraph = defaultSubgraph(node.type);
     nodes.push({
       id: newId,
       type: node.type,
@@ -74,6 +75,7 @@ function normalize(raw: unknown): Graph {
       // Fill widget defaults first — models routinely omit keys; without this
       // they'd render as "undefined"/NaN (the happy path, not an edge case).
       values: { ...defaultValues(def), ...((node.values as Record<string, string | number>) ?? {}) },
+      ...(subgraph ? { subgraph, subgraphCollapsed: true } : {}),
     });
   });
   if (nodes.length === 0) throw new Error("The model returned no valid nodes.");
@@ -85,8 +87,10 @@ function normalize(raw: unknown): Graph {
     const sn = edge.source?.node && idMap.get(edge.source.node);
     const tn = edge.target?.node && idMap.get(edge.target.node);
     if (!sn || !tn) return;
-    const sPort = getDef(nodes.find((x) => x.id === sn)!.type).outputs.find((p) => p.name === edge.source?.port);
-    const tDef = defByNewId.get(tn)!;
+    const sourceNode = nodes.find((x) => x.id === sn);
+    const tDef = defByNewId.get(tn);
+    if (!sourceNode || !tDef) return;
+    const sPort = getDef(sourceNode.type).outputs.find((p) => p.name === edge.source?.port);
     const tPort = tDef.inputs.find((p) => p.name === edge.target?.port);
     if (!sPort || !tPort) return;
     // Same invariant the interactive editor enforces: matching types, or either

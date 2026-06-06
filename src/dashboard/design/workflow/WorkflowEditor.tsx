@@ -8,16 +8,16 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { queueCanvasImage } from "../canvas/studioDoc";
-import { DESIGN_SURFACE } from "../designProject";
-import { DesignProjectControls } from "../DesignProjectControls";
-import { useDesignProject } from "../DesignProjectContext";
 import { getDtourSessionToken } from "@/lib/session";
 import { cn, Icon } from "@/ui";
+import { queueCanvasImage } from "../canvas/studioDoc";
+import { useDesignProject } from "../DesignProjectContext";
+import { DesignProjectControls } from "../DesignProjectControls";
+import { DESIGN_SURFACE } from "../designProject";
 import { GuidedTour, WORKFLOW_TOUR } from "../GuidedTour";
 import { generateWorkflowGraph } from "./aiGenerate";
 import { NodeInspector } from "./NodeInspector";
-import { defaultValues, getDef, NODE_DEFS, PORT_COLOR } from "./registry";
+import { defaultSubgraph, defaultValues, getDef, NODE_DEFS, PORT_COLOR } from "./registry";
 import { type Graph, TEMPLATES } from "./templates";
 import type { Edge, NodeDef, NodeInstance, PortType, Viewport } from "./types";
 
@@ -75,6 +75,7 @@ export function WorkflowEditor() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   useEffect(() => {
+    void project;
     hydrated.current = false;
     setNodes([]);
     setEdges([]);
@@ -86,6 +87,7 @@ export function WorkflowEditor() {
   }, [project]);
 
   useEffect(() => {
+    void project;
     if (saved === undefined || hydrated.current) return;
     hydrated.current = true;
     if (saved?.data) {
@@ -124,7 +126,8 @@ export function WorkflowEditor() {
   }
 
   function screenToGraph(clientX: number, clientY: number) {
-    const r = ref.current!.getBoundingClientRect();
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return { x: 0, y: 0 };
     const v = vpRef.current;
     return { x: (clientX - r.left - v.panX) / v.scale, y: (clientY - r.top - v.panY) / v.scale };
   }
@@ -145,18 +148,57 @@ export function WorkflowEditor() {
   ) {
     const def = getDef(type);
     const id = `n_${ids.current.n++}`;
+    const subgraph = defaultSubgraph(type);
     setNodes((ns) => [
       ...ns,
-      { id, type, x: gx, y: gy, values: { ...defaultValues(def), ...(values ?? {}) } },
+      {
+        id,
+        type,
+        x: gx,
+        y: gy,
+        values: { ...defaultValues(def), ...(values ?? {}) },
+        ...(subgraph ? { subgraph, subgraphCollapsed: true } : {}),
+      },
     ]);
     setSel({ kind: "node", id });
     setMenu(null);
   }
 
-  function removeNode(id: string) {
+  function updateNode(id: string, update: (node: NodeInstance) => NodeInstance) {
+    setNodes((ns) => ns.map((node) => (node.id === id ? update(node) : node)));
+  }
+
+  function toggleSubgraph(id: string) {
+    updateNode(id, (node) =>
+      node.subgraph ? { ...node, subgraphCollapsed: !subgraphCollapsed(node) } : node,
+    );
+  }
+
+  function toggleNestedSubgraph(id: string, path: string[]) {
+    updateNode(id, (node) => updateSubgraphNode(node, path, (target) => ({
+      ...target,
+      subgraphCollapsed: !subgraphCollapsed(target),
+    })));
+  }
+
+  function updateSubgraphValue(
+    id: string,
+    path: string[],
+    key: string,
+    value: string | number,
+  ) {
+    updateNode(id, (node) =>
+      updateSubgraphNode(node, path, (target) => ({
+        ...target,
+        values: { ...target.values, [key]: value },
+      })),
+    );
+  }
+
+  const removeNode = useCallback((id: string) => {
     setNodes((ns) => ns.filter((n) => n.id !== id));
     setEdges((es) => es.filter((e) => e.source.node !== id && e.target.node !== id));
-  }
+  }, []);
 
   // ── execution ──
   const runWorkflow = useMutation(anyApi.workflow.runWorkflow);
@@ -266,7 +308,8 @@ export function WorkflowEditor() {
   }
 
   function addImageFromAsset(url: string) {
-    const r = ref.current!.getBoundingClientRect();
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
     const p = screenToGraph(r.left + r.width / 2, r.top + r.height / 2);
     addNode("input.image", p.x, p.y, { url });
     setShowAssets(false);
@@ -278,7 +321,7 @@ export function WorkflowEditor() {
     if (!el) return;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
-      const r = el!.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
       const sx = e.clientX - r.left;
       const sy = e.clientY - r.top;
       setVp((v) => {
@@ -310,7 +353,7 @@ export function WorkflowEditor() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sel]);
+  }, [sel, removeNode]);
 
   // ── gesture handlers (on the container) ──
   function capture(e: RPointerEvent) {
@@ -554,9 +597,12 @@ export function WorkflowEditor() {
       onPointerUp={onPointerUp}
       onDoubleClick={(e) => {
         const p = screenToGraph(e.clientX, e.clientY);
-        const r = ref.current!.getBoundingClientRect();
+        const r = ref.current?.getBoundingClientRect();
+        if (!r) return;
         setMenu({ sx: e.clientX - r.left, sy: e.clientY - r.top, gx: p.x, gy: p.y });
       }}
+      role="application"
+      aria-label="Workflow canvas"
       className="relative min-h-0 flex-1 touch-none overflow-hidden bg-[#0a0a0a]"
       style={{ cursor: gestureRef.current?.kind === "pan" ? "grabbing" : "default" }}
     >
@@ -672,12 +718,11 @@ export function WorkflowEditor() {
                 {def.outputs.map((p, i) => (
                   <div key={p.name} className="absolute right-0 flex items-center justify-end gap-1.5" style={{ top: i * PORT_ROW_H, height: PORT_ROW_H, paddingRight: 12 }}>
                     <span className="text-[11px] text-white/55">{p.name}</span>
-                    <span
-                      role="button"
-                      tabIndex={-1}
+                    <button
+                      type="button"
                       aria-label={`Connect ${p.name}`}
                       onPointerDown={(e) => startConnect(e, n.id, p.name, p.type)}
-                      className="absolute cursor-crosshair rounded-full border border-black/40 transition hover:scale-125"
+                      className="absolute cursor-crosshair rounded-full border border-black/40 p-0 transition hover:scale-125"
                       style={{ right: -DOT / 2, width: DOT, height: DOT, top: PORT_ROW_H / 2 - DOT / 2, background: PORT_COLOR[p.type] }}
                     />
                   </div>
@@ -692,6 +737,64 @@ export function WorkflowEditor() {
                     <div className="truncate px-3 pb-2.5 pt-1 text-[11px] text-white/40">{sum}</div>
                   ) : null;
                 })()}
+
+              {n.subgraph && (
+                <div className="border-t border-white/10 px-3 py-2">
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => toggleSubgraph(n.id)}
+                    className="flex min-h-8 w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-left text-[11px] text-white/65 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <Icon.Frame size={12} />
+                      <span className="truncate">Subgraph · {n.subgraph.nodes.length} nodes</span>
+                    </span>
+                    <Icon.ChevronDown size={12} />
+                  </button>
+                  {!subgraphCollapsed(n) && (
+                    <div className="mt-2 space-y-1.5">
+                      {n.subgraph.nodes.map((child) => {
+                        const childDef = getDef(child.type);
+                        const childSummary = summarize(childDef, child.values);
+                        return (
+                          <div
+                            key={child.id}
+                            className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                style={{
+                                  background:
+                                    PORT_COLOR[
+                                      (childDef.outputs[0]?.type ??
+                                        childDef.inputs[0]?.type ??
+                                        "any") as PortType
+                                    ],
+                                }}
+                              />
+                              <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-white/75">
+                                {childDef.title}
+                              </span>
+                              {child.subgraph && (
+                                <span className="shrink-0 text-[9px] uppercase tracking-widest text-white/30">
+                                  {child.subgraph.nodes.length}
+                                </span>
+                              )}
+                            </div>
+                            {childSummary && (
+                              <div className="mt-1 truncate text-[10px] text-white/35">
+                                {childSummary}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* run status / output */}
               {st?.status === "error" && (
@@ -990,6 +1093,9 @@ export function WorkflowEditor() {
                   ns.map((x) => (x.id === node.id ? { ...x, values: { ...x.values, [key]: val } } : x)),
                 )
               }
+              onToggleSubgraph={() => toggleSubgraph(node.id)}
+              onToggleNestedSubgraph={(path) => toggleNestedSubgraph(node.id, path)}
+              onSubgraphNodeChange={(path, key, val) => updateSubgraphValue(node.id, path, key, val)}
               onDelete={() => {
                 removeNode(node.id);
                 setSel(null);
@@ -1089,6 +1195,29 @@ function summarize(def: NodeDef, values: Record<string, string | number>): strin
     .slice(0, 2)
     .map((v) => String(v))
     .join(" · ");
+}
+
+function subgraphCollapsed(node: Pick<NodeInstance, "subgraphCollapsed">) {
+  return node.subgraphCollapsed !== false;
+}
+
+function updateSubgraphNode(
+  node: NodeInstance,
+  path: string[],
+  update: (node: NodeInstance) => NodeInstance,
+): NodeInstance {
+  if (path.length === 0) return update(node);
+  if (!node.subgraph) return node;
+  const [head, ...rest] = path;
+  return {
+    ...node,
+    subgraph: {
+      ...node.subgraph,
+      nodes: node.subgraph.nodes.map((child) =>
+        child.id === head ? updateSubgraphNode(child, rest, update) : child,
+      ),
+    },
+  };
 }
 
 function AddMenu({

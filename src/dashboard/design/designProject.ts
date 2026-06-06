@@ -3,6 +3,7 @@ export const DESIGN_SURFACE = {
   studio: "studio",
   sketch: "sketch",
   workflow: "workflow",
+  infra: "infra",
 } as const;
 
 export type DesignSurfaceKind = (typeof DESIGN_SURFACE)[keyof typeof DESIGN_SURFACE];
@@ -15,9 +16,10 @@ export function projectFromSearchParam(raw: string | null): string {
 }
 
 export function designPath(
-  section: "canvas" | "sketch" | "workflows",
+  section: "canvas" | "sketch" | "workflows" | "infra",
   project: string,
 ): string {
   const q = new URLSearchParams({ project });
+  if (section === "infra") return `/dashboard?${q.toString()}#cloud-builder`;
   return `/design/${section}?${q}`;
 }

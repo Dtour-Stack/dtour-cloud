@@ -1,4 +1,4 @@
-import { defaultValues, getDef } from "./registry";
+import { defaultSubgraph, defaultValues, getDef } from "./registry";
 import type { Edge, NodeInstance, PortType } from "./types";
 
 export type Graph = { nodes: NodeInstance[]; edges: Edge[] };
@@ -17,7 +17,15 @@ function mk(
   y: number,
   values?: Record<string, string | number>,
 ): NodeInstance {
-  return { id, type, x, y, values: { ...defaultValues(getDef(type)), ...(values ?? {}) } };
+  const subgraph = defaultSubgraph(type);
+  return {
+    id,
+    type,
+    x,
+    y,
+    values: { ...defaultValues(getDef(type)), ...(values ?? {}) },
+    ...(subgraph ? { subgraph, subgraphCollapsed: true } : {}),
+  };
 }
 
 function ed(i: number, sn: string, sp: string, tn: string, tp: string, type: PortType): Edge {

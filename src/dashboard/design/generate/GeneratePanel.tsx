@@ -1,10 +1,14 @@
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { withDashboardPreviewPolicy } from "@/dashboard/custom/dashboardPreview";
+import { type DashboardSource, withDashboardPreviewPolicy } from "@/dashboard/custom/dashboardPreview";
+import {
+  DTOUR_TEST_SESSION_TOKEN,
+  readDtourPlaywrightUser,
+} from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
-import { Button, Icon, cn } from "@/ui";
+import { Button, cn, Icon } from "@/ui";
 
 type GenerateMode = "dashboard" | "mockup" | "wireframe" | "component";
 type GeneratedPreview = {
@@ -20,6 +24,43 @@ type RunChat = (args: {
   refId: string;
 }) => Promise<{ text: string }>;
 
+type ProjectSourceRow = {
+  name: string;
+  hasStudio: boolean;
+  hasSketch: boolean;
+  hasWorkflow: boolean;
+  hasInfra: boolean;
+};
+
+type DeploymentSourceRow = {
+  agent: { id: string; name: string };
+  deployment: {
+    agentId: string;
+    status: string;
+    webUiUrl: string;
+    apiBaseUrl: string;
+    a2aEnabled: boolean;
+    mcpEnabled: boolean;
+  };
+};
+
+type ExternalConnectionSourceRow = {
+  id: string;
+  label: string;
+  provider: string;
+  baseUrl: string;
+  apiBaseUrl: string | null;
+  a2aUrl: string | null;
+  mcpUrl: string | null;
+  status: string;
+};
+
+type SourceOption = DashboardSource & {
+  key: string;
+  group: "Projects" | "Remote infra" | "External endpoints";
+  detail: string;
+};
+
 const HTML_PREVIEW_SYSTEM = `You are Detour Studio's UI generator. Output ONLY raw JSON:
 {"title":"short title","html":"complete HTML document or body snippet","notes":["short implementation note"]}
 
@@ -27,6 +68,7 @@ Rules:
 - Generate self-contained HTML, CSS, and lightweight vanilla JS for a sandboxed iframe preview.
 - No external URLs, no network calls, no remote fonts, no imports, no storage, no cookies.
 - Scripts are allowed only for local UI behavior: tabs, toggles, preview state, fake filters, menu open/close.
+- If source data is provided, read it from window.DETOUR_DASHBOARD_SOURCES and render those projects, remote infra URLs, and external endpoints as selectable live resources. Do not invent unavailable endpoints.
 - Keep the HTML under 18kb.
 - Use Detour styling unless the prompt requests another style: near-black canvas, glass panels, white opacity text, hairline borders, one violet-blue accent, Inter/system font.
 - When mode is dashboard, create a complete Detour dashboard shell with navigation, meaningful sections, real controls, empty/loading/error states, and responsive behavior.
@@ -176,6 +218,7 @@ async function generateHtmlPreview(
   token: string,
   mode: GenerateMode,
   prompt: string,
+  sourceContext: string,
 ): Promise<GeneratedPreview> {
   const refId = `design-artifact-${mode}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const { text } = await runChat({
@@ -184,7 +227,7 @@ async function generateHtmlPreview(
     refId,
     messages: [
       { role: "system", content: HTML_PREVIEW_SYSTEM },
-      { role: "user", content: `Mode: ${mode}\n\nPrompt:\n${prompt}` },
+      { role: "user", content: `Mode: ${mode}\n\nAvailable Detour data sources:\n${sourceContext || "No sources selected."}\n\nPrompt:\n${prompt}` },
     ],
   });
   return parsePreview(text);
@@ -198,11 +241,91 @@ function dashboardName(title: string): string {
     .slice(0, 48) || "Custom dashboard";
 }
 
+function buildSourceOptions(
+  projects: ProjectSourceRow[],
+  deployments: DeploymentSourceRow[],
+  externalConnections: ExternalConnectionSourceRow[],
+): SourceOption[] {
+  return [
+    ...projects.map((project) => ({
+      key: `project:${project.name}`,
+      kind: "project",
+      label: project.name,
+      ref: project.name,
+      endpoint: `/design/projects?project=${encodeURIComponent(project.name)}`,
+      group: "Projects" as const,
+      detail:
+        [
+          project.hasStudio && "studio",
+          project.hasSketch && "sketch",
+          project.hasWorkflow && "workflow",
+          project.hasInfra && "infra",
+        ]
+          .filter(Boolean)
+          .join(" · ") || "empty",
+    })),
+    ...deployments.map(({ agent, deployment }) => ({
+      key: `remote:${deployment.agentId}`,
+      kind: "remote_infra",
+      label: agent.name,
+      ref: deployment.agentId,
+      endpoint: deployment.apiBaseUrl || deployment.webUiUrl,
+      group: "Remote infra" as const,
+      detail: [
+        deployment.status,
+        deployment.a2aEnabled && "A2A",
+        deployment.mcpEnabled && "MCP",
+        deployment.webUiUrl && "web UI",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    })),
+    ...externalConnections.map((connection) => ({
+      key: `external:${connection.id}`,
+      kind: "external_endpoint",
+      label: connection.label,
+      ref: connection.id,
+      endpoint: connection.apiBaseUrl ?? connection.a2aUrl ?? connection.mcpUrl ?? connection.baseUrl,
+      group: "External endpoints" as const,
+      detail: [
+        connection.provider,
+        connection.status,
+        connection.apiBaseUrl && "API",
+        connection.a2aUrl && "A2A",
+        connection.mcpUrl && "MCP",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    })),
+  ];
+}
+
+function sourceContext(sources: DashboardSource[]): string {
+  return sources
+    .map((source) =>
+      `- ${source.kind}: ${source.label}; ref=${source.ref}; endpoint=${source.endpoint ?? "none"}`,
+    )
+    .join("\n");
+}
+
 export function GeneratePanel() {
   const navigate = useNavigate();
-  const token = getDtourSessionToken();
+  const testUser = readDtourPlaywrightUser();
+  const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const runChat = useAction(anyApi.inference.runChat);
   const saveDashboard = useMutation(anyApi.design.saveDashboard);
+  const projectRows = useQuery(
+    anyApi.design.listProjects,
+    token && !testUser ? { token } : "skip",
+  ) as ProjectSourceRow[] | null | undefined;
+  const deploymentRows = useQuery(
+    anyApi.remoteAgentDeployments.list,
+    token && !testUser ? { token } : "skip",
+  ) as DeploymentSourceRow[] | undefined;
+  const externalRows = useQuery(
+    anyApi.agentExternalConnections.listAll,
+    token && !testUser ? { token } : "skip",
+  ) as ExternalConnectionSourceRow[] | undefined;
   const [mode, setMode] = useState<GenerateMode>("dashboard");
   const [prompt, setPrompt] = useState(MODE_COPY.dashboard.prompt);
   const [preview, setPreview] = useState<GeneratedPreview>({
@@ -216,11 +339,30 @@ export function GeneratePanel() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const srcDoc = useMemo(() => withDashboardPreviewPolicy(preview.html), [preview.html]);
+  const sourceOptions = useMemo(
+    () => buildSourceOptions(projectRows ?? [], deploymentRows ?? [], externalRows ?? []),
+    [deploymentRows, externalRows, projectRows],
+  );
+  const [selectedSourceKeys, setSelectedSourceKeys] = useState<string[]>([]);
+  const selectedSources = useMemo(
+    () => sourceOptions.filter((source) => selectedSourceKeys.includes(source.key)),
+    [selectedSourceKeys, sourceOptions],
+  );
+  const srcDoc = useMemo(
+    () => withDashboardPreviewPolicy(preview.html, selectedSources),
+    [preview.html, selectedSources],
+  );
 
   function applyMode(nextMode: GenerateMode) {
     setMode(nextMode);
     setPrompt(MODE_COPY[nextMode].prompt);
+  }
+
+  function toggleSource(key: string) {
+    setSaved(false);
+    setSelectedSourceKeys((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    );
   }
 
   async function generate() {
@@ -230,7 +372,7 @@ export function GeneratePanel() {
     setError(null);
     setSaved(false);
     try {
-      const next = await generateHtmlPreview(runChat, token, mode, prompt.trim());
+      const next = await generateHtmlPreview(runChat, token, mode, prompt.trim(), sourceContext(selectedSources));
       setPreview(next);
       setCustomName(dashboardName(next.title));
     } catch (e) {
@@ -263,6 +405,7 @@ export function GeneratePanel() {
         title: preview.title,
         html: preview.html,
         notes: preview.notes,
+        sources: selectedSources,
       });
       setSaved(true);
       navigate(`/dashboard/custom/${encodeURIComponent(res.name)}`);
@@ -274,6 +417,7 @@ export function GeneratePanel() {
   }
 
   const modeIds = Object.keys(MODE_COPY) as GenerateMode[];
+  const sourcesLoading = Boolean(token && !testUser && (projectRows === undefined || deploymentRows === undefined || externalRows === undefined));
 
   return (
     <div className="flex h-full min-h-0 bg-[#0a0a0a]">
@@ -309,6 +453,14 @@ export function GeneratePanel() {
           <div className="text-[10px] uppercase tracking-widest text-white/35">Mode</div>
           <div className="mt-1 text-sm font-medium text-white">{MODE_COPY[mode].hint}</div>
         </div>
+
+        <SourcePicker
+          className="mt-4"
+          options={sourceOptions}
+          selectedKeys={selectedSourceKeys}
+          loading={sourcesLoading}
+          onToggle={toggleSource}
+        />
 
         <label htmlFor="design-generate-prompt" className="mt-4 block text-[11px] uppercase tracking-widest text-white/45">
           Prompt
@@ -405,6 +557,14 @@ export function GeneratePanel() {
             />
           </label>
 
+          <SourcePicker
+            className="mt-3"
+            options={sourceOptions}
+            selectedKeys={selectedSourceKeys}
+            loading={sourcesLoading}
+            onToggle={toggleSource}
+          />
+
           {error && (
             <div className="mt-3 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-[12px] leading-relaxed text-red-100/90">
               {error}
@@ -458,6 +618,73 @@ export function GeneratePanel() {
           />
         </div>
       </section>
+    </div>
+  );
+}
+
+function SourcePicker({
+  options,
+  selectedKeys,
+  loading,
+  onToggle,
+  className,
+}: {
+  options: SourceOption[];
+  selectedKeys: string[];
+  loading: boolean;
+  onToggle: (key: string) => void;
+  className?: string;
+}) {
+  const groups = ["Projects", "Remote infra", "External endpoints"] as const;
+  return (
+    <div className={cn("rounded-xl border border-white/10 bg-black/25 p-3", className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-widest text-white/35">Data sources</span>
+        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/40">
+          {selectedKeys.length} selected
+        </span>
+      </div>
+      <p className="mt-1 text-[11px] leading-relaxed text-white/35">
+        Bind dashboards to current projects, Detour remote infra, or external agent endpoints.
+      </p>
+      {loading ? (
+        <div className="mt-3 text-[12px] text-white/40">Loading sources...</div>
+      ) : options.length === 0 ? (
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-white/35">
+          No sources yet. Create a project, deploy an agent, or connect an external endpoint in Agent Cloud.
+        </div>
+      ) : (
+        <div className="mt-3 max-h-48 space-y-3 overflow-y-auto pr-1">
+          {groups.map((group) => {
+            const rows = options.filter((option) => option.group === group);
+            if (rows.length === 0) return null;
+            return (
+              <div key={group} className="space-y-1.5">
+                <div className="text-[9px] uppercase tracking-widest text-white/30">{group}</div>
+                {rows.map((option) => (
+                  <label
+                    key={option.key}
+                    className="flex min-h-10 cursor-pointer items-start gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-2 transition hover:bg-white/[0.06]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedKeys.includes(option.key)}
+                      onChange={() => onToggle(option.key)}
+                      className="mt-0.5 accent-purple-400"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] font-medium text-white/75">
+                        {option.label}
+                      </span>
+                      <span className="block truncate text-[10px] text-white/35">{option.detail}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

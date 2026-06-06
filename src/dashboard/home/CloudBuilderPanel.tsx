@@ -1,13 +1,9 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { DESIGN_SURFACE, projectFromSearchParam } from "@/dashboard/design/designProject";
 import {
-  remoteFallbackLabel,
-  remoteMeshLabel,
-  remoteProviderLabel,
-  remoteRuntimeUrl,
-  remoteStatusLabel,
   type RemoteRuntimeAccess,
   type RemoteRuntimeDomainMode,
   type RemoteRuntimeFallbackStatus,
@@ -16,8 +12,13 @@ import {
   type RemoteRuntimeProvider,
   type RemoteRuntimeProviderStrategy,
   type RemoteRuntimeStatus,
+  remoteFallbackLabel,
+  remoteMeshLabel,
+  remoteProviderLabel,
+  remoteRuntimeUrl,
+  remoteStatusLabel,
 } from "@/lib/remoteRuntime";
-import { Badge, Button, Icon, buttonClasses, cn } from "@/ui";
+import { Badge, Button, buttonClasses, cn, Icon } from "@/ui";
 
 type AgentOption = { id: string; name: string; model: string; type: string; plugins?: string[] };
 type DeploymentSummary = {
@@ -40,6 +41,20 @@ type DeploymentSummary = {
   webUiUrl: string;
   apiBaseUrl: string;
   lastError: string | null;
+};
+type ExternalConnectionSummary = {
+  id: string;
+  agentId: string;
+  label: string;
+  provider: string;
+  baseUrl: string;
+  apiBaseUrl: string | null;
+  a2aUrl: string | null;
+  mcpUrl: string | null;
+  authMode: string;
+  meshMode: string;
+  meshHostname: string | null;
+  status: string;
 };
 type NodeStatus = "ready" | "needs_config" | "planned" | "live";
 type NodeType =
@@ -74,8 +89,6 @@ type CloudGraph = { nodes: CloudNode[]; edges: CloudEdge[] };
 
 type Issue = { nodeId: string; severity: "error" | "warning"; message: string };
 
-const KIND = "cloud_builder";
-const PROJECT = "Main dashboard cloud";
 const NODE_W = 168;
 const NODE_H = 74;
 
@@ -279,6 +292,7 @@ function parseGraph(data?: string): CloudGraph {
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
       return cloneGraph(DEFAULT_GRAPH);
     }
+    if (parsed.nodes.length === 0) return cloneGraph(DEFAULT_GRAPH);
     return {
       nodes: parsed.nodes.filter(isCloudNode),
       edges: parsed.edges.filter(isCloudEdge),
@@ -325,7 +339,11 @@ function statusLabel(status: NodeStatus): string {
   }
 }
 
-function validateGraph(graph: CloudGraph, agents: AgentOption[]): Issue[] {
+function validateGraph(
+  graph: CloudGraph,
+  agents: AgentOption[],
+  externalConnections: ExternalConnectionSummary[],
+): Issue[] {
   const issues: Issue[] = [];
   const hasAgent = agents.length > 0;
   const apiNode = graph.nodes.find((node) => node.type === "api");
@@ -371,6 +389,30 @@ function validateGraph(graph: CloudGraph, agents: AgentOption[]): Issue[] {
         severity: "warning",
         message: "Public API access with MCP enabled should use scoped keys before launch.",
       });
+    }
+    if ((node.type === "mcp" || node.type === "a2a") && node.values.externalConnectionId) {
+      const connection = externalConnections.find(
+        (item) => item.id === node.values.externalConnectionId,
+      );
+      if (!connection) {
+        issues.push({
+          nodeId: node.id,
+          severity: "error",
+          message: "Choose a saved external connector or clear this endpoint binding.",
+        });
+      } else if (node.type === "mcp" && !connection.mcpUrl) {
+        issues.push({
+          nodeId: node.id,
+          severity: "warning",
+          message: "This external connector does not expose an MCP URL yet.",
+        });
+      } else if (node.type === "a2a" && !connection.a2aUrl) {
+        issues.push({
+          nodeId: node.id,
+          severity: "warning",
+          message: "This external connector does not expose an A2A URL yet.",
+        });
+      }
     }
     if (node.type === "domain" && node.values.mode === "custom" && !node.values.customDomain) {
       issues.push({
@@ -435,15 +477,23 @@ export function CloudBuilderPanel({
   token,
   agents,
   deployments = [],
+  externalConnections = [],
 }: {
   token: string | null;
   agents: AgentOption[];
   deployments?: DeploymentSummary[];
+  externalConnections?: ExternalConnectionSummary[];
 }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const project = projectFromSearchParam(searchParams.get("project"));
   const saved = useQuery(
     anyApi.design.getDoc,
-    token ? { token, kind: KIND, project: PROJECT } : "skip",
+    token ? { token, kind: DESIGN_SURFACE.infra, project } : "skip",
   ) as { data: string; updatedAt: number } | null | undefined;
+  const projectRows = useQuery(
+    anyApi.design.listProjects,
+    token ? { token } : "skip",
+  ) as { name: string; hasInfra: boolean }[] | null | undefined;
   const saveDoc = useMutation(anyApi.design.saveDoc);
   const hydrated = useRef(false);
   const [graph, setGraph] = useState<CloudGraph>(() => cloneGraph(DEFAULT_GRAPH));
@@ -452,12 +502,24 @@ export function CloudBuilderPanel({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
+    void project;
+    hydrated.current = false;
+    setGraph(cloneGraph(DEFAULT_GRAPH));
+    setSelectedId("agent");
+    setSaveState("idle");
+    setSaveError(null);
+  }, [project]);
+
+  useEffect(() => {
     if (saved === undefined || hydrated.current) return;
     hydrated.current = true;
     setGraph(parseGraph(saved?.data));
   }, [saved]);
 
-  const issues = useMemo(() => validateGraph(graph, agents), [graph, agents]);
+  const issues = useMemo(
+    () => validateGraph(graph, agents, externalConnections),
+    [agents, externalConnections, graph],
+  );
   const selected = graph.nodes.find((node) => node.id === selectedId) ?? graph.nodes[0];
   const selectedIssues = selected ? nodeIssues(issues, selected.id) : [];
   const deploymentByAgent = useMemo(
@@ -466,6 +528,9 @@ export function CloudBuilderPanel({
   );
   const selectedAgentId = selected?.type === "agent" ? selected.values.agentId : graph.nodes.find((node) => node.type === "agent")?.values.agentId;
   const selectedDeployment = selectedAgentId ? deploymentByAgent.get(selectedAgentId) ?? null : null;
+  const selectedExternalConnections = selectedAgentId
+    ? externalConnections.filter((connection) => connection.agentId === selectedAgentId)
+    : externalConnections;
   const blocking = issues.filter((issue) => issue.severity === "error").length;
   const warnings = issues.filter((issue) => issue.severity === "warning").length;
   const savedLoading = Boolean(token && saved === undefined);
@@ -518,8 +583,8 @@ export function CloudBuilderPanel({
     try {
       await saveDoc({
         token,
-        kind: KIND,
-        project: PROJECT,
+        kind: DESIGN_SURFACE.infra,
+        project,
         data: JSON.stringify(graph),
       });
       setSaveState("saved");
@@ -543,6 +608,9 @@ export function CloudBuilderPanel({
                   ? `${warnings} warning${warnings === 1 ? "" : "s"}`
                   : "ready"}
             </Badge>
+            <Badge tone={externalConnections.length > 0 ? "accent" : "neutral"}>
+              {externalConnections.length} external
+            </Badge>
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-white/45">
             Shape the cloud around your agents: 24/7 runtime, Tailscale or Headscale mesh,
@@ -550,6 +618,31 @@ export function CloudBuilderPanel({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <label className="flex min-h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 text-[12px] text-white/65">
+            <span className="text-white/35">Project</span>
+            <select
+              value={project}
+              onChange={(event) =>
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  const value = event.target.value.trim();
+                  if (value) next.set("project", value);
+                  else next.delete("project");
+                  return next;
+                })
+              }
+              className="max-w-36 bg-transparent text-white focus:outline-none"
+            >
+              <option value={project}>{project}</option>
+              {projectRows
+                ?.filter((row) => row.name !== project)
+                .map((row) => (
+                  <option key={row.name} value={row.name}>
+                    {row.name}
+                  </option>
+                ))}
+            </select>
+          </label>
           <Button type="button" size="sm" variant="secondary" onClick={reset}>
             Reset
           </Button>
@@ -682,6 +775,7 @@ export function CloudBuilderPanel({
             <NodeInspector
               node={selected}
               agents={agents}
+              externalConnections={selectedExternalConnections}
               issues={selectedIssues}
               onChange={(values) => updateNode(selected.id, { values })}
               onStatusChange={(status) => updateNode(selected.id, { status })}
@@ -724,6 +818,7 @@ export function CloudBuilderPanel({
 function NodeInspector({
   node,
   agents,
+  externalConnections,
   issues,
   onChange,
   onStatusChange,
@@ -731,12 +826,16 @@ function NodeInspector({
 }: {
   node: CloudNode;
   agents: AgentOption[];
+  externalConnections: ExternalConnectionSummary[];
   issues: Issue[];
   onChange: (values: Record<string, string>) => void;
   onStatusChange: (status: NodeStatus) => void;
   selectedDeployment: DeploymentSummary | null;
 }) {
   const values = node.values;
+  const selectedExternalConnection =
+    externalConnections.find((connection) => connection.id === values.externalConnectionId) ??
+    null;
   const fieldPrefix = `cloud-builder-${node.id.replace(/[^a-z0-9_-]/gi, "-")}`;
   const fieldIds = {
     status: `${fieldPrefix}-status`,
@@ -753,6 +852,7 @@ function NodeInspector({
     customDomain: `${fieldPrefix}-custom-domain`,
     endpointEnabled: `${fieldPrefix}-endpoint-enabled`,
     endpointAccess: `${fieldPrefix}-endpoint-access`,
+    externalConnection: `${fieldPrefix}-external-connection`,
     networkMode: `${fieldPrefix}-network-mode`,
     tailnet: `${fieldPrefix}-tailnet`,
     headscaleUrl: `${fieldPrefix}-headscale-url`,
@@ -1016,6 +1116,44 @@ function NodeInspector({
               <option value="public">Public</option>
             </select>
           </Field>
+          <Field label="External connector" htmlFor={fieldIds.externalConnection}>
+            <select
+              id={fieldIds.externalConnection}
+              value={values.externalConnectionId ?? ""}
+              onChange={(event) => onChange({ externalConnectionId: event.target.value })}
+              className={fieldClass}
+            >
+              <option value="">Detour-hosted endpoint</option>
+              {externalConnections.map((connection) => (
+                <option key={connection.id} value={connection.id}>
+                  {connection.label} · {connection.provider}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {selectedExternalConnection ? (
+            <div className="grid gap-2">
+              <Readout
+                label="Connector status"
+                value={selectedExternalConnection.status}
+                meta={selectedExternalConnection.provider}
+              />
+              <Readout
+                label={node.type === "mcp" ? "External MCP" : "External A2A"}
+                value={
+                  node.type === "mcp"
+                    ? selectedExternalConnection.mcpUrl ?? "MCP URL missing"
+                    : selectedExternalConnection.a2aUrl ?? "A2A URL missing"
+                }
+                meta={selectedExternalConnection.authMode}
+              />
+              <Readout
+                label="Mesh"
+                value={selectedExternalConnection.meshMode}
+                meta={selectedExternalConnection.meshHostname ?? undefined}
+              />
+            </div>
+          ) : null}
         </>
       ) : null}
 

@@ -9,13 +9,14 @@ import { Widget } from "./Widget";
 function component(startId: string, edges: Edge[]): Set<string> {
   const adj = new Map<string, string[]>();
   for (const e of edges) {
-    (adj.get(e.source.node) ?? adj.set(e.source.node, []).get(e.source.node)!).push(e.target.node);
-    (adj.get(e.target.node) ?? adj.set(e.target.node, []).get(e.target.node)!).push(e.source.node);
+    appendEdge(adj, e.source.node, e.target.node);
+    appendEdge(adj, e.target.node, e.source.node);
   }
   const seen = new Set<string>([startId]);
   const stack = [startId];
   while (stack.length) {
-    const cur = stack.pop()!;
+    const cur = stack.pop();
+    if (cur === undefined) break;
     for (const next of adj.get(cur) ?? []) {
       if (!seen.has(next)) {
         seen.add(next);
@@ -24,6 +25,12 @@ function component(startId: string, edges: Edge[]): Set<string> {
     }
   }
   return seen;
+}
+
+function appendEdge(adj: Map<string, string[]>, from: string, to: string) {
+  const row = adj.get(from);
+  if (row) row.push(to);
+  else adj.set(from, [to]);
 }
 
 /** The agent sub-pipeline for a Character node, read off the wired graph. */
@@ -59,6 +66,9 @@ export function NodeInspector({
   nodes,
   edges,
   onChange,
+  onToggleSubgraph,
+  onToggleNestedSubgraph,
+  onSubgraphNodeChange,
   onDelete,
   onClose,
 }: {
@@ -66,6 +76,9 @@ export function NodeInspector({
   nodes: NodeInstance[];
   edges: Edge[];
   onChange: (key: string, value: string | number) => void;
+  onToggleSubgraph: () => void;
+  onToggleNestedSubgraph: (path: string[]) => void;
+  onSubgraphNodeChange: (path: string[], key: string, value: string | number) => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -134,18 +147,18 @@ export function NodeInspector({
             <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-violet-300/70">
               <Icon.Plug size={11} /> Inner flow
             </div>
-            {hasFlow ? (
+            {hasFlow && flow ? (
               <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                {flow!.plugins.length > 0 && <Row label="Plugins">{flow!.plugins.map((p) => p.replace(/^plugin-/, "")).join(", ")}</Row>}
-                {flow!.triggers.length > 0 && <Row label="Trigger">{flow!.triggers.join(", ")}</Row>}
-                {flow!.providers.length > 0 && <Row label="Context">{flow!.providers.join(", ")}</Row>}
-                {flow!.actions.length > 0 && (
+                {flow.plugins.length > 0 && <Row label="Plugins">{flow.plugins.map((p) => p.replace(/^plugin-/, "")).join(", ")}</Row>}
+                {flow.triggers.length > 0 && <Row label="Trigger">{flow.triggers.join(", ")}</Row>}
+                {flow.providers.length > 0 && <Row label="Context">{flow.providers.join(", ")}</Row>}
+                {flow.actions.length > 0 && (
                   <Row label="Actions">
-                    {flow!.actions.map((a) => a.name + (a.desc ? ` — ${a.desc}` : "")).join("; ")}
+                    {flow.actions.map((a) => a.name + (a.desc ? ` — ${a.desc}` : "")).join("; ")}
                   </Row>
                 )}
-                {flow!.evaluators.length > 0 && <Row label="Evals">{flow!.evaluators.join(", ")}</Row>}
-                {flow!.responds > 0 && <Row label="Respond">✓ wired</Row>}
+                {flow.evaluators.length > 0 && <Row label="Evals">{flow.evaluators.join(", ")}</Row>}
+                {flow.responds > 0 && <Row label="Respond">✓ wired</Row>}
               </div>
             ) : (
               <p className="text-[11px] leading-relaxed text-white/35">
@@ -156,21 +169,42 @@ export function NodeInspector({
           </div>
         )}
 
-        {/* nested sub-canvas (groundwork) */}
         <div className="border-t border-white/10 pt-3">
-          <button
-            type="button"
-            disabled={!node.subgraph}
-            title={node.subgraph ? "Open this node's inner canvas" : "This node has no inner canvas yet"}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/12 py-2 text-[12px] text-white/70 transition enabled:hover:bg-white/10 enabled:hover:text-white disabled:opacity-40"
-          >
-            <Icon.Frame size={13} />
-            {node.subgraph ? "Open inner canvas" : "No inner canvas"}
-          </button>
-          {!node.subgraph && (
-            <p className="mt-1.5 text-[10px] leading-relaxed text-white/30">
-              Nested per-node sub-workflows are coming — this opens a mini canvas scoped to the node.
-            </p>
+          {node.subgraph ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-1.5 text-[9px] uppercase tracking-widest text-violet-300/70">
+                  <Icon.Frame size={11} /> Subgraph
+                </div>
+                <button
+                  type="button"
+                  onClick={onToggleSubgraph}
+                  className="min-h-8 rounded-full border border-white/12 px-3 text-[11px] text-white/60 transition hover:bg-white/10 hover:text-white"
+                >
+                  {subgraphCollapsed(node) ? "Expand" : "Collapse"}
+                </button>
+              </div>
+              <p className="text-[11px] leading-relaxed text-white/35">
+                {node.subgraph.nodes.length} internal nodes are saved inside this node and travel with the workflow.
+              </p>
+              {!subgraphCollapsed(node) && (
+                <div className="space-y-2">
+                  {node.subgraph.nodes.map((child) => (
+                    <SubgraphNodeEditor
+                      key={child.id}
+                      node={child}
+                      path={[child.id]}
+                      onToggleNestedSubgraph={onToggleNestedSubgraph}
+                      onSubgraphNodeChange={onSubgraphNodeChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px] text-white/35">
+              This node has no inner subgraph.
+            </div>
           )}
         </div>
       </div>
@@ -186,4 +220,68 @@ export function NodeInspector({
       </div>
     </div>
   );
+}
+
+function SubgraphNodeEditor({
+  node,
+  path,
+  onToggleNestedSubgraph,
+  onSubgraphNodeChange,
+}: {
+  node: NodeInstance;
+  path: string[];
+  onToggleNestedSubgraph: (path: string[]) => void;
+  onSubgraphNodeChange: (path: string[], key: string, value: string | number) => void;
+}) {
+  const def = getDef(node.type);
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-[12px] font-medium text-white/80">{def.title}</div>
+          <div className="text-[9px] uppercase tracking-widest text-white/30">{def.category}</div>
+        </div>
+        {node.subgraph && (
+          <button
+            type="button"
+            onClick={() => onToggleNestedSubgraph(path)}
+            className="min-h-8 shrink-0 rounded-full border border-white/12 px-2.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white"
+          >
+            {subgraphCollapsed(node) ? "Open" : "Hide"} · {node.subgraph.nodes.length}
+          </button>
+        )}
+      </div>
+      {def.widgets.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          {def.widgets.map((w) => (
+            <Widget
+              key={w.key}
+              def={w}
+              value={node.values[w.key]}
+              onChange={(val) => onSubgraphNodeChange(path, w.key, val)}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-[11px] text-white/30">Wire-only node.</p>
+      )}
+      {node.subgraph && !subgraphCollapsed(node) && (
+        <div className="mt-3 space-y-2 border-l border-white/10 pl-3">
+          {node.subgraph.nodes.map((child) => (
+            <SubgraphNodeEditor
+              key={child.id}
+              node={child}
+              path={[...path, child.id]}
+              onToggleNestedSubgraph={onToggleNestedSubgraph}
+              onSubgraphNodeChange={onSubgraphNodeChange}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function subgraphCollapsed(node: Pick<NodeInstance, "subgraphCollapsed">) {
+  return node.subgraphCollapsed !== false;
 }

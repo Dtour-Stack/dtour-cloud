@@ -19,6 +19,8 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("$0.25 starter credit claimed")).toBeVisible();
     await expect(page.getByText("Starter credit is ready")).toBeVisible();
     await expect(page.getByRole("link", { name: /Try Agents/i })).toBeVisible();
+    await expect(page.getByText("open Agent Cloud").first()).toBeVisible();
+    await expect(page.getByText("workflow subgraphs")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Cloud Builder" })).toBeVisible();
     await expect(page.getByText("Tailscale / Headscale")).toBeVisible();
     await expect(page.getByText("Mobile build")).toBeVisible();
@@ -39,6 +41,12 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page).toHaveURL(/\/design$/);
     await expect(page.getByRole("button", { name: "Design Studio" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Design Studio" })).toBeVisible();
+
+    await page.goto("/agents");
+    await expect(page.getByRole("heading", { name: "Deploy & connect" })).toBeVisible();
+    await expect(page.getByText("Connect an endpoint")).toBeVisible();
+    await expect(page.getByText("Start the migration helper")).toBeVisible();
+    await expect(page.getByText("Soon")).toHaveCount(0);
 
     await page.goto("/coding/setup");
     await expect(page).toHaveURL(/\/coding\/setup$/);
@@ -104,6 +112,17 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("Live sandbox preview")).toBeVisible();
     await expect(page.getByRole("button", { name: /Use as dashboard/i })).toBeVisible();
     await expect(page.getByText("Copy HTML")).toHaveCount(0);
+
+    await page.goto("/design/workflows");
+
+    await expect(page.locator('[data-tour="workflow-toolbar"]')).toBeVisible();
+    await page.getByRole("button", { name: "Add node" }).click();
+    await page.getByRole("button", { name: /^Agent$/ }).click();
+    await page.getByRole("button", { name: "Close inspector" }).click();
+    await expect(page.getByRole("button", { name: /Subgraph · 9 nodes/ })).toBeVisible();
+    await page.getByRole("button", { name: /Subgraph · 9 nodes/ }).click();
+    await expect(page.getByText("Runtime Gateway").first()).toBeVisible();
+    await expect(page.getByText("Endpoint Access").first()).toBeVisible();
   });
 
   test("admin dashboard exposes Admin Detour workflows", async ({ page }) => {

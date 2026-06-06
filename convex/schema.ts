@@ -164,6 +164,57 @@ export default defineSchema({
     .index("by_agent", ["agentId"])
     .index("by_owner", ["owner"]),
 
+  agentWorkflowLinks: defineTable({
+    owner: v.string(),
+    agentId: v.id("agents"),
+    project: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_owner", ["owner"])
+    .index("by_owner_agent", ["owner", "agentId"]),
+
+  agentExternalConnections: defineTable({
+    owner: v.string(),
+    agentId: v.id("agents"),
+    label: v.string(),
+    provider: v.string(),
+    baseUrl: v.string(),
+    apiBaseUrl: v.optional(v.string()),
+    a2aUrl: v.optional(v.string()),
+    mcpUrl: v.optional(v.string()),
+    authMode: v.union(
+      v.literal("none"),
+      v.literal("bearer"),
+      v.literal("api_key"),
+      v.literal("custom_header"),
+      v.literal("x402"),
+    ),
+    authHeaderName: v.optional(v.string()),
+    authSecretRef: v.optional(v.string()),
+    meshMode: v.union(
+      v.literal("public_internet"),
+      v.literal("detour_private"),
+      v.literal("tailscale"),
+      v.literal("headscale"),
+    ),
+    tailnet: v.optional(v.string()),
+    headscaleUrl: v.optional(v.string()),
+    meshHostname: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    status: v.union(
+      v.literal("configured"),
+      v.literal("needs_secret"),
+      v.literal("error"),
+    ),
+    lastError: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_owner", ["owner"])
+    .index("by_owner_agent", ["owner", "agentId"]),
+
   // MCP servers a user has connected (the catalog lives in code).
   mcpConnections: defineTable({
     pubkey: v.string(),
