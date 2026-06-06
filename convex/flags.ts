@@ -14,7 +14,8 @@ function rowsToMap(rows: { key: string; enabled: boolean }[]): Record<string, bo
   return Object.fromEntries(rows.map((r) => [r.key, r.enabled]));
 }
 
-const BETA_PRODUCTION_SURFACES = [
+export const BETA_PRODUCTION_ENABLED_FLAGS = [
+  "chat_eliza_plugins",
   "surface_api_keys",
   "surface_mcps",
   "surface_apps",
@@ -151,7 +152,7 @@ export const enableBetaProductionSurfaces = internalMutation({
   handler: async (ctx) => {
     const enabled: string[] = [];
     const disabled: string[] = [];
-    for (const key of BETA_PRODUCTION_SURFACES) {
+    for (const key of BETA_PRODUCTION_ENABLED_FLAGS) {
       const def = getFlagDef(key);
       if (!def) throw new Error(`Unknown flag: ${key}`);
       const existing = await ctx.db

@@ -24,6 +24,7 @@ docker run --rm --network host -v "$ROOT":/app -w /app \
     bunx convex env set SOLANA_RPC_URL "$RPC"
     bunx convex run config:seed
     bunx convex run flags:seed
+    bunx convex run flags:enableBetaProductionSurfaces
     bunx convex run admin:bootstrapSuperAdmin "{\"pubkey\":\"$OWNER\",\"note\":\"owner\"}"
     bunx convex run admin:setPlan "{\"pubkey\":\"$OWNER\",\"plan\":\"lifetime\"}"
   '
