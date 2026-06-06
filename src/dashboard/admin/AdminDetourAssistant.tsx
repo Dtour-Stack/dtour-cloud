@@ -124,6 +124,7 @@ const ADMIN_SLASH_COMMANDS: SlashCommand[] = [
   { id: "workflows", command: "/workflows", label: "Workflows", description: "Open admin workflows" },
   { id: "applicants", command: "/applicants", label: "Applicants", description: "Open tester applicants" },
   { id: "status", command: "/status", label: "Status check", description: "Ask for integration status" },
+  { id: "health", command: "/health", label: "Health packet", description: "Review admin health evidence" },
   { id: "help", command: "/help", label: "Command list", description: "Show available slash commands" },
 ];
 
@@ -311,6 +312,12 @@ export function AdminDetourAssistant() {
         break;
       case "status":
         await submit("Check the current admin integration and credit status.", "integration_status");
+        break;
+      case "health":
+        await submit(
+          "Review the admin health packet. Give me platform health, top user behaviors, common failures, billing correctness, tester funnel quality, risky flags, recommended admin actions, and backend invariants to add.",
+          "admin_health_packet",
+        );
         break;
       case "help":
         setNotice(`Commands: ${slashCommandHelp(ADMIN_SLASH_COMMANDS)}`);

@@ -230,6 +230,17 @@ test.describe("authenticated dashboard routes", () => {
 		await expect(page.getByText("Paid traffic", { exact: true })).toBeVisible();
 		await expect(page.getByText("Free traffic", { exact: true })).toBeVisible();
 		await expect(page.getByText("OpenRouter credit warning:")).toBeVisible();
+		await expect(page.getByText("Admin health packet")).toBeVisible();
+		await expect(page.getByRole("button", { name: "Copy packet" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Download JSON" }),
+		).toBeVisible();
+		await expect(page.getByText("24h / 7d events export")).toBeVisible();
+		await expect(page.getByText("Convex error/function logs")).toBeVisible();
+		await expect(page.getByText("Usage ledger aggregates")).toBeVisible();
+		await expect(page.getByText("Table + anomaly counts")).toBeVisible();
+		await expect(page.getByText("Tester/waitlist full rows")).toBeVisible();
+		await expect(page.getByText("Provider health/fallback metrics")).toBeVisible();
 		await expect(
 			page.getByRole("button", { name: "Open Admin Detour" }),
 		).toBeVisible();
@@ -255,6 +266,7 @@ test.describe("authenticated dashboard routes", () => {
 		await expect(
 			page.getByRole("button", { name: "Run /delete" }),
 		).toBeVisible();
+		await expect(page.getByRole("button", { name: "Run /health" })).toBeVisible();
 		await page.getByRole("button", { name: "Run /help" }).click();
 		await expect(page.getByText("Commands: /new")).toBeVisible();
 	});

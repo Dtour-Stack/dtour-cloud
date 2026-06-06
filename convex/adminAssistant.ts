@@ -7,6 +7,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { buildAdminHealthPacket, type AdminHealthPacket } from "./adminHealth";
 import { logEvent } from "./events";
 import { requireRole } from "./rbac";
 
@@ -37,6 +38,12 @@ const WORKFLOWS = [
     label: "Login/chat triage",
     prompt:
       "Triage the most likely login, token gate, chat, and inference issues using the current backend and recent events.",
+  },
+  {
+    id: "admin_health_packet",
+    label: "Health packet",
+    prompt:
+      "Review the admin health packet. Report platform health, user behavior, common failures, billing correctness, risky flags, and recommended admin actions.",
   },
 ] as const;
 
@@ -70,6 +77,11 @@ const BACKEND_KNOWLEDGE = [
     area: "inference",
     detail:
       "inference.runChat routes through OpenRouter/ElizaCloud with usage ledger rows keyed by refId.",
+  },
+  {
+    area: "admin health packet",
+    detail:
+      "adminHealth.packet exports recent events, usage ledgers, table/anomaly counts, tester/waitlist rows, and provider/fallback health without secrets.",
   },
   {
     area: "AgentMail",
@@ -117,6 +129,27 @@ function parseScore(text: string) {
     text.match(/RECOMMENDATION:\s*(approve|deny|hold)/i)?.[1]?.toLowerCase() ??
     "hold";
   return { score, recommendation };
+}
+
+function compactHealthPacket(packet: AdminHealthPacket) {
+  return {
+    generatedAt: packet.generatedAt,
+    eventExports: {
+      last24hCount: packet.eventExports.last24h.length,
+      last7dCount: packet.eventExports.last7d.length,
+      last7dTruncated: packet.eventExports.last7dTruncated,
+      byType24h: packet.eventExports.byType24h,
+      byType7d: packet.eventExports.byType7d,
+      recent24h: packet.eventExports.last24h.slice(0, 60),
+      recent7d: packet.eventExports.last7d.slice(0, 60),
+    },
+    convexFunctionLogs: packet.convexFunctionLogs,
+    usageLedgerAggregates: packet.usageLedgerAggregates,
+    tableCounts: packet.tableCounts,
+    anomalyCounts: packet.anomalyCounts,
+    testerWaitlistRows: packet.testerWaitlistRows,
+    providerHealth: packet.providerHealth,
+  };
 }
 
 function buildSystemPrompt(context: unknown): string {
@@ -891,6 +924,7 @@ async function requireAdminContext(ctx: Parameters<typeof requireRole>[0], token
       ctx.db.query("featureFlags").collect(),
       ctx.db.query("testerOutreach").collect(),
     ]);
+  const healthPacket = await buildAdminHealthPacket(ctx);
   const profilesByPubkey = new Map(profiles.map((profile) => [profile.pubkey, profile]));
   const whitelistByPubkey = new Map(whitelist.map((row) => [row.pubkey, row]));
   const allTesterApplications = waitlist
@@ -977,5 +1011,6 @@ async function requireAdminContext(ctx: Parameters<typeof requireRole>[0], token
     })),
     workflows: WORKFLOWS,
     backendKnowledge: BACKEND_KNOWLEDGE,
+    healthPacket: compactHealthPacket(healthPacket),
   };
 }

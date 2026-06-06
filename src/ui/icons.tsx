@@ -74,6 +74,9 @@ export const List = (p: { size?: number }) => (
 export const ArrowUp = (p: { size?: number }) => (
   <Icon {...p}><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></Icon>
 );
+export const ArrowDown = (p: { size?: number }) => (
+  <Icon {...p}><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></Icon>
+);
 export const Paperclip = (p: { size?: number }) => (
   <Icon {...p}><path d="M13.234 20.252 21 12.3a4 4 0 0 0-5.657-5.657l-8.485 8.485a6 6 0 0 0 8.485 8.485l6.5-6.5" /></Icon>
 );

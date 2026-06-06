@@ -3,7 +3,7 @@ import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useState } from "react";
 import { readDtourPlaywrightUser } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
-import { Badge, cn, Icon, Panel, Skeleton, StatCard } from "@/ui";
+import { Badge, Button, cn, Icon, Panel, Skeleton, StatCard } from "@/ui";
 
 type Summary =
   | {
@@ -45,6 +45,110 @@ type OpenRouterHealth =
   | null
   | undefined;
 
+type HealthEventRow = {
+  type: string;
+  pubkey: string | null;
+  data: string | null;
+  at: number;
+};
+
+type AdminHealthPacket =
+  | {
+      generatedAt: number;
+      eventExports: {
+        last24h: HealthEventRow[];
+        last7d: HealthEventRow[];
+        last7dTruncated: boolean;
+        byType24h: Record<string, number>;
+        byType7d: Record<string, number>;
+      };
+      convexFunctionLogs: {
+        rawRuntimeLogsAttached: boolean;
+        source: string;
+        persistedErrors7d: number;
+        errorsByType7d: Record<string, number>;
+        recentErrors: Array<{
+          source: string;
+          type: string;
+          detail: string | null;
+          at: number;
+        }>;
+      };
+      usageLedgerAggregates: {
+        creditBalances: {
+          wallets: number;
+          totalBalanceUsd: number;
+          negativeWallets: number;
+        };
+        creditTopUps: {
+          rows: number;
+          totalGrantedUsd: number;
+          byAsset: Record<string, { rows: number; grantedUsd: number }>;
+          lastAt: number | null;
+        };
+        codingUsage: {
+          rows: number;
+          costUsd: number;
+          chargedUsd: number;
+          durationSec: number;
+          holderDiscountRows: number;
+          lastAt: number | null;
+        };
+        inferenceUsage: {
+          rows: number;
+          costUsd: number;
+          chargedUsd: number;
+          freeRows: number;
+          fallbackRows: number;
+          holderDiscountRows: number;
+          bySurface: Record<string, number>;
+          byGateway: Record<string, number>;
+          lastAt: number | null;
+        };
+      };
+      tableCounts: Record<string, number>;
+      anomalyCounts: Record<string, number>;
+      testerWaitlistRows: Array<{
+        email: string;
+        pubkey: string | null;
+        kind: "early_access" | "dev_tester";
+        name: string | null;
+        reason: string | null;
+        at: number;
+      }>;
+      providerHealth: {
+        openrouter: {
+          configured: boolean;
+          remainingUsd: number | null;
+          fetchedAt: number | null;
+          paidTraffic: { allowed: boolean; reason: string };
+          freeTraffic: { allowed: boolean; reason: string };
+          reserve: { paidReserveUsd: number; freeReserveUsd: number };
+        };
+        elizacloud: { configured: boolean };
+        detourFallback: { configured: boolean };
+        agentMail: { configured: boolean; webhookConfigured: boolean };
+        coding: {
+          e2bConfigured: boolean;
+          liveSessions: number;
+          connectedDesktopDevices24h: number;
+          pendingPairings: number;
+        };
+        remoteProvisioning: {
+          deploymentsByStatus: Record<string, number>;
+          activeProvider: Record<string, number>;
+          fallbackStatus: Record<string, number>;
+          staleHeartbeats: number;
+        };
+        inferenceFallbacks7d: {
+          rows: number;
+          byGateway: Record<string, number>;
+          byRouteVariant: Record<string, number>;
+        };
+      };
+    }
+  | undefined;
+
 const TEST_SUMMARY: Exclude<Summary, null | undefined> = {
   totalUsers: 0,
   totalProfiles: 0,
@@ -64,6 +168,111 @@ const TEST_OPENROUTER_HEALTH: Exclude<OpenRouterHealth, null | undefined> = {
   paid: { ok: false, reason: "low_credits", remainingUsd: 4.25, reserveUsd: 5 },
   free: { ok: false, reason: "low_credits", remainingUsd: 4.25, reserveUsd: 25 },
   reserve: { paidReserveUsd: 5, freeReserveUsd: 25 },
+};
+
+const TEST_ADMIN_HEALTH_PACKET: Exclude<AdminHealthPacket, undefined> = {
+  generatedAt: Date.now(),
+  eventExports: {
+    last24h: [{ type: "credits.starter", pubkey: "playwright", data: null, at: Date.now() }],
+    last7d: [{ type: "credits.starter", pubkey: "playwright", data: null, at: Date.now() }],
+    last7dTruncated: false,
+    byType24h: { "credits.starter": 1 },
+    byType7d: { "credits.starter": 1 },
+  },
+  convexFunctionLogs: {
+    rawRuntimeLogsAttached: false,
+    source: "persisted events, workflow statuses, admin assistant statuses, and outreach statuses",
+    persistedErrors7d: 1,
+    errorsByType7d: { "inference.error": 1 },
+    recentErrors: [
+      {
+        source: "events",
+        type: "inference.error",
+        detail: "test error summary",
+        at: Date.now(),
+      },
+    ],
+  },
+  usageLedgerAggregates: {
+    creditBalances: { wallets: 1, totalBalanceUsd: 0.25, negativeWallets: 0 },
+    creditTopUps: {
+      rows: 1,
+      totalGrantedUsd: 0.25,
+      byAsset: { STARTER: { rows: 1, grantedUsd: 0.25 } },
+      lastAt: Date.now(),
+    },
+    codingUsage: {
+      rows: 0,
+      costUsd: 0,
+      chargedUsd: 0,
+      durationSec: 0,
+      holderDiscountRows: 0,
+      lastAt: null,
+    },
+    inferenceUsage: {
+      rows: 2,
+      costUsd: 0.01,
+      chargedUsd: 0.012,
+      freeRows: 1,
+      fallbackRows: 1,
+      holderDiscountRows: 0,
+      bySurface: { chat: 2 },
+      byGateway: { openrouter: 1, elizacloud: 1 },
+      lastAt: Date.now(),
+    },
+  },
+  tableCounts: {
+    users: 1,
+    waitlist: 2,
+    creditTopUps: 1,
+    codingUsage: 0,
+    inferenceUsage: 2,
+  },
+  anomalyCounts: {
+    negativeCreditBalances: 0,
+    persistedErrorEvents7d: 1,
+    inferenceFallbacks7d: 1,
+  },
+  testerWaitlistRows: [
+    {
+      email: "tester@example.com",
+      pubkey: "playwright",
+      kind: "dev_tester",
+      name: "Playwright",
+      reason: "Test full row export",
+      at: Date.now(),
+    },
+  ],
+  providerHealth: {
+    openrouter: {
+      configured: true,
+      remainingUsd: 4.25,
+      fetchedAt: Date.now(),
+      paidTraffic: { allowed: false, reason: "low_credits" },
+      freeTraffic: { allowed: false, reason: "low_credits" },
+      reserve: { paidReserveUsd: 5, freeReserveUsd: 25 },
+    },
+    elizacloud: { configured: true },
+    detourFallback: { configured: false },
+    agentMail: { configured: true, webhookConfigured: true },
+    coding: {
+      e2bConfigured: false,
+      liveSessions: 0,
+      connectedDesktopDevices24h: 0,
+      pendingPairings: 0,
+    },
+    remoteProvisioning: {
+      deploymentsByStatus: { configured: 1 },
+      activeProvider: { elizacloud: 1 },
+      fallbackStatus: { standby: 1 },
+      staleHeartbeats: 0,
+    },
+    inferenceFallbacks7d: {
+      rows: 1,
+      byGateway: { elizacloud: 1 },
+      byRouteVariant: { openrouter_first: 1 },
+    },
+  },
 };
 
 function usd(n: number | null | undefined): string {
@@ -106,6 +315,15 @@ function openRouterWarning(health: OpenRouterHealth): string | null {
   return null;
 }
 
+function countTotal(record: Record<string, number>): number {
+  return Object.values(record).reduce((sum, value) => sum + value, 0);
+}
+
+function healthPacketFilename(packet: Exclude<AdminHealthPacket, undefined>): string {
+  const stamp = new Date(packet.generatedAt).toISOString().replaceAll(":", "-");
+  return `detour-admin-health-${stamp}.json`;
+}
+
 export function AdminAnalytics() {
   const testUser = readDtourPlaywrightUser();
   const testMode = !!testUser;
@@ -114,6 +332,7 @@ export function AdminAnalytics() {
   const [openRouterHealth, setOpenRouterHealth] = useState<OpenRouterHealth>(
     testMode ? TEST_OPENROUTER_HEALTH : undefined,
   );
+  const [healthNotice, setHealthNotice] = useState<string | null>(null);
   const summary = useQuery(
     anyApi.events.summary,
     token && !testMode ? { token } : "skip",
@@ -122,6 +341,10 @@ export function AdminAnalytics() {
     anyApi.adminUsage.inferenceRollup,
     token && !testMode ? { token } : "skip",
   ) as InferenceRollup;
+  const healthQuery = useQuery(
+    anyApi.adminHealth.packet,
+    token && !testMode ? { token } : "skip",
+  ) as AdminHealthPacket;
   useEffect(() => {
     if (testMode) {
       setOpenRouterHealth(TEST_OPENROUTER_HEALTH);
@@ -146,10 +369,39 @@ export function AdminAnalytics() {
   }, [testMode, token, openRouterStatus]);
   const s = testMode ? TEST_SUMMARY : summary;
   const rollup = testMode ? TEST_ROLLUP : inferenceRollup;
+  const healthPacket = testMode ? TEST_ADMIN_HEALTH_PACKET : healthQuery;
   const loading = s === undefined;
   const rollupLoading = rollup === undefined;
   const openRouterLoading = openRouterHealth === undefined;
+  const healthLoading = healthPacket === undefined;
   const warning = openRouterWarning(openRouterHealth);
+  const anomalyTotal = healthPacket ? countTotal(healthPacket.anomalyCounts) : 0;
+
+  async function copyHealthPacket() {
+    if (!healthPacket) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(healthPacket, null, 2));
+      setHealthNotice("Health packet copied.");
+      setTimeout(() => setHealthNotice(null), 1800);
+    } catch {
+      setHealthNotice("Clipboard access was blocked.");
+    }
+  }
+
+  function downloadHealthPacket() {
+    if (!healthPacket) return;
+    const blob = new Blob([JSON.stringify(healthPacket, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = healthPacketFilename(healthPacket);
+    link.click();
+    URL.revokeObjectURL(url);
+    setHealthNotice("Health packet download started.");
+    setTimeout(() => setHealthNotice(null), 1800);
+  }
 
   return (
     <div className="space-y-4">
@@ -272,6 +524,115 @@ export function AdminAnalytics() {
           </>
         )}
       </Panel>
+      <Panel className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Icon.Activity size={16} className="text-white/40" />
+              <h2 className="text-sm font-semibold text-white">Admin health packet</h2>
+            </div>
+            <p className="mt-1 text-[12px] text-white/45">
+              Sanitized beta-production evidence for Admin Detour and external review.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void copyHealthPacket()}
+              disabled={!healthPacket}
+            >
+              <Icon.Copy size={14} /> Copy packet
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={downloadHealthPacket}
+              disabled={!healthPacket}
+            >
+              <Icon.ArrowDown size={14} /> Download JSON
+            </Button>
+          </div>
+        </div>
+        {healthLoading ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-4">
+              <OpenRouterCell
+                label="24h events"
+                value={healthPacket.eventExports.last24h.length}
+                detail={`${healthPacket.eventExports.last7d.length} rows in 7d export`}
+              />
+              <OpenRouterCell
+                label="Usage ledgers"
+                value={
+                  healthPacket.usageLedgerAggregates.codingUsage.rows +
+                  healthPacket.usageLedgerAggregates.inferenceUsage.rows
+                }
+                detail={`$${healthPacket.usageLedgerAggregates.inferenceUsage.chargedUsd.toFixed(2)} inference charged`}
+              />
+              <OpenRouterCell
+                label="Tester rows"
+                value={healthPacket.testerWaitlistRows.length}
+                detail="Full waitlist/tester rows included"
+              />
+              <OpenRouterCell
+                label="Anomalies"
+                value={anomalyTotal}
+                detail={`${healthPacket.convexFunctionLogs.persistedErrors7d} persisted errors`}
+              />
+            </div>
+            <div className="mt-4 grid gap-2 lg:grid-cols-2">
+              <HealthChecklistRow
+                label="24h / 7d events export"
+                value={`${healthPacket.eventExports.last24h.length} / ${healthPacket.eventExports.last7d.length} rows`}
+                ok={!healthPacket.eventExports.last7dTruncated}
+              />
+              <HealthChecklistRow
+                label="Convex error/function logs"
+                value={
+                  healthPacket.convexFunctionLogs.rawRuntimeLogsAttached
+                    ? "Raw logs attached"
+                    : "Persisted error summary only"
+                }
+                ok={healthPacket.convexFunctionLogs.persistedErrors7d === 0}
+              />
+              <HealthChecklistRow
+                label="Usage ledger aggregates"
+                value={`${healthPacket.usageLedgerAggregates.creditTopUps.rows} top-ups · ${healthPacket.usageLedgerAggregates.inferenceUsage.rows} inference`}
+                ok={healthPacket.usageLedgerAggregates.creditBalances.negativeWallets === 0}
+              />
+              <HealthChecklistRow
+                label="Table + anomaly counts"
+                value={`${Object.keys(healthPacket.tableCounts).length} tables · ${anomalyTotal} anomalies`}
+                ok={anomalyTotal === 0}
+              />
+              <HealthChecklistRow
+                label="Tester/waitlist full rows"
+                value={`${healthPacket.testerWaitlistRows.length} rows`}
+                ok={true}
+              />
+              <HealthChecklistRow
+                label="Provider health/fallback metrics"
+                value={`OpenRouter ${healthPacket.providerHealth.openrouter.configured ? "configured" : "missing"} · ${healthPacket.providerHealth.inferenceFallbacks7d.rows} fallbacks`}
+                ok={
+                  healthPacket.providerHealth.openrouter.paidTraffic.allowed ||
+                  healthPacket.providerHealth.openrouter.freeTraffic.allowed
+                }
+              />
+            </div>
+            {healthNotice && (
+              <div className="mt-3 text-[12px] text-white/45">{healthNotice}</div>
+            )}
+          </>
+        )}
+      </Panel>
     </div>
   );
 }
@@ -292,6 +653,26 @@ function OpenRouterCell({
       </div>
       <div className="mt-1 text-lg font-semibold tabular-nums text-white">{value}</div>
       <div className="mt-1 text-[11px] text-white/35">{detail}</div>
+    </div>
+  );
+}
+
+function HealthChecklistRow({
+  label,
+  value,
+  ok,
+}: {
+  label: string;
+  value: string;
+  ok: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+      <div>
+        <div className="text-[12px] font-medium text-white/85">{label}</div>
+        <div className="mt-0.5 text-[11px] text-white/40">{value}</div>
+      </div>
+      <Badge tone={ok ? "success" : "warning"}>{ok ? "Ready" : "Review"}</Badge>
     </div>
   );
 }
