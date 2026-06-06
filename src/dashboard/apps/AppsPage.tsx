@@ -101,7 +101,7 @@ const EMPTY_FORM: AppForm = {
 };
 
 const FIELD =
-	"w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-purple-400/50";
+	"min-h-10 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-purple-400/50 focus-visible:ring-2 focus-visible:ring-purple-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
 const DATABASES: Array<{
 	id: AppBuild["databaseProvider"];
@@ -345,6 +345,13 @@ export default function AppsPage() {
 			selectedDeployment,
 		],
 	);
+	const currentBuild =
+		form.id ? loadedBuilds.find((build) => build.id === form.id) : null;
+	const currentStatus: AppBuild["status"] = currentBuild?.status ?? "draft";
+	const readyChecks = configChecks.filter((check) => check.ok).length;
+	const attachedMcpCount = form.mcpIds.filter((id) =>
+		loadedMcps.includes(id),
+	).length;
 
 	function update<T extends keyof AppForm>(key: T, value: AppForm[T]) {
 		setForm((current) => ({ ...current, [key]: value }));
@@ -411,451 +418,587 @@ export default function AppsPage() {
 
 	return (
 		<AppShell title="App Builder">
-			<div className="mx-auto max-w-7xl px-6 py-8">
-				<header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-					<div>
-						<h1 className="text-2xl font-semibold tracking-tight text-white">
-							App Builder
-						</h1>
-						<p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/50">
-							Prompt an app, attach agents, APIs, infra, MCPs, database,
-							designs, and knowledge sources. Save a deployable blueprint before
-							publishing.
-						</p>
-					</div>
-					<div className="flex flex-wrap gap-2">
-						<button
-							type="button"
-							className={buttonClasses("secondary", "sm")}
-							onClick={startNew}
-						>
-							<Icon.Plus size={14} />
-							New app
-						</button>
-						<Button
-							size="sm"
-							disabled={saving || !token}
-							onClick={() => void save()}
-						>
-							<Icon.Zap size={14} />
-							{saving ? "Saving..." : "Save blueprint"}
-						</Button>
-					</div>
-				</header>
-
-				<div className="mt-6 grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
-					<Panel className="flex min-h-[640px] flex-col overflow-hidden">
-						<div className="border-b border-white/10 px-4 py-3">
-							<h2 className="text-sm font-semibold text-white">Projects</h2>
-							<p className="mt-0.5 text-xs text-white/40">
-								Saved app blueprints
+			<div className="min-h-full bg-[#0a0a0a]">
+				<div className="mx-auto max-w-[1480px] px-6 py-6 md:px-8">
+					<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+						<div className="min-w-0">
+							<div className="flex flex-wrap items-center gap-3">
+								<span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/70">
+									<Icon.LayoutGrid size={16} />
+								</span>
+								<h1 className="text-2xl font-semibold tracking-tight text-white">
+									App Builder
+								</h1>
+								<Badge tone={statusTone(currentStatus)}>
+									{currentStatus.replace("_", " ")}
+								</Badge>
+							</div>
+							<p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/55">
+								Build apps that reuse your agents, infra, MCPs, databases,
+								designs, and knowledge sources.
 							</p>
 						</div>
-						<div className="min-h-0 flex-1 overflow-y-auto p-2">
-							{builds === undefined ? (
-								<div className="p-3 text-sm text-white/40">Loading...</div>
-							) : loadedBuilds.length === 0 ? (
-								<EmptyState
-									icon={<Icon.LayoutGrid size={18} />}
-									title="No app builds"
-									description="Save the current blueprint to create the first project."
-								/>
-							) : (
-								<div className="space-y-2">
-									{loadedBuilds.map((build) => (
-										<button
-											key={build.id}
-											type="button"
-											onClick={() => setForm(formFromBuild(build))}
-											className={cn(
-												"w-full rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
-												form.id === build.id
-													? "border-purple-400/40 bg-purple-400/[0.08]"
-													: "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]",
-											)}
-										>
-											<span className="flex items-center justify-between gap-2">
-												<span className="truncate text-sm font-medium text-white">
-													{build.name}
-												</span>
-												<Badge tone={statusTone(build.status)}>
-													{build.status.replace("_", " ")}
-												</Badge>
-											</span>
-											<span className="mt-1 block line-clamp-2 text-xs text-white/45">
-												{build.prompt}
-											</span>
-										</button>
-									))}
-								</div>
-							)}
+						<div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
+							<HeaderSignal label="agents" value={loadedAgents.length} />
+							<HeaderSignal label="mcps" value={loadedMcps.length} />
+							<HeaderSignal
+								label="checks"
+								value={`${readyChecks}/${configChecks.length}`}
+							/>
+							<button
+								type="button"
+								className={buttonClasses("secondary", "sm", "sm:ml-2")}
+								onClick={startNew}
+							>
+								<Icon.Plus size={14} />
+								New app
+							</button>
 						</div>
-					</Panel>
+					</header>
 
-					<div className="space-y-5">
-						<Panel className="overflow-hidden">
-							<div className="border-b border-white/10 px-5 py-4">
-								<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="mt-5 grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px] 2xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+						<aside className="space-y-4">
+							<Panel className="overflow-hidden p-0 xl:sticky xl:top-6">
+								<div className="border-b border-white/10 px-4 py-3">
+									<div className="flex items-center justify-between gap-3">
+										<div>
+											<h2 className="text-sm font-semibold text-white">
+												Blueprints
+											</h2>
+											<p className="mt-0.5 text-xs text-white/40">
+												Saved app builds
+											</p>
+										</div>
+										<Badge tone="neutral">{loadedBuilds.length}</Badge>
+									</div>
+								</div>
+								<div className="max-h-[calc(100vh-230px)] overflow-y-auto p-2">
+									{builds === undefined && !testUser ? (
+										<div className="space-y-2">
+											{[0, 1, 2].map((item) => (
+												<div
+													key={item}
+													className="h-24 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]"
+												/>
+											))}
+										</div>
+									) : loadedBuilds.length === 0 ? (
+										<EmptyState
+											icon={<Icon.LayoutGrid size={18} />}
+											title="No app builds"
+											description="Save this blueprint to create the first app project."
+										/>
+									) : (
+										<div className="space-y-2">
+											{loadedBuilds.map((build) => (
+												<button
+													key={build.id}
+													type="button"
+													onClick={() => setForm(formFromBuild(build))}
+													className={cn(
+														"w-full rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+														form.id === build.id
+															? "border-purple-400/45 bg-purple-400/[0.08]"
+															: "border-white/10 bg-white/[0.02] hover:bg-white/[0.045]",
+													)}
+												>
+													<span className="flex items-center justify-between gap-2">
+														<span className="truncate text-sm font-medium text-white">
+															{build.name}
+														</span>
+														<Badge tone={statusTone(build.status)}>
+															{build.status.replace("_", " ")}
+														</Badge>
+													</span>
+													<span className="mt-2 block line-clamp-2 text-[12px] leading-relaxed text-white/45">
+														{build.prompt}
+													</span>
+												</button>
+											))}
+										</div>
+									)}
+								</div>
+							</Panel>
+						</aside>
+
+						<main className="space-y-4">
+							<Panel className="overflow-hidden p-0">
+								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
 									<div>
 										<h2 className="text-sm font-semibold text-white">
 											Prompt-to-app workspace
 										</h2>
 										<p className="mt-0.5 text-xs text-white/45">
-											Describe the app and bind the resources it can use.
+											Describe the product, then bind the runtime pieces it can
+											use.
 										</p>
 									</div>
 									<Badge tone={selectedAgent ? "success" : "warning"}>
 										{selectedAgent ? "agent attached" : "needs agent"}
 									</Badge>
 								</div>
-							</div>
-							<div className="grid gap-px bg-white/10 lg:grid-cols-[minmax(0,1fr)_280px]">
-								<div className="bg-[#0a0a0a] p-5">
-									<label className="block">
-										<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
-											App name
-										</span>
-										<input
-											value={form.name}
-											onChange={(event) => update("name", event.target.value)}
-											className={FIELD}
-											autoComplete="off"
-										/>
-									</label>
-									<label className="mt-4 block">
-										<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
-											Prompt
-										</span>
-										<textarea
-											value={form.prompt}
-											onChange={(event) => update("prompt", event.target.value)}
-											className={`${FIELD} min-h-40 resize-y`}
-											placeholder="Build a SaaS dashboard with an agent chat panel, project table, billing, and admin review state..."
-										/>
-									</label>
-									<div className="mt-4 grid gap-3 sm:grid-cols-2">
-										<label className="block">
+								<div className="grid gap-px bg-white/10 2xl:grid-cols-[minmax(0,1fr)_340px]">
+									<form
+										onSubmit={(event) => {
+											event.preventDefault();
+											void save();
+										}}
+										className="bg-[#0d0d0d] p-5"
+									>
+										<div className="grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
+											<label className="block">
+												<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+													App name
+												</span>
+												<input
+													value={form.name}
+													onChange={(event) =>
+														update("name", event.target.value)
+													}
+													className={FIELD}
+													autoComplete="off"
+													spellCheck={false}
+												/>
+											</label>
+											<label className="block">
+												<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+													Agent
+												</span>
+												<select
+													value={form.agentId}
+													onChange={(event) =>
+														update("agentId", event.target.value)
+													}
+													className={FIELD}
+												>
+													<option value="">Choose agent</option>
+													{loadedAgents.map((agent) => (
+														<option key={agent.id} value={agent.id}>
+															{agent.name}
+														</option>
+													))}
+												</select>
+											</label>
+										</div>
+										<label className="mt-4 block">
 											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
-												Agent
+												Prompt
 											</span>
-											<select
-												value={form.agentId}
+											<textarea
+												value={form.prompt}
 												onChange={(event) =>
-													update("agentId", event.target.value)
+													update("prompt", event.target.value)
 												}
-												className={FIELD}
-											>
-												<option value="">Choose agent</option>
-												{loadedAgents.map((agent) => (
-													<option key={agent.id} value={agent.id}>
-														{agent.name}
-													</option>
-												))}
-											</select>
+												className={`${FIELD} min-h-48 resize-y leading-relaxed`}
+												placeholder="Build a SaaS dashboard with an agent chat panel, project table, billing, and admin review state..."
+											/>
 										</label>
-										<label className="block">
-											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
-												Design project
+										<div className="mt-4 grid gap-4 md:grid-cols-2">
+											<label className="block">
+												<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+													Design project
+												</span>
+												<select
+													value={form.designProject}
+													onChange={(event) =>
+														update("designProject", event.target.value)
+													}
+													className={FIELD}
+												>
+													<option value="">No design project</option>
+													{loadedProjects.map((project) => (
+														<option key={project.name} value={project.name}>
+															{project.name}
+														</option>
+													))}
+												</select>
+											</label>
+											<fieldset>
+												<legend className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+													API access
+												</legend>
+												<div className="grid gap-2 sm:grid-cols-3">
+													{(["private", "keyed", "public"] as const).map(
+														(mode) => (
+															<button
+																key={mode}
+																type="button"
+																aria-pressed={form.apiAccess === mode}
+																onClick={() => update("apiAccess", mode)}
+																className={cn(
+																	"min-h-10 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+																	form.apiAccess === mode
+																		? "border-purple-400/45 bg-purple-400/[0.08] text-white"
+																		: "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.045]",
+																)}
+															>
+																{mode}
+															</button>
+														),
+													)}
+												</div>
+											</fieldset>
+										</div>
+										<div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+											<Button
+												type="submit"
+												size="sm"
+												disabled={saving || !token}
+											>
+												<Icon.Zap size={14} />
+												{saving ? "Saving..." : "Save blueprint"}
+											</Button>
+											<span className="text-[12px] text-white/40">
+												Saves the prompt, resource bindings, and launch checks.
 											</span>
-											<select
-												value={form.designProject}
+										</div>
+									</form>
+									<div className="bg-black p-5">
+										<div className="overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a]">
+											<div className="flex h-10 items-center justify-between border-b border-white/10 px-3">
+												<div className="flex items-center gap-1.5">
+													<span className="h-2 w-2 rounded-full bg-white/25" />
+													<span className="h-2 w-2 rounded-full bg-white/15" />
+													<span className="h-2 w-2 rounded-full bg-white/10" />
+												</div>
+												<span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-white/40">
+													blueprint.preview
+												</span>
+											</div>
+											<div className="p-4">
+												<h3 className="text-xs uppercase tracking-widest text-white/40">
+													Generated blueprint
+												</h3>
+												<div className="mt-3 space-y-2">
+													{blueprint.map((item) => (
+														<BlueprintRow
+															key={item.label}
+															label={item.label}
+															value={item.value}
+														/>
+													))}
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</Panel>
+
+							<Panel className="overflow-hidden p-0">
+								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+									<div>
+										<h2 className="text-sm font-semibold text-white">
+											Database and knowledge
+										</h2>
+										<p className="mt-0.5 text-xs text-white/45">
+											Choose where app state and retrieval live.
+										</p>
+									</div>
+									<Badge tone="accent">RAG-ready</Badge>
+								</div>
+								<div className="grid gap-px bg-white/10 2xl:grid-cols-[1.1fr_0.9fr]">
+									<div className="bg-[#0d0d0d] p-5">
+										<div className="grid gap-2 md:grid-cols-2">
+											{DATABASES.map((database) => (
+												<button
+													key={database.id}
+													type="button"
+													aria-pressed={form.databaseProvider === database.id}
+													onClick={() =>
+														update("databaseProvider", database.id)
+													}
+													className={cn(
+														"rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+														form.databaseProvider === database.id
+															? "border-purple-400/45 bg-purple-400/[0.08]"
+															: "border-white/10 bg-white/[0.02] hover:bg-white/[0.045]",
+													)}
+												>
+													<span className="text-sm font-medium text-white">
+														{database.label}
+													</span>
+													<span className="mt-1 block text-[12px] leading-relaxed text-white/45">
+														{database.desc}
+													</span>
+												</button>
+											))}
+										</div>
+										<label className="mt-4 block">
+											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+												Database connection
+											</span>
+											<input
+												value={form.databaseConnection}
 												onChange={(event) =>
-													update("designProject", event.target.value)
+													update("databaseConnection", event.target.value)
 												}
 												className={FIELD}
-											>
-												<option value="">No design project</option>
-												{loadedProjects.map((project) => (
-													<option key={project.name} value={project.name}>
-														{project.name}
-													</option>
-												))}
-											</select>
+												placeholder="do-postgres-prod, alloydb-vector-prod, or external-dsn-secret"
+												autoComplete="off"
+												spellCheck={false}
+											/>
+											<span className="mt-1 block text-xs text-white/35">
+												Use a resource name or secret alias, not raw
+												credentials.
+											</span>
 										</label>
 									</div>
-									<div className="mt-4 grid gap-3 sm:grid-cols-3">
-										{(["private", "keyed", "public"] as const).map((mode) => (
+									<div className="bg-black p-5">
+										<div className="grid gap-2">
+											{KNOWLEDGE.map((mode) => (
+												<button
+													key={mode.id}
+													type="button"
+													aria-pressed={form.knowledgeMode === mode.id}
+													onClick={() => update("knowledgeMode", mode.id)}
+													className={cn(
+														"rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+														form.knowledgeMode === mode.id
+															? "border-purple-400/45 bg-purple-400/[0.08]"
+															: "border-white/10 bg-white/[0.02] hover:bg-white/[0.045]",
+													)}
+												>
+													<span className="text-sm font-medium text-white">
+														{mode.label}
+													</span>
+													<span className="mt-1 block text-xs text-white/45">
+														{mode.desc}
+													</span>
+												</button>
+											))}
+										</div>
+										<label className="mt-4 block">
+											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+												Source URLs
+											</span>
+											<textarea
+												value={form.sourceUrls}
+												onChange={(event) =>
+													update("sourceUrls", event.target.value)
+												}
+												className={`${FIELD} min-h-24 resize-y leading-relaxed`}
+												placeholder="https://docs.example.com&#10;https://example.com/pricing"
+												spellCheck={false}
+											/>
+										</label>
+									</div>
+								</div>
+							</Panel>
+
+							<Panel className="overflow-hidden p-0">
+								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+									<div>
+										<h2 className="text-sm font-semibold text-white">
+											MCP tools
+										</h2>
+										<p className="mt-0.5 text-xs text-white/45">
+											Attach saved servers to this app blueprint.
+										</p>
+									</div>
+									<Badge tone={attachedMcpCount ? "success" : "neutral"}>
+										{attachedMcpCount} attached
+									</Badge>
+								</div>
+								<div className="grid gap-px bg-white/10 md:grid-cols-2">
+									{MCP_CATALOG.slice(0, 8).map((mcp) => {
+										const saved = loadedMcps.includes(mcp.id);
+										const active = form.mcpIds.includes(mcp.id);
+										return (
+											<button
+												key={mcp.id}
+												type="button"
+												disabled={!saved}
+												aria-pressed={active}
+												onClick={() => toggleMcp(mcp.id)}
+												className={cn(
+													"flex min-h-16 items-center justify-between gap-3 bg-[#0d0d0d] px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 disabled:cursor-not-allowed disabled:opacity-45",
+													active ? "bg-purple-400/[0.08]" : "hover:bg-white/[0.045]",
+												)}
+											>
+												<span className="min-w-0">
+													<span className="block truncate text-sm text-white">
+														{mcp.name}
+													</span>
+													<span className="block truncate text-xs text-white/40">
+														{mcp.category}
+													</span>
+												</span>
+												<Badge
+													tone={
+														saved ? (active ? "accent" : "neutral") : "warning"
+													}
+												>
+													{saved ? (active ? "attached" : "saved") : "connect"}
+												</Badge>
+											</button>
+										);
+									})}
+								</div>
+							</Panel>
+						</main>
+
+						<aside className="space-y-4">
+							<Panel className="p-5 xl:sticky xl:top-6">
+								<div className="flex items-baseline justify-between gap-3">
+									<div>
+										<h2 className="text-sm font-semibold text-white">
+											Readiness
+										</h2>
+										<p className="mt-0.5 text-xs text-white/45">
+											Live launch requirements
+										</p>
+									</div>
+									<div className="text-2xl font-semibold tabular-nums text-white">
+										{readyChecks}/{configChecks.length}
+									</div>
+								</div>
+								<div className="mt-4 space-y-2">
+									{configChecks.map((check) => (
+										<CheckRow
+											key={check.label}
+											label={check.label}
+											detail={check.detail}
+											ok={check.ok}
+										/>
+									))}
+								</div>
+							</Panel>
+
+							<Panel className="p-5">
+								<h2 className="text-sm font-semibold text-white">
+									Connected resources
+								</h2>
+								<div className="mt-4 space-y-2">
+									<ResourceRow
+										icon={<Icon.Bot size={15} />}
+										label="Agents"
+										value={`${loadedAgents.length} owned`}
+									/>
+									<ResourceRow
+										icon={<Icon.Activity size={15} />}
+										label="Runtime"
+										value={
+											selectedDeployment
+												? selectedDeployment.status
+												: "not selected"
+										}
+									/>
+									<ResourceRow
+										icon={<Icon.Plug size={15} />}
+										label="MCP servers"
+										value={`${loadedMcps.length} saved`}
+									/>
+									<ResourceRow
+										icon={<Icon.Palette size={15} />}
+										label="Design"
+										value={
+											selectedProject
+												? projectParts(selectedProject)
+												: "not selected"
+										}
+									/>
+								</div>
+							</Panel>
+
+							<Panel className="p-5">
+								<h2 className="text-sm font-semibold text-white">Infra mode</h2>
+								<div className="mt-3 grid gap-2">
+									{(["hybrid", "detour_cloud", "external"] as const).map(
+										(mode) => (
 											<button
 												key={mode}
 												type="button"
-												onClick={() => update("apiAccess", mode)}
+												aria-pressed={form.infraMode === mode}
+												onClick={() => update("infraMode", mode)}
 												className={cn(
-													"rounded-xl border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
-													form.apiAccess === mode
-														? "border-purple-400/45 bg-purple-400/[0.1] text-white"
-														: "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.04]",
+													"min-h-10 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+													form.infraMode === mode
+														? "border-purple-400/45 bg-purple-400/[0.08] text-white"
+														: "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.045]",
 												)}
 											>
-												{mode}
+												{mode.replace("_", " ")}
 											</button>
-										))}
-									</div>
+										),
+									)}
 								</div>
-								<div className="bg-[#111] p-5">
-									<h3 className="text-xs uppercase tracking-widest text-white/40">
-										Generated blueprint
-									</h3>
-									<div className="mt-4 space-y-3">
-										{blueprint.map((item) => (
-											<div
-												key={item.label}
-												className="rounded-xl border border-white/10 bg-black/35 p-3"
-											>
-												<div className="text-[11px] uppercase tracking-wider text-white/35">
-													{item.label}
-												</div>
-												<div className="mt-1 text-sm text-white/80">
-													{item.value}
-												</div>
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
-						</Panel>
-
-						<Panel className="p-5">
-							<div className="flex flex-wrap items-center justify-between gap-3">
-								<div>
-									<h2 className="text-sm font-semibold text-white">
-										Database and knowledge
-									</h2>
-									<p className="mt-0.5 text-xs text-white/45">
-										Choose the app data plane and retrieval source.
-									</p>
-								</div>
-								<Badge tone="accent">RAG-ready</Badge>
-							</div>
-							<div className="mt-4 grid gap-3 md:grid-cols-2">
-								{DATABASES.map((database) => (
-									<button
-										key={database.id}
-										type="button"
-										onClick={() => update("databaseProvider", database.id)}
-										className={cn(
-											"rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
-											form.databaseProvider === database.id
-												? "border-purple-400/45 bg-purple-400/[0.08]"
-												: "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]",
-										)}
-									>
-										<span className="text-sm font-medium text-white">
-											{database.label}
-										</span>
-										<span className="mt-1 block text-xs leading-relaxed text-white/45">
-											{database.desc}
-										</span>
-									</button>
-								))}
-							</div>
-							<label className="mt-4 block">
-								<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
-									Database connection
-								</span>
-								<input
-									value={form.databaseConnection}
-									onChange={(event) =>
-										update("databaseConnection", event.target.value)
-									}
-									className={FIELD}
-									placeholder="do-postgres-prod, alloydb-vector-prod, or external-dsn-secret"
-								/>
-								<span className="mt-1 block text-xs text-white/35">
-									Use a resource name or secret alias. Do not paste raw
-									credentials here.
-								</span>
-							</label>
-							<div className="mt-4 grid gap-3 md:grid-cols-3">
-								{KNOWLEDGE.map((mode) => (
-									<button
-										key={mode.id}
-										type="button"
-										onClick={() => update("knowledgeMode", mode.id)}
-										className={cn(
-											"rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
-											form.knowledgeMode === mode.id
-												? "border-purple-400/45 bg-purple-400/[0.08]"
-												: "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]",
-										)}
-									>
-										<span className="text-sm font-medium text-white">
-											{mode.label}
-										</span>
-										<span className="mt-1 block text-xs text-white/45">
-											{mode.desc}
-										</span>
-									</button>
-								))}
-							</div>
-							<label className="mt-4 block">
-								<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
-									Source URLs
-								</span>
-								<textarea
-									value={form.sourceUrls}
-									onChange={(event) => update("sourceUrls", event.target.value)}
-									className={`${FIELD} min-h-20 resize-y`}
-									placeholder="https://docs.example.com&#10;https://example.com/pricing"
-								/>
-							</label>
-						</Panel>
-					</div>
-
-					<div className="space-y-5">
-						<Panel className="p-5">
-							<h2 className="text-sm font-semibold text-white">
-								Connected resources
-							</h2>
-							<div className="mt-4 space-y-3">
-								<ResourceRow
-									icon={<Icon.Bot size={15} />}
-									label="Agents"
-									value={`${loadedAgents.length} owned`}
-								/>
-								<ResourceRow
-									icon={<Icon.LayoutGrid size={15} />}
-									label="Runtime"
-									value={
-										selectedDeployment
-											? selectedDeployment.status
-											: "not selected"
-									}
-								/>
-								<ResourceRow
-									icon={<Icon.Plug size={15} />}
-									label="MCP servers"
-									value={`${loadedMcps.length} saved`}
-								/>
-								<ResourceRow
-									icon={<Icon.Palette size={15} />}
-									label="Design"
-									value={
-										selectedProject
-											? projectParts(selectedProject)
-											: "not selected"
-									}
-								/>
-							</div>
-						</Panel>
-
-						<Panel className="p-5">
-							<h2 className="text-sm font-semibold text-white">
-								Config checks
-							</h2>
-							<div className="mt-3 space-y-2">
-								{configChecks.map((check) => (
-									<div
-										key={check.label}
-										className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
-										title={check.detail}
-									>
-										<span className="min-w-0">
-											<span className="block text-sm text-white/75">
-												{check.label}
-											</span>
-											<span className="block truncate text-xs text-white/40">
-												{check.detail}
-											</span>
-										</span>
-										<Badge tone={check.ok ? "success" : "warning"}>
-											{check.ok ? "ready" : "needs config"}
-										</Badge>
-									</div>
-								))}
-							</div>
-						</Panel>
-
-						<Panel className="p-5">
-							<h2 className="text-sm font-semibold text-white">MCP tools</h2>
-							<p className="mt-1 text-xs text-white/45">
-								Attach saved servers to this app blueprint.
-							</p>
-							<div className="mt-3 space-y-2">
-								{MCP_CATALOG.slice(0, 8).map((mcp) => {
-									const saved = loadedMcps.includes(mcp.id);
-									const active = form.mcpIds.includes(mcp.id);
-									return (
-										<button
-											key={mcp.id}
-											type="button"
-											disabled={!saved}
-											onClick={() => toggleMcp(mcp.id)}
-											className={cn(
-												"flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 disabled:cursor-not-allowed disabled:opacity-45",
-												active
-													? "border-purple-400/45 bg-purple-400/[0.08]"
-													: "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]",
-											)}
-										>
-											<span className="min-w-0">
-												<span className="block truncate text-sm text-white">
-													{mcp.name}
-												</span>
-												<span className="block truncate text-xs text-white/40">
-													{mcp.category}
-												</span>
-											</span>
-											<Badge
-												tone={
-													saved ? (active ? "accent" : "neutral") : "warning"
-												}
-											>
-												{saved ? (active ? "attached" : "saved") : "connect"}
-											</Badge>
-										</button>
-									);
-								})}
-							</div>
-						</Panel>
-
-						<Panel className="p-5">
-							<h2 className="text-sm font-semibold text-white">Infra mode</h2>
-							<div className="mt-3 grid gap-2">
-								{(["hybrid", "detour_cloud", "external"] as const).map(
-									(mode) => (
-										<button
-											key={mode}
-											type="button"
-											onClick={() => update("infraMode", mode)}
-											className={cn(
-												"rounded-xl border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
-												form.infraMode === mode
-													? "border-purple-400/45 bg-purple-400/[0.08] text-white"
-													: "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.04]",
-											)}
-										>
-											{mode.replace("_", " ")}
-										</button>
-									),
-								)}
-							</div>
-						</Panel>
-
-						{(saveError || saveNotice) && (
-							<Panel
-								className={cn(
-									"p-4 text-sm",
-									saveError
-										? "border-red-400/20 bg-red-400/[0.06] text-red-100/90"
-										: "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-100/90",
-								)}
-							>
-								{saveError ?? saveNotice}
 							</Panel>
-						)}
-						{form.id && (
-							<button
-								type="button"
-								className="w-full rounded-full border border-red-400/20 bg-red-400/[0.04] px-4 py-2 text-sm font-medium text-red-100/80 transition hover:bg-red-400/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
-								onClick={() => void remove(form.id as string)}
-							>
-								Delete app blueprint
-							</button>
-						)}
+
+							{(saveError || saveNotice) && (
+								<Panel
+									className={cn(
+										"p-4 text-sm",
+										saveError
+											? "border-red-400/20 bg-red-400/[0.06] text-red-100/90"
+											: "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-100/90",
+									)}
+								>
+									{saveError ?? saveNotice}
+								</Panel>
+							)}
+							{form.id && (
+								<button
+									type="button"
+									className="w-full rounded-full border border-red-400/20 bg-red-400/[0.04] px-4 py-2 text-sm font-medium text-red-100/80 transition hover:bg-red-400/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+									onClick={() => void remove(form.id as string)}
+								>
+									Delete app blueprint
+								</button>
+							)}
+						</aside>
 					</div>
 				</div>
 			</div>
 		</AppShell>
+	);
+}
+
+function HeaderSignal({ label, value }: { label: string; value: ReactNode }) {
+	return (
+		<div className="min-w-20 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2">
+			<div className="text-[10px] uppercase tracking-widest text-white/35">
+				{label}
+			</div>
+			<div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+				{value}
+			</div>
+		</div>
+	);
+}
+
+function BlueprintRow({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2">
+			<div className="text-[10px] uppercase tracking-widest text-white/35">
+				{label}
+			</div>
+			<div className="mt-1 text-[12px] leading-relaxed text-white/70">
+				{value}
+			</div>
+		</div>
+	);
+}
+
+function CheckRow({
+	label,
+	detail,
+	ok,
+}: {
+	label: string;
+	detail: string;
+	ok: boolean;
+}) {
+	return (
+		<div
+			className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2"
+			title={detail}
+		>
+			<span className="min-w-0">
+				<span className="block text-sm text-white/75">{label}</span>
+				<span className="block truncate text-xs text-white/40">{detail}</span>
+			</span>
+			<Badge tone={ok ? "success" : "warning"}>{ok ? "ready" : "needs"}</Badge>
+		</div>
 	);
 }
 
