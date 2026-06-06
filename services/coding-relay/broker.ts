@@ -5,111 +5,135 @@
 // e2b imports → unit-testable in Node, like the convex pure modules.
 
 export interface DeviceConn {
-  pubkey: string;
-  deviceId: string;
-  /** Send one control/data frame down the device's outbound socket. */
-  send: (frame: string) => void;
+	pubkey: string;
+	deviceId: string;
+	/** Send one control/data frame down the device's outbound socket. */
+	send: (frame: string) => void;
 }
 
 /** Relay → device frames (multiplexed by session id `sid`). */
 export type ToDeviceFrame =
-  | { t: "open"; sid: string; agent: string }
-  | { t: "in"; sid: string; data: string } // keystrokes
-  | { t: "resize"; sid: string; cols: number; rows: number }
-  | { t: "close"; sid: string };
+	| { t: "open"; sid: string; agent: string }
+	| { t: "in"; sid: string; data: string } // keystrokes
+	| { t: "resize"; sid: string; cols: number; rows: number }
+	| { t: "close"; sid: string };
 
 /** Device → relay frames. */
 export type FromDeviceFrame =
-  | { t: "out"; sid: string; data: string } // PTY output
-  | { t: "exit"; sid: string };
+	| { t: "out"; sid: string; data: string } // PTY output
+	| { t: "exit"; sid: string };
 
 export function encodeToDevice(f: ToDeviceFrame): string {
-  return JSON.stringify(f);
+	return JSON.stringify(f);
 }
 
 export function decodeFromDevice(raw: string): FromDeviceFrame | null {
-  let v: unknown;
-  try {
-    v = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!v || typeof v !== "object") return null;
-  const o = v as Record<string, unknown>;
-  if (o.t === "out" && typeof o.sid === "string" && typeof o.data === "string") {
-    return { t: "out", sid: o.sid, data: o.data };
-  }
-  if (o.t === "exit" && typeof o.sid === "string") {
-    return { t: "exit", sid: o.sid };
-  }
-  return null;
+	let v: unknown;
+	try {
+		v = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+	if (!v || typeof v !== "object") return null;
+	const o = v as Record<string, unknown>;
+	if (
+		o.t === "out" &&
+		typeof o.sid === "string" &&
+		typeof o.data === "string"
+	) {
+		return { t: "out", sid: o.sid, data: o.data };
+	}
+	if (o.t === "exit" && typeof o.sid === "string") {
+		return { t: "exit", sid: o.sid };
+	}
+	return null;
 }
 
 /** A parsed web client frame (the existing wterm protocol: d/r/w prefixes). */
 export type WebFrame =
-  | { kind: "input"; data: string }
-  | { kind: "resize"; cols: number; rows: number }
-  | { kind: "save"; name: string }
-  | null;
+	| { kind: "input"; data: string }
+	| { kind: "resize"; cols: number; rows: number }
+	| { kind: "save"; name: string }
+	| null;
 
 export function parseWebFrame(raw: string): WebFrame {
-  if (raw.length === 0) return null;
-  const type = raw[0];
-  const payload = raw.slice(1);
-  if (type === "r") {
-    try {
-      const { cols, rows } = JSON.parse(payload) as { cols: number; rows: number };
-      if (cols > 0 && rows > 0) return { kind: "resize", cols, rows };
-    } catch {
-      return null;
-    }
-    return null;
-  }
-  if (type === "w") {
-    try {
-      const body = payload ? (JSON.parse(payload) as { name?: string }) : {};
-      return { kind: "save", name: typeof body.name === "string" ? body.name : "workspace" };
-    } catch {
-      return { kind: "save", name: "workspace" };
-    }
-  }
-  // default: PTY input ("d"-prefixed, or raw for safety)
-  return { kind: "input", data: type === "d" ? payload : raw };
+	if (raw.length === 0) return null;
+	const type = raw[0];
+	const payload = raw.slice(1);
+	if (type === "r") {
+		try {
+			const { cols, rows } = JSON.parse(payload) as {
+				cols: number;
+				rows: number;
+			};
+			if (cols > 0 && rows > 0) return { kind: "resize", cols, rows };
+		} catch {
+			return null;
+		}
+		return null;
+	}
+	if (type === "w") {
+		try {
+			const body = payload ? (JSON.parse(payload) as { name?: string }) : {};
+			return {
+				kind: "save",
+				name: typeof body.name === "string" ? body.name : "workspace",
+			};
+		} catch {
+			return { kind: "save", name: "workspace" };
+		}
+	}
+	// default: PTY input ("d"-prefixed, or raw for safety)
+	return { kind: "input", data: type === "d" ? payload : raw };
 }
 
-/** Registry of connected devices, keyed by owner pubkey (one device per owner). */
+/** Registry of connected devices, keyed by owner pubkey and device id. */
 export class DeviceRegistry {
-  private byPubkey = new Map<string, DeviceConn>();
-  register(conn: DeviceConn): void {
-    this.byPubkey.set(conn.pubkey, conn);
-  }
-  unregister(pubkey: string): void {
-    this.byPubkey.delete(pubkey);
-  }
-  get(pubkey: string): DeviceConn | undefined {
-    return this.byPubkey.get(pubkey);
-  }
-  has(pubkey: string): boolean {
-    return this.byPubkey.has(pubkey);
-  }
+	private byPubkey = new Map<string, Map<string, DeviceConn>>();
+	register(conn: DeviceConn): void {
+		const current =
+			this.byPubkey.get(conn.pubkey) ?? new Map<string, DeviceConn>();
+		current.set(conn.deviceId, conn);
+		this.byPubkey.set(conn.pubkey, current);
+	}
+	unregister(pubkey: string, deviceId?: string): void {
+		if (!deviceId) {
+			this.byPubkey.delete(pubkey);
+			return;
+		}
+		const current = this.byPubkey.get(pubkey);
+		if (!current) return;
+		current.delete(deviceId);
+		if (current.size === 0) this.byPubkey.delete(pubkey);
+	}
+	get(pubkey: string, deviceId?: string): DeviceConn | undefined {
+		const current = this.byPubkey.get(pubkey);
+		if (!current) return undefined;
+		if (deviceId) return current.get(deviceId);
+		return current.values().next().value;
+	}
+	has(pubkey: string, deviceId?: string): boolean {
+		if (!deviceId) return this.byPubkey.has(pubkey);
+		return this.byPubkey.get(pubkey)?.has(deviceId) ?? false;
+	}
 }
 
 /** Routes device "out" frames back to the right web socket, by session id. */
 export class SessionRouter {
-  private bySid = new Map<string, (data: string) => void>();
-  open(sid: string, sink: (data: string) => void): void {
-    this.bySid.set(sid, sink);
-  }
-  route(sid: string, data: string): boolean {
-    const sink = this.bySid.get(sid);
-    if (!sink) return false;
-    sink(data);
-    return true;
-  }
-  close(sid: string): void {
-    this.bySid.delete(sid);
-  }
-  has(sid: string): boolean {
-    return this.bySid.has(sid);
-  }
+	private bySid = new Map<string, (data: string) => void>();
+	open(sid: string, sink: (data: string) => void): void {
+		this.bySid.set(sid, sink);
+	}
+	route(sid: string, data: string): boolean {
+		const sink = this.bySid.get(sid);
+		if (!sink) return false;
+		sink(data);
+		return true;
+	}
+	close(sid: string): void {
+		this.bySid.delete(sid);
+	}
+	has(sid: string): boolean {
+		return this.bySid.has(sid);
+	}
 }
