@@ -4,12 +4,14 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   remoteFallbackLabel,
+  remoteMeshLabel,
   remoteProviderLabel,
   remoteRuntimeUrl,
   remoteStatusLabel,
   type RemoteRuntimeAccess,
   type RemoteRuntimeDomainMode,
   type RemoteRuntimeFallbackStatus,
+  type RemoteRuntimeMeshMode,
   type RemoteRuntimeMode,
   type RemoteRuntimeProvider,
   type RemoteRuntimeProviderStrategy,
@@ -31,6 +33,10 @@ type DeploymentSummary = {
   apiVisibility: RemoteRuntimeAccess;
   a2aEnabled: boolean;
   mcpEnabled: boolean;
+  meshMode: RemoteRuntimeMeshMode;
+  tailnet: string | null;
+  headscaleUrl: string | null;
+  meshHostname: string;
   webUiUrl: string;
   apiBaseUrl: string;
   lastError: string | null;
@@ -830,6 +836,7 @@ function NodeInspector({
           <div className="grid gap-2">
             <Readout label="Runtime" value={remoteStatusLabel(selectedDeployment.status)} meta={selectedDeployment.mode === "remote_24_7" ? "24/7" : "on-demand"} />
             <Readout label="Provider" value={remoteProviderLabel(selectedDeployment.activeProvider)} meta={remoteFallbackLabel(selectedDeployment.fallbackStatus)} />
+            <Readout label="Network" value={remoteMeshLabel(selectedDeployment.meshMode)} meta={selectedDeployment.meshHostname} />
             <Readout label="Web UI" value={selectedDeployment.webUiUrl ?? remoteRuntimeUrl(selectedDeployment.agentId, selectedDeployment.domainMode, selectedDeployment.customDomain)} meta={`${selectedDeployment.webVisibility} web`} />
             <Readout label="API base" value={selectedDeployment.apiBaseUrl} meta={`${selectedDeployment.apiVisibility} API`} />
             {selectedDeployment.lastError ? (
@@ -1023,7 +1030,7 @@ function NodeInspector({
             >
               <option value="tailscale">Tailscale</option>
               <option value="headscale">Headscale</option>
-              <option value="detour-private">Detour private relay</option>
+              <option value="detour_private">Detour private relay</option>
             </select>
           </Field>
           <Field label="Tailnet" htmlFor={fieldIds.tailnet}>

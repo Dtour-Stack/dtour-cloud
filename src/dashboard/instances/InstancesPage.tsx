@@ -8,12 +8,14 @@ import {
   canLaunchRemote,
   remoteApiBaseUrl,
   remoteFallbackLabel,
+  remoteMeshLabel,
   remoteProviderLabel,
   remoteRuntimeUrl,
   remoteStatusLabel,
   type RemoteRuntimeAccess,
   type RemoteRuntimeDomainMode,
   type RemoteRuntimeFallbackStatus,
+  type RemoteRuntimeMeshMode,
   type RemoteRuntimeMode,
   type RemoteRuntimeProvider,
   type RemoteRuntimeProviderStrategy,
@@ -46,6 +48,10 @@ type RemoteDeployment = {
   apiVisibility: RemoteRuntimeAccess;
   a2aEnabled: boolean;
   mcpEnabled: boolean;
+  meshMode: RemoteRuntimeMeshMode;
+  tailnet: string | null;
+  headscaleUrl: string | null;
+  meshHostname: string;
   webUiUrl: string;
   apiBaseUrl: string;
   lastHeartbeatAt: number | null;
@@ -66,8 +72,12 @@ type Draft = Pick<
   | "apiVisibility"
   | "a2aEnabled"
   | "mcpEnabled"
+  | "meshMode"
 > & {
   customDomain: string;
+  tailnet: string;
+  headscaleUrl: string;
+  meshHostname: string;
 };
 
 type OpenWebUiResult =
@@ -130,6 +140,10 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
     apiVisibility: draft.apiVisibility ?? deployment.apiVisibility,
     a2aEnabled: draft.a2aEnabled ?? deployment.a2aEnabled,
     mcpEnabled: draft.mcpEnabled ?? deployment.mcpEnabled,
+    meshMode: draft.meshMode ?? deployment.meshMode,
+    tailnet: draft.tailnet ?? deployment.tailnet ?? "",
+    headscaleUrl: draft.headscaleUrl ?? deployment.headscaleUrl ?? "",
+    meshHostname: draft.meshHostname ?? deployment.meshHostname,
   };
   const projectedWebUrl = remoteRuntimeUrl(
     agent.id,
@@ -144,6 +158,10 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
     customDomain: `remote-custom-domain-${fieldIdBase}`,
     webVisibility: `remote-web-visibility-${fieldIdBase}`,
     apiVisibility: `remote-api-visibility-${fieldIdBase}`,
+    meshMode: `remote-mesh-mode-${fieldIdBase}`,
+    tailnet: `remote-tailnet-${fieldIdBase}`,
+    headscaleUrl: `remote-headscale-url-${fieldIdBase}`,
+    meshHostname: `remote-mesh-hostname-${fieldIdBase}`,
   };
   const canDeploy =
     active.mode === "remote_24_7" &&
@@ -166,6 +184,12 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
       apiVisibility: active.apiVisibility,
       a2aEnabled: active.a2aEnabled,
       mcpEnabled: active.mcpEnabled,
+      meshMode: active.meshMode,
+      ...(active.meshMode === "tailscale" ? { tailnet: active.tailnet } : {}),
+      ...(active.meshMode === "headscale"
+        ? { headscaleUrl: active.headscaleUrl }
+        : {}),
+      meshHostname: active.meshHostname,
     };
   }
 
@@ -281,6 +305,61 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
               <option value="public">Public</option>
             </select>
           </Field>
+          <Field label="Private network" htmlFor={fieldIds.meshMode}>
+            <select
+              id={fieldIds.meshMode}
+              value={active.meshMode}
+              onChange={(e) =>
+                patch({ meshMode: e.target.value as RemoteRuntimeMeshMode })
+              }
+              className={field}
+            >
+              <option value="detour_private">Detour private relay</option>
+              <option value="tailscale">Tailscale</option>
+              <option value="headscale">Headscale</option>
+            </select>
+          </Field>
+          {active.meshMode === "tailscale" ? (
+            <Field label="Tailnet" htmlFor={fieldIds.tailnet}>
+              <input
+                id={fieldIds.tailnet}
+                type="text"
+                value={active.tailnet}
+                onChange={(e) => patch({ tailnet: e.target.value })}
+                placeholder="team.tailnet"
+                spellCheck={false}
+                autoComplete="off"
+                className={field}
+              />
+            </Field>
+          ) : null}
+          {active.meshMode === "headscale" ? (
+            <Field label="Headscale URL" htmlFor={fieldIds.headscaleUrl}>
+              <input
+                id={fieldIds.headscaleUrl}
+                type="url"
+                inputMode="url"
+                value={active.headscaleUrl}
+                onChange={(e) => patch({ headscaleUrl: e.target.value })}
+                placeholder="https://mesh.detour.ninja"
+                spellCheck={false}
+                autoComplete="url"
+                className={field}
+              />
+            </Field>
+          ) : null}
+          <Field label="Mesh hostname" htmlFor={fieldIds.meshHostname}>
+            <input
+              id={fieldIds.meshHostname}
+              type="text"
+              value={active.meshHostname}
+              onChange={(e) => patch({ meshHostname: e.target.value })}
+              placeholder="detour-agent"
+              spellCheck={false}
+              autoComplete="off"
+              className={field}
+            />
+          </Field>
           <Toggle
             label="A2A endpoint"
             checked={active.a2aEnabled}
@@ -303,6 +382,11 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
             label="Provider"
             value={remoteProviderLabel(deployment.activeProvider)}
             meta={remoteFallbackLabel(deployment.fallbackStatus)}
+          />
+          <Readout
+            label="Network"
+            value={remoteMeshLabel(active.meshMode)}
+            meta={active.meshHostname}
           />
           <Readout
             label="API base"

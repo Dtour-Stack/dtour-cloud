@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { Link } from "react-router-dom";
-import { remoteStatusLabel, type RemoteRuntimeAccess, type RemoteRuntimeDomainMode, type RemoteRuntimeFallbackStatus, type RemoteRuntimeMode, type RemoteRuntimeProvider, type RemoteRuntimeProviderStrategy, type RemoteRuntimeStatus } from "@/lib/remoteRuntime";
+import { remoteStatusLabel, type RemoteRuntimeAccess, type RemoteRuntimeDomainMode, type RemoteRuntimeFallbackStatus, type RemoteRuntimeMeshMode, type RemoteRuntimeMode, type RemoteRuntimeProvider, type RemoteRuntimeProviderStrategy, type RemoteRuntimeStatus } from "@/lib/remoteRuntime";
 import { getDtourSessionToken } from "@/lib/session";
 import { useFlags } from "@/lib/useFlags";
 import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
@@ -81,6 +81,10 @@ type DeploymentSummary = {
   apiVisibility: RemoteRuntimeAccess;
   a2aEnabled: boolean;
   mcpEnabled: boolean;
+  meshMode: RemoteRuntimeMeshMode;
+  tailnet: string | null;
+  headscaleUrl: string | null;
+  meshHostname: string;
   webUiUrl: string;
   apiBaseUrl: string;
   lastError: string | null;

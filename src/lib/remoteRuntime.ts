@@ -15,6 +15,7 @@ export type RemoteRuntimeMode = "on_demand" | "remote_24_7";
 export type RemoteRuntimeProvider = "elizacloud" | "detour";
 export type RemoteRuntimeProviderStrategy = "elizacloud_primary_detour_fallback";
 export type RemoteRuntimeFallbackStatus = "standby" | "active" | "unavailable";
+export type RemoteRuntimeMeshMode = "detour_private" | "tailscale" | "headscale";
 
 const STATUS_LABELS: Record<RemoteRuntimeStatus, string> = {
   not_configured: "on-demand",
@@ -39,6 +40,12 @@ const FALLBACK_LABELS: Record<RemoteRuntimeFallbackStatus, string> = {
   unavailable: "fallback unavailable",
 };
 
+const MESH_LABELS: Record<RemoteRuntimeMeshMode, string> = {
+  detour_private: "Detour private relay",
+  tailscale: "Tailscale",
+  headscale: "Headscale",
+};
+
 export function remoteStatusLabel(status: RemoteRuntimeStatus): string {
   return STATUS_LABELS[status] ?? STATUS_LABELS.unknown;
 }
@@ -49,6 +56,10 @@ export function remoteProviderLabel(provider: RemoteRuntimeProvider): string {
 
 export function remoteFallbackLabel(status: RemoteRuntimeFallbackStatus): string {
   return FALLBACK_LABELS[status];
+}
+
+export function remoteMeshLabel(mode: RemoteRuntimeMeshMode): string {
+  return MESH_LABELS[mode];
 }
 
 export function defaultDetourSubdomain(agentId: string): string {

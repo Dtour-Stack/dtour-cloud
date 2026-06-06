@@ -4,6 +4,7 @@ import {
   defaultDetourSubdomain,
   remoteApiBaseUrl,
   remoteFallbackLabel,
+  remoteMeshLabel,
   remoteProviderLabel,
   remoteRuntimeUrl,
   remoteStatusLabel,
@@ -37,5 +38,6 @@ describe("remoteRuntime", () => {
     );
     expect(remoteProviderLabel("elizacloud")).toBe("ElizaCloud");
     expect(remoteFallbackLabel("standby")).toBe("fallback standby");
+    expect(remoteMeshLabel("headscale")).toBe("Headscale");
   });
 });

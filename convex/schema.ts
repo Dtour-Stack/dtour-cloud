@@ -143,6 +143,16 @@ export default defineSchema({
     apiVisibility: v.union(v.literal("private"), v.literal("public")),
     a2aEnabled: v.boolean(),
     mcpEnabled: v.boolean(),
+    meshMode: v.optional(
+      v.union(
+        v.literal("detour_private"),
+        v.literal("tailscale"),
+        v.literal("headscale"),
+      ),
+    ),
+    tailnet: v.optional(v.string()),
+    headscaleUrl: v.optional(v.string()),
+    meshHostname: v.optional(v.string()),
     webUiUrl: v.optional(v.string()),
     apiBaseUrl: v.optional(v.string()),
     lastHeartbeatAt: v.optional(v.number()),

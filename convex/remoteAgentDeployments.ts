@@ -62,6 +62,11 @@ const statusValidator = v.union(
 const modeValidator = v.union(v.literal("on_demand"), v.literal("remote_24_7"));
 const domainModeValidator = v.union(v.literal("detour"), v.literal("custom"));
 const accessValidator = v.union(v.literal("private"), v.literal("public"));
+const meshModeValidator = v.union(
+  v.literal("detour_private"),
+  v.literal("tailscale"),
+  v.literal("headscale"),
+);
 const providerValidator = v.union(v.literal("elizacloud"), v.literal("detour"));
 const fallbackStatusValidator = v.union(
   v.literal("standby"),
@@ -104,6 +109,16 @@ function normalizeCustomDomain(domain?: string): string | undefined {
   return trimmed || undefined;
 }
 
+function normalizeOptionalText(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function defaultMeshHostname(agentId: string): string {
+  const compact = agentId.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(-32);
+  return `detour-${compact || "agent"}`;
+}
+
 function runtimeUrl(
   agentId: Id<"agents">,
   domainMode: RemoteRuntimeDomainMode,
@@ -141,6 +156,10 @@ function serializeDeployment(
     apiVisibility: deployment?.apiVisibility ?? "private",
     a2aEnabled: deployment?.a2aEnabled ?? false,
     mcpEnabled: deployment?.mcpEnabled ?? false,
+    meshMode: deployment?.meshMode ?? "detour_private",
+    tailnet: deployment?.tailnet ?? null,
+    headscaleUrl: deployment?.headscaleUrl ?? null,
+    meshHostname: deployment?.meshHostname ?? defaultMeshHostname(agentId),
     webUiUrl: deployment?.webUiUrl ?? runtimeUrl(agentId, domainMode, customDomain),
     apiBaseUrl: apiUrl(agentId),
     lastHeartbeatAt: deployment?.lastHeartbeatAt ?? null,
@@ -348,12 +367,26 @@ export const configure = mutation({
     apiVisibility: accessValidator,
     a2aEnabled: v.boolean(),
     mcpEnabled: v.boolean(),
+    meshMode: meshModeValidator,
+    tailnet: v.optional(v.string()),
+    headscaleUrl: v.optional(v.string()),
+    meshHostname: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { caller } = await requireOwnedAgent(ctx, args.token, args.agentId);
     const customDomain = normalizeCustomDomain(args.customDomain);
     if (args.domainMode === "custom" && !customDomain) {
       throw new Error("Custom domain is required");
+    }
+    const tailnet = normalizeOptionalText(args.tailnet);
+    const headscaleUrl = normalizeOptionalText(args.headscaleUrl);
+    const meshHostname =
+      normalizeOptionalText(args.meshHostname) ?? defaultMeshHostname(args.agentId);
+    if (args.meshMode === "tailscale" && !tailnet) {
+      throw new Error("Tailnet is required for Tailscale mesh access");
+    }
+    if (args.meshMode === "headscale" && !headscaleUrl) {
+      throw new Error("Headscale URL is required for Headscale mesh access");
     }
     const existing = await deploymentForAgent(ctx, args.agentId);
     const now = Date.now();
@@ -372,6 +405,10 @@ export const configure = mutation({
       apiVisibility: args.apiVisibility,
       a2aEnabled: args.a2aEnabled,
       mcpEnabled: args.mcpEnabled,
+      meshMode: args.meshMode,
+      tailnet,
+      headscaleUrl,
+      meshHostname,
       webUiUrl: runtimeUrl(args.agentId, args.domainMode, customDomain),
       apiBaseUrl: apiUrl(args.agentId),
       updatedAt: now,
@@ -507,6 +544,11 @@ export const recordProvisionState = internalMutation({
       apiVisibility: existing?.apiVisibility ?? ("private" as const),
       a2aEnabled: existing?.a2aEnabled ?? false,
       mcpEnabled: existing?.mcpEnabled ?? false,
+      meshMode: existing?.meshMode ?? ("detour_private" as const),
+      tailnet: existing?.tailnet,
+      headscaleUrl: existing?.headscaleUrl,
+      meshHostname:
+        existing?.meshHostname ?? defaultMeshHostname(args.agentId),
       webUiUrl: args.webUiUrl ?? existing?.webUiUrl,
       apiBaseUrl: args.apiBaseUrl ?? apiUrl(args.agentId),
       lastHeartbeatAt: args.lastHeartbeatAt ?? existing?.lastHeartbeatAt,
@@ -555,6 +597,16 @@ export const deploy = action({
             systemPrompt: context.agent.systemPrompt,
             model: context.agent.model,
             plugins: context.agent.plugins,
+            detourRemotePolicy: {
+              webVisibility: context.deployment.webVisibility,
+              apiVisibility: context.deployment.apiVisibility,
+              a2aEnabled: context.deployment.a2aEnabled,
+              mcpEnabled: context.deployment.mcpEnabled,
+              meshMode: context.deployment.meshMode,
+              tailnet: context.deployment.tailnet,
+              headscaleUrl: context.deployment.headscaleUrl,
+              meshHostname: context.deployment.meshHostname,
+            },
           },
         });
         const data = recordProp(payload, "data");
