@@ -1,5 +1,6 @@
 export const BETA_PRODUCTION_ENABLED_FLAGS = [
   "chat_eliza_plugins",
+  "chat_auto_run_tools",
   "surface_api_keys",
   "surface_mcps",
   "surface_apps",
