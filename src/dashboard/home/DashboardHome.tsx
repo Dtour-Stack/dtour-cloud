@@ -30,7 +30,6 @@ import {
   Skeleton,
   StatCard,
 } from "@/ui";
-import { CloudBuilderPanel } from "./CloudBuilderPanel";
 
 const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode }[] = [
   { to: "/coding", label: "Coding", desc: "Sandboxed coding agents", icon: <Icon.Zap size={16} /> },
@@ -40,9 +39,10 @@ const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode
   { to: "/account-hub", label: "Account", desc: "Profile, security, settings", icon: <Icon.User size={16} /> },
   { to: "/analytics", label: "Analytics", desc: "Usage & spend", icon: <Icon.Activity size={16} /> },
   { to: "/instances", label: "Instances", desc: "Running agents", icon: <Icon.LayoutGrid size={16} /> },
-  { to: "/mcps", label: "MCPs", desc: "Tool execution pending", icon: <Icon.Zap size={16} /> },
-  { to: "/apps", label: "My Apps", desc: "Publishing planned", icon: <Icon.LayoutGrid size={16} /> },
-  { to: "/earnings", label: "Earnings", desc: "Payouts planned", icon: <Icon.Coins size={16} /> },
+  { to: "/mcps", label: "MCPs", desc: "Saved tool servers", icon: <Icon.Zap size={16} /> },
+  { to: "/apps", label: "My Apps", desc: "Agent publishing", icon: <Icon.LayoutGrid size={16} /> },
+  { to: "/documents", label: "Documents", desc: "Agent knowledge", icon: <Icon.BookOpen size={16} /> },
+  { to: "/earnings", label: "Earnings", desc: "Affiliate payouts", icon: <Icon.Coins size={16} /> },
   { to: "/api-explorer", label: "API explorer", desc: "Metering first", icon: <Icon.Plug size={16} /> },
   { to: "/api-keys", label: "API keys", desc: "Programmatic access", icon: <Icon.Shield size={16} /> },
 ];
@@ -105,21 +105,6 @@ type InstanceSummary = {
   deployment: DeploymentSummary;
 };
 
-type ExternalConnectionSummary = {
-  id: string;
-  agentId: string;
-  label: string;
-  provider: string;
-  baseUrl: string;
-  apiBaseUrl: string | null;
-  a2aUrl: string | null;
-  mcpUrl: string | null;
-  authMode: string;
-  meshMode: string;
-  meshHostname: string | null;
-  status: string;
-};
-
 const TEST_CREDITS: Exclude<Credits, null | undefined> = {
   balanceUsd: 0.25,
   balanceMicroUsd: 250_000,
@@ -166,14 +151,8 @@ export function DashboardHome() {
     token && !testUser ? { token } : "skip",
   ) as InstanceSummary[] | undefined;
   const instanceRows = testUser ? [] : instanceRowsQuery;
-  const externalConnectionsQuery = useQuery(
-    anyApi.agentExternalConnections.listAll,
-    token && !testUser ? { token } : "skip",
-  ) as ExternalConnectionSummary[] | undefined;
-  const externalConnections = testUser ? [] : (externalConnectionsQuery ?? []);
-  const agents = instanceRows?.map((row) => row.agent);
-  const deployments = instanceRows?.map((row) => row.deployment);
   const loadedRows = instanceRows ?? [];
+  const agentCount = loadedRows.length;
 
   const loading = me === undefined;
   const creditsLoading = credits === undefined;
@@ -262,8 +241,8 @@ export function DashboardHome() {
         <StatCard
           label="Agents"
           loading={agentsLoading}
-          value={(agents?.length ?? 0).toLocaleString()}
-          sub={agents?.length ? "Ready for cloud buildout" : "None deployed yet"}
+          value={agentCount.toLocaleString()}
+          sub={agentCount ? "Ready for cloud buildout" : "None deployed yet"}
           icon={<Icon.Bot size={16} />}
         />
         <StatCard
@@ -373,12 +352,6 @@ export function DashboardHome() {
               ))}
             </div>
           )}
-          <CloudBuilderPanel
-            token={testUser ? null : token}
-            agents={agents ?? []}
-            deployments={deployments ?? []}
-            externalConnections={externalConnections}
-          />
         </Panel>
 
         <Panel

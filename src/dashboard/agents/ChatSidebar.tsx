@@ -93,7 +93,6 @@ export function ChatSidebar({
 
       {searching && (
         <input
-          autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter agents…"

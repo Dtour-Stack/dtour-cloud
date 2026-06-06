@@ -17,9 +17,12 @@ describe("surfaceFlags", () => {
     expect(surfaceLabelForRoute("/design/sketch", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
   });
 
-  test("keeps planned surfaces behind coming soon gates", () => {
-    expect(isRouteEnabled("/api-keys", DEFAULT_SURFACE_FLAGS)).toBe(false);
-    expect(surfaceLabelForRoute("/api-keys", DEFAULT_SURFACE_FLAGS)).toBe("Coming soon");
-    expect(surfaceMetaForRoute("/mcps/catalog")?.title).toBe("MCP servers");
+  test("opens backed beta surfaces by default", () => {
+    expect(isRouteEnabled("/api-keys", DEFAULT_SURFACE_FLAGS)).toBe(true);
+    expect(surfaceLabelForRoute("/api-keys", DEFAULT_SURFACE_FLAGS)).toBeNull();
+    expect(isRouteEnabled("/instances", DEFAULT_SURFACE_FLAGS)).toBe(true);
+    expect(surfaceLabelForRoute("/instances", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
+    expect(surfaceMetaForRoute("/documents")?.title).toBe("Documents & memories");
+    expect(surfaceLabelForRoute("/mcps/catalog", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
   });
 });

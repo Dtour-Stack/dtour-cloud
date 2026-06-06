@@ -29,12 +29,14 @@ const ProfileDashboardPage = lazy(
   () => import("@/dashboard/profile/ProfileDashboardPage"),
 );
 const AgentsPage = lazy(() => import("@/dashboard/agents/AgentsPage"));
+const CloudBuilderPage = lazy(() => import("@/dashboard/cloud/CloudBuilderPage"));
 
 // New dashboard surfaces (one file per surface, owned by sibling agents). Each
 // is lazy so its deps stay off the landing/token render path, and each is gated
 // behind RequireSession (these are $DTOUR-holder user surfaces).
 const ApiExplorerPage = lazy(() => import("@/dashboard/api/ApiExplorerPage"));
 const ApiKeysPage = lazy(() => import("@/dashboard/api/ApiKeysPage"));
+const DocumentsPage = lazy(() => import("@/dashboard/documents/DocumentsPage"));
 const DocsPage = lazy(() => import("@/dashboard/docs/DocsPage"));
 const InstancesPage = lazy(() => import("@/dashboard/instances/InstancesPage"));
 const McpsPage = lazy(() => import("@/dashboard/mcps/McpsPage"));
@@ -110,6 +112,14 @@ export default function App() {
           }
         />
         <Route
+          path="/cloud-builder"
+          element={
+            <RequireSession>
+              <CloudBuilderPage />
+            </RequireSession>
+          }
+        />
+        <Route
           path="/agents/:agentId"
           element={
             <RequireSession>
@@ -167,6 +177,16 @@ export default function App() {
             <RequireSession>
               <SurfaceGate path="/mcps">
                 <McpsPage />
+              </SurfaceGate>
+            </RequireSession>
+          }
+        />
+        <Route
+          path="/documents"
+          element={
+            <RequireSession>
+              <SurfaceGate path="/documents">
+                <DocumentsPage />
               </SurfaceGate>
             </RequireSession>
           }

@@ -2,15 +2,15 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { usePublicConfig } from "@/lib/useConfig";
-import { useFlags } from "@/lib/useFlags";
-import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
 import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
 } from "@/lib/playwright-dtour-auth";
 import { isAdmin, type Role } from "@/lib/roles";
 import { DTOUR_SESSION_KEY, getDtourSessionToken } from "@/lib/session";
+import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
+import { usePublicConfig } from "@/lib/useConfig";
+import { useFlags } from "@/lib/useFlags";
 import { Badge, cn, Icon, IconButton } from "@/ui";
 import { AdminDetourAssistant } from "./admin/AdminDetourAssistant";
 import { InboxPanel } from "./InboxPanel";
@@ -28,23 +28,20 @@ export type NavItem = {
   isNew?: boolean;
 };
 
-/** The user dashboard nav. The first three items are ungrouped (always on top);
- *  the rest are grouped into sections (Runtime → Account → Monetization). Drives
- *  the sidebar here AND the dashboard surfaces. */
 // Lean nav: the few daily-driver surfaces. Everything else (Developers, Account,
 // Analytics, Instances, MCPs, My Apps, Earnings) lives on the Dashboard launcher
 // grid; the dashboard "views" (Profile, Design, Coding, Admin) live in the
 // header context-switcher dropdown.
 export const USER_NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: <Icon.Home />, end: true },
-  { to: "/agents", label: "Agents", icon: <Icon.Bot /> },
+  { to: "/agents", label: "Agents", icon: <Icon.Bot />, end: true },
+  { to: "/cloud-builder", label: "Cloud Builder", icon: <Icon.LayoutGrid />, end: true },
   { to: "/gallery", label: "Gallery", icon: <Icon.Image /> },
 ];
 
 /** Shared app shell: collapsible nav, header (with admin context switcher),
  *  right off-canvas panel. The user dashboard and admin sections both use it. */
 export function AppShell({
-  title,
   children,
   panel,
   bare = false,

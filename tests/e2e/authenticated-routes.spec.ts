@@ -15,16 +15,18 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("link", { name: /Design/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Coding/i })).toBeVisible();
     await expect(page.getByText("Open beta").first()).toBeVisible();
-    await expect(page.getByText("Coming soon").first()).toBeVisible();
     await expect(page.getByText("$0.25 starter credit claimed")).toBeVisible();
     await expect(page.getByText("Starter credit is ready")).toBeVisible();
     await expect(page.getByRole("link", { name: /Try Agents/i })).toBeVisible();
     await expect(page.getByText("open Agent Cloud").first()).toBeVisible();
     await expect(page.getByText("workflow subgraphs")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Cloud Builder" })).toBeVisible();
-    await expect(page.getByText("Tailscale / Headscale")).toBeVisible();
-    await expect(page.getByText("Mobile build")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Desktop QR pairing/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cloud Builder" })).toHaveCount(0);
+
+    const primaryNavLinks = page.locator('nav[aria-label="Primary"] a');
+    await expect(primaryNavLinks.nth(0)).toHaveText("Dashboard");
+    await expect(primaryNavLinks.nth(1)).toHaveText("Agents");
+    await expect(primaryNavLinks.nth(2)).toHaveText("Cloud Builder");
+    await expect(primaryNavLinks.nth(3)).toHaveText("Gallery");
   });
 
   test("open beta users can reach beta dashboards", async ({ page }) => {
@@ -47,6 +49,13 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("Connect an endpoint")).toBeVisible();
     await expect(page.getByText("Start the migration helper")).toBeVisible();
     await expect(page.getByText("Soon")).toHaveCount(0);
+
+    await page.goto("/cloud-builder");
+    await expect(page.getByRole("link", { name: "Cloud Builder" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cloud Builder" })).toBeVisible();
+    await expect(page.getByText("Tailscale / Headscale")).toBeVisible();
+    await expect(page.getByText("Mobile build")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Desktop QR pairing/i })).toBeVisible();
 
     await page.goto("/coding/setup");
     await expect(page).toHaveURL(/\/coding\/setup$/);
@@ -147,14 +156,15 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByRole("button", { name: "applicants" })).toBeVisible();
   });
 
-  test("planned dashboard surfaces are gated behind coming soon", async ({ page }) => {
+  test("backed dashboard surfaces are open while unsafe explorer calls stay gated", async ({ page }) => {
     await page.goto("/api-keys");
 
-    await expect(page.getByText("Coming soon").first()).toBeVisible();
-    await expect(
-      page.getByText("Programmatic access keys are being hardened before public launch."),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: /Create/i })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "API Keys" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Create/i })).toBeVisible();
+
+    await page.goto("/documents");
+    await expect(page.getByRole("heading", { name: "Documents & memories" })).toBeVisible();
+    await expect(page.getByText("Agent knowledge stores").or(page.getByText("No agents yet"))).toBeVisible();
 
     await page.goto("/developers");
     await expect(page.getByRole("button", { name: "Docs Open beta", exact: true })).toBeVisible();
@@ -162,10 +172,8 @@ test.describe("authenticated dashboard routes", () => {
     await expect(
       page.getByText("Live proxy calls will open after metering and key auth are hardened."),
     ).toBeVisible();
-    await page.getByRole("button", { name: "API Keys Coming soon", exact: true }).click();
-    await expect(
-      page.getByText("Programmatic access keys are being hardened before public launch."),
-    ).toBeVisible();
+    await page.getByRole("button", { name: "API Keys", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "API Keys" })).toBeVisible();
   });
 
   test("billing, affiliate, and docs copy matches open beta rails", async ({ page }) => {

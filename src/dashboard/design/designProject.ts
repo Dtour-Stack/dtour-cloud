@@ -20,6 +20,6 @@ export function designPath(
   project: string,
 ): string {
   const q = new URLSearchParams({ project });
-  if (section === "infra") return `/dashboard?${q.toString()}#cloud-builder`;
+  if (section === "infra") return `/cloud-builder?${q.toString()}`;
   return `/design/${section}?${q}`;
 }

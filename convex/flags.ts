@@ -4,15 +4,24 @@ import { logEvent } from "./events";
 import {
   FLAG_CATEGORIES,
   FLAG_REGISTRY,
+  type FlagCategory,
   getFlagDef,
   resolveFlag,
-  type FlagCategory,
 } from "./flagRegistry";
 import { requireRole } from "./rbac";
 
 function rowsToMap(rows: { key: string; enabled: boolean }[]): Record<string, boolean> {
   return Object.fromEntries(rows.map((r) => [r.key, r.enabled]));
 }
+
+const BETA_PRODUCTION_SURFACES = [
+  "surface_api_keys",
+  "surface_mcps",
+  "surface_apps",
+  "surface_instances",
+  "surface_documents",
+  "surface_earnings",
+] as const;
 
 /** Effective flag map { key: enabled } — uses registry defaults + kill-switch semantics. */
 export const all = query({
@@ -132,5 +141,38 @@ export const seed = internalMutation({
       }
     }
     return { ok: true, inserted, total: FLAG_REGISTRY.length };
+  },
+});
+
+export const enableBetaProductionSurfaces = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const enabled: string[] = [];
+    for (const key of BETA_PRODUCTION_SURFACES) {
+      const def = getFlagDef(key);
+      if (!def) throw new Error(`Unknown flag: ${key}`);
+      const existing = await ctx.db
+        .query("featureFlags")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      if (existing) {
+        if (!existing.enabled || existing.description !== def.description) {
+          await ctx.db.patch(existing._id, {
+            enabled: true,
+            description: def.description,
+            updatedAt: Date.now(),
+          });
+        }
+      } else {
+        await ctx.db.insert("featureFlags", {
+          key,
+          enabled: true,
+          description: def.description,
+          updatedAt: Date.now(),
+        });
+      }
+      enabled.push(key);
+    }
+    return { ok: true, enabled };
   },
 });
