@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { Link } from "react-router-dom";
+import { remoteStatusLabel, type RemoteRuntimeAccess, type RemoteRuntimeDomainMode, type RemoteRuntimeFallbackStatus, type RemoteRuntimeMode, type RemoteRuntimeProvider, type RemoteRuntimeProviderStrategy, type RemoteRuntimeStatus } from "@/lib/remoteRuntime";
 import { getDtourSessionToken } from "@/lib/session";
 import { useFlags } from "@/lib/useFlags";
 import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
@@ -8,10 +9,10 @@ import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
 } from "@/lib/playwright-dtour-auth";
+import { CloudBuilderPanel } from "./CloudBuilderPanel";
 import {
   Badge,
   buttonClasses,
-  Button,
   cn,
   EmptyState,
   Icon,
@@ -59,6 +60,37 @@ type Credits =
   | null
   | undefined;
 
+type AgentSummary = {
+  id: string;
+  name: string;
+  model: string;
+  type: string;
+  plugins?: string[];
+};
+
+type DeploymentSummary = {
+  agentId: string;
+  mode: RemoteRuntimeMode;
+  providerStrategy: RemoteRuntimeProviderStrategy;
+  activeProvider: RemoteRuntimeProvider;
+  fallbackStatus: RemoteRuntimeFallbackStatus;
+  status: RemoteRuntimeStatus;
+  domainMode: RemoteRuntimeDomainMode;
+  customDomain: string | null;
+  webVisibility: RemoteRuntimeAccess;
+  apiVisibility: RemoteRuntimeAccess;
+  a2aEnabled: boolean;
+  mcpEnabled: boolean;
+  webUiUrl: string;
+  apiBaseUrl: string;
+  lastError: string | null;
+};
+
+type InstanceSummary = {
+  agent: AgentSummary;
+  deployment: DeploymentSummary;
+};
+
 const TEST_CREDITS: Exclude<Credits, null | undefined> = {
   balanceUsd: 0.25,
   balanceMicroUsd: 250_000,
@@ -100,9 +132,18 @@ export function DashboardHome() {
     token && !testUser ? { token } : "skip",
   ) as Credits;
   const credits = testUser ? TEST_CREDITS : creditsQuery;
+  const instanceRowsQuery = useQuery(
+    anyApi.remoteAgentDeployments.list,
+    token && !testUser ? { token } : "skip",
+  ) as InstanceSummary[] | undefined;
+  const instanceRows = testUser ? [] : instanceRowsQuery;
+  const agents = instanceRows?.map((row) => row.agent);
+  const deployments = instanceRows?.map((row) => row.deployment);
+  const loadedRows = instanceRows ?? [];
 
   const loading = me === undefined;
   const creditsLoading = credits === undefined;
+  const agentsLoading = instanceRows === undefined;
   const name = me?.username ? `@${me.username}` : me ? truncate(me.pubkey) : "";
   const balance = me?.balance ?? 0;
   const lifetime = me?.plan === "lifetime";
@@ -186,9 +227,9 @@ export function DashboardHome() {
         />
         <StatCard
           label="Agents"
-          loading={loading}
-          value="0"
-          sub="None deployed yet"
+          loading={agentsLoading}
+          value={(agents?.length ?? 0).toLocaleString()}
+          sub={agents?.length ? "Ready for cloud buildout" : "None deployed yet"}
           icon={<Icon.Bot size={16} />}
         />
         <StatCard
@@ -244,22 +285,64 @@ export function DashboardHome() {
         >
           <SectionHeading
             title="Your agents"
-            description="Deploy autonomous agents to the cloud, Discord, or your own app."
+            description="Create agents, then shape their cloud runtime, endpoints, and connection surfaces."
             action={
-              <Button size="sm" variant="secondary" disabled>
+              <Link to="/agents" className={buttonClasses("secondary", "sm")}>
                 <Icon.Plus size={14} /> New agent
-              </Button>
-            }
-          />
-          <EmptyState
-            icon={<Icon.Bot size={20} />}
-            title="No agents yet"
-            description="Agent deployment is coming online. For now, explore $DTOUR and your access."
-            action={
-              <Link to="/token" className={buttonClasses("secondary", "sm")}>
-                View $DTOUR <Icon.ArrowUpRight size={14} />
               </Link>
             }
+          />
+          {agentsLoading ? (
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : loadedRows.length === 0 ? (
+            <EmptyState
+              icon={<Icon.Bot size={20} />}
+              title="No agents yet"
+              description="Create an agent, then use Cloud Builder below to map runtime, API, MCP, A2A, mesh, firewall, volumes, plugins, mobile, and desktop pairing."
+              action={
+                <Link to="/agents" className={buttonClasses("secondary", "sm")}>
+                  Create agent <Icon.ArrowUpRight size={14} />
+                </Link>
+              }
+            />
+          ) : (
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {loadedRows.slice(0, 4).map(({ agent, deployment }) => (
+                <Link
+                  key={agent.id}
+                  to={`/agents/${agent.id}`}
+                  className="group flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition hover:border-white/20 hover:bg-white/[0.04]"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="rounded-lg bg-white/5 p-2 text-white/55 group-hover:text-white/80">
+                      <Icon.Bot size={15} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-white/85">
+                        {agent.name}
+                      </span>
+                      <span className="block truncate text-[11px] text-white/40">
+                        {agent.type} · {agent.model}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Badge tone={deployment.status === "running" ? "success" : deployment.status === "error" ? "danger" : "neutral"} className="hidden sm:inline-flex">
+                      {remoteStatusLabel(deployment.status)}
+                    </Badge>
+                    <Icon.ArrowUpRight size={14} />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+          <CloudBuilderPanel
+            token={testUser ? null : token}
+            agents={agents ?? []}
+            deployments={deployments ?? []}
           />
         </Panel>
 

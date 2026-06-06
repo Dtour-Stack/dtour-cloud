@@ -19,6 +19,10 @@ test.describe("authenticated dashboard routes", () => {
     await expect(page.getByText("$0.25 starter credit claimed")).toBeVisible();
     await expect(page.getByText("Starter credit is ready")).toBeVisible();
     await expect(page.getByRole("link", { name: /Try Agents/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cloud Builder" })).toBeVisible();
+    await expect(page.getByText("Tailscale / Headscale")).toBeVisible();
+    await expect(page.getByText("Mobile build")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Desktop QR pairing/i })).toBeVisible();
   });
 
   test("open beta users can reach beta dashboards", async ({ page }) => {
