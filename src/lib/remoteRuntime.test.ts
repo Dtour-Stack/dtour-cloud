@@ -2,6 +2,9 @@ import { describe, expect, test } from "vitest";
 import {
   canLaunchRemote,
   defaultDetourSubdomain,
+  remoteApiBaseUrl,
+  remoteFallbackLabel,
+  remoteProviderLabel,
   remoteRuntimeUrl,
   remoteStatusLabel,
 } from "./remoteRuntime";
@@ -26,5 +29,13 @@ describe("remoteRuntime", () => {
     expect(remoteStatusLabel("not_configured")).toBe("on-demand");
     expect(canLaunchRemote("configured")).toBe(true);
     expect(canLaunchRemote("queued")).toBe(false);
+  });
+
+  test("uses Detour-owned gateway endpoints and provider labels", () => {
+    expect(remoteApiBaseUrl("agent/one")).toBe(
+      "https://api.detour.ninja/remote-agents/agent%2Fone",
+    );
+    expect(remoteProviderLabel("elizacloud")).toBe("ElizaCloud");
+    expect(remoteFallbackLabel("standby")).toBe("fallback standby");
   });
 });

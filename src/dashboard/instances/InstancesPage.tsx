@@ -6,11 +6,17 @@ import { Link } from "react-router-dom";
 import { AppShell } from "@/dashboard/AppShell";
 import {
   canLaunchRemote,
+  remoteApiBaseUrl,
+  remoteFallbackLabel,
+  remoteProviderLabel,
   remoteRuntimeUrl,
   remoteStatusLabel,
   type RemoteRuntimeAccess,
   type RemoteRuntimeDomainMode,
+  type RemoteRuntimeFallbackStatus,
   type RemoteRuntimeMode,
+  type RemoteRuntimeProvider,
+  type RemoteRuntimeProviderStrategy,
   type RemoteRuntimeStatus,
 } from "@/lib/remoteRuntime";
 import { getDtourSessionToken } from "@/lib/session";
@@ -27,6 +33,9 @@ type Agent = {
 type RemoteDeployment = {
   agentId: string;
   mode: RemoteRuntimeMode;
+  providerStrategy: RemoteRuntimeProviderStrategy;
+  activeProvider: RemoteRuntimeProvider;
+  fallbackStatus: RemoteRuntimeFallbackStatus;
   status: RemoteRuntimeStatus;
   upstreamAgentId: string | null;
   upstreamJobId: string | null;
@@ -127,6 +136,15 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
     active.domainMode,
     active.customDomain,
   );
+  const apiBaseUrl = remoteApiBaseUrl(agent.id);
+  const fieldIdBase = agent.id.replace(/[^a-z0-9_-]/gi, "-");
+  const fieldIds = {
+    runtime: `remote-runtime-${fieldIdBase}`,
+    domain: `remote-domain-${fieldIdBase}`,
+    customDomain: `remote-custom-domain-${fieldIdBase}`,
+    webVisibility: `remote-web-visibility-${fieldIdBase}`,
+    apiVisibility: `remote-api-visibility-${fieldIdBase}`,
+  };
   const canDeploy =
     active.mode === "remote_24_7" &&
     (deployment.status === "not_configured" || canLaunchRemote(deployment.status));
@@ -198,8 +216,9 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
         </summary>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Field label="Runtime">
+          <Field label="Runtime" htmlFor={fieldIds.runtime}>
             <select
+              id={fieldIds.runtime}
               value={active.mode}
               onChange={(e) => patch({ mode: e.target.value as RemoteRuntimeMode })}
               className={field}
@@ -208,8 +227,9 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
               <option value="remote_24_7">24/7 remote</option>
             </select>
           </Field>
-          <Field label="Domain">
+          <Field label="Domain" htmlFor={fieldIds.domain}>
             <select
+              id={fieldIds.domain}
               value={active.domainMode}
               onChange={(e) =>
                 patch({ domainMode: e.target.value as RemoteRuntimeDomainMode })
@@ -221,19 +241,23 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
             </select>
           </Field>
           {active.domainMode === "custom" ? (
-            <Field label="Custom domain">
+            <Field label="Custom domain" htmlFor={fieldIds.customDomain}>
               <input
+                id={fieldIds.customDomain}
+                type="text"
                 value={active.customDomain}
                 onChange={(e) => patch({ customDomain: e.target.value })}
                 placeholder="agent.example.com"
+                spellCheck={false}
                 className={field}
               />
             </Field>
           ) : (
             <Readout label="Detour domain" value={projectedWebUrl} />
           )}
-          <Field label="Web UI">
+          <Field label="Web UI" htmlFor={fieldIds.webVisibility}>
             <select
+              id={fieldIds.webVisibility}
               value={active.webVisibility}
               onChange={(e) =>
                 patch({ webVisibility: e.target.value as RemoteRuntimeAccess })
@@ -244,8 +268,9 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
               <option value="public">Public</option>
             </select>
           </Field>
-          <Field label="Agent API">
+          <Field label="Agent API" htmlFor={fieldIds.apiVisibility}>
             <select
+              id={fieldIds.apiVisibility}
               value={active.apiVisibility}
               onChange={(e) =>
                 patch({ apiVisibility: e.target.value as RemoteRuntimeAccess })
@@ -275,17 +300,23 @@ function InstanceCard({ row, token }: { row: InstanceRow; token: string | null }
             meta={`${active.webVisibility} policy`}
           />
           <Readout
-            label="API base"
-            value={deployment.apiBaseUrl}
-            meta={`${active.apiVisibility} policy`}
+            label="Provider"
+            value={remoteProviderLabel(deployment.activeProvider)}
+            meta={remoteFallbackLabel(deployment.fallbackStatus)}
           />
           <Readout
+            label="API base"
+            value={apiBaseUrl}
+            meta={`${active.apiVisibility} policy`}
+          />
+          <Readout label="Bridge" value={`${apiBaseUrl}/bridge`} />
+          <Readout
             label="A2A"
-            value={active.a2aEnabled ? `${deployment.apiBaseUrl}/a2a` : "disabled"}
+            value={active.a2aEnabled ? `${apiBaseUrl}/a2a` : "disabled"}
           />
           <Readout
             label="MCP"
-            value={active.mcpEnabled ? `${deployment.apiBaseUrl}/mcp` : "disabled"}
+            value={active.mcpEnabled ? `${apiBaseUrl}/mcp` : "disabled"}
           />
         </div>
 
@@ -416,14 +447,25 @@ function StatusBadge({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
   return (
-    <label className="space-y-1.5">
-      <span className="block text-[10px] font-medium uppercase tracking-widest text-white/40">
+    <div className="space-y-1.5">
+      <label
+        htmlFor={htmlFor}
+        className="block text-[10px] font-medium uppercase tracking-widest text-white/40"
+      >
         {label}
-      </span>
+      </label>
       {children}
-    </label>
+    </div>
   );
 }
 

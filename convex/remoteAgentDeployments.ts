@@ -26,7 +26,10 @@ type RemoteRuntimeStatus =
 
 type RemoteRuntimeMode = "on_demand" | "remote_24_7";
 type RemoteRuntimeDomainMode = "detour" | "custom";
-type RemoteRuntimeAccess = "private" | "public";
+type RemoteRuntimeProvider = "elizacloud" | "detour";
+type RemoteRuntimeProviderStrategy = "elizacloud_primary_detour_fallback";
+type RemoteRuntimeFallbackStatus = "standby" | "active" | "unavailable";
+type RemoteRuntimeGatewaySurface = "bridge" | "a2a" | "mcp";
 type JsonValue = string | number | boolean | null | JsonValue[] | JsonRecord;
 type JsonRecord = { [key: string]: JsonValue };
 type ProvisionContextArgs = { token: string; agentId: Id<"agents"> };
@@ -38,6 +41,8 @@ type RecordProvisionStateArgs = {
   upstreamJobId?: string;
   webUiUrl?: string;
   apiBaseUrl?: string;
+  activeProvider?: RemoteRuntimeProvider;
+  fallbackStatus?: RemoteRuntimeFallbackStatus;
   lastHeartbeatAt?: number;
   lastError?: string;
 };
@@ -57,6 +62,19 @@ const statusValidator = v.union(
 const modeValidator = v.union(v.literal("on_demand"), v.literal("remote_24_7"));
 const domainModeValidator = v.union(v.literal("detour"), v.literal("custom"));
 const accessValidator = v.union(v.literal("private"), v.literal("public"));
+const providerValidator = v.union(v.literal("elizacloud"), v.literal("detour"));
+const fallbackStatusValidator = v.union(
+  v.literal("standby"),
+  v.literal("active"),
+  v.literal("unavailable"),
+);
+const gatewaySurfaceValidator = v.union(
+  v.literal("bridge"),
+  v.literal("a2a"),
+  v.literal("mcp"),
+);
+const PROVIDER_STRATEGY: RemoteRuntimeProviderStrategy =
+  "elizacloud_primary_detour_fallback";
 
 function defaultDetourSubdomain(agentId: string): string {
   const compact = agentId.toLowerCase().replace(/[^a-z0-9]/g, "").slice(-10);
@@ -95,11 +113,8 @@ function runtimeUrl(
   return `https://${defaultDetourSubdomain(agentId)}`;
 }
 
-function apiUrl(agentId: Id<"agents">, upstreamAgentId?: string): string {
-  if (upstreamAgentId) {
-    return `https://api.detour.ninja/v1/agents/${upstreamAgentId}`;
-  }
-  return `https://api.detour.ninja/v1/agents/${agentId}`;
+function apiUrl(agentId: Id<"agents">): string {
+  return `https://api.detour.ninja/remote-agents/${agentId}`;
 }
 
 function serializeDeployment(
@@ -113,6 +128,9 @@ function serializeDeployment(
     id: deployment?._id ?? null,
     agentId,
     mode: deployment?.mode ?? "on_demand",
+    providerStrategy: deployment?.providerStrategy ?? PROVIDER_STRATEGY,
+    activeProvider: deployment?.activeProvider ?? "elizacloud",
+    fallbackStatus: deployment?.fallbackStatus ?? "standby",
     status: deployment?.status ?? "not_configured",
     upstreamAgentId: upstreamAgentId ?? null,
     upstreamJobId: deployment?.upstreamJobId ?? null,
@@ -124,7 +142,7 @@ function serializeDeployment(
     a2aEnabled: deployment?.a2aEnabled ?? false,
     mcpEnabled: deployment?.mcpEnabled ?? false,
     webUiUrl: deployment?.webUiUrl ?? runtimeUrl(agentId, domainMode, customDomain),
-    apiBaseUrl: deployment?.apiBaseUrl ?? apiUrl(agentId, upstreamAgentId),
+    apiBaseUrl: apiUrl(agentId),
     lastHeartbeatAt: deployment?.lastHeartbeatAt ?? null,
     lastSyncedAt: deployment?.lastSyncedAt ?? null,
     lastError: deployment?.lastError ?? null,
@@ -145,6 +163,24 @@ type ProvisionContextResult = {
   };
   deployment: SerializedDeployment;
 };
+type GatewayContextArgs = {
+  agentId: string;
+  token?: string;
+  surface: RemoteRuntimeGatewaySurface;
+};
+type GatewayContextResult =
+  | { allowed: false; status: number; reason: string }
+  | {
+      allowed: true;
+      agent: {
+        id: Id<"agents">;
+        name: string;
+        description: string | null;
+        model: string;
+        plugins: string[];
+      };
+      deployment: SerializedDeployment & { upstreamAgentId: string };
+    };
 
 const provisionContextRef = makeFunctionReference<
   "query",
@@ -157,6 +193,10 @@ const recordProvisionStateRef = makeFunctionReference<
   RecordProvisionStateArgs,
   SerializedDeployment
 >("remoteAgentDeployments:recordProvisionState");
+
+function denyGateway(status: number, reason: string): GatewayContextResult {
+  return { allowed: false, status, reason };
+}
 
 async function requireOwnedAgent(
   ctx: QueryCtx | MutationCtx,
@@ -321,6 +361,9 @@ export const configure = mutation({
     const update = {
       owner: caller.pubkey,
       mode: args.mode,
+      providerStrategy: existing?.providerStrategy ?? PROVIDER_STRATEGY,
+      activeProvider: existing?.activeProvider ?? ("elizacloud" as const),
+      fallbackStatus: existing?.fallbackStatus ?? ("standby" as const),
       status,
       domainMode: args.domainMode,
       detourSubdomain: defaultDetourSubdomain(args.agentId),
@@ -330,7 +373,7 @@ export const configure = mutation({
       a2aEnabled: args.a2aEnabled,
       mcpEnabled: args.mcpEnabled,
       webUiUrl: runtimeUrl(args.agentId, args.domainMode, customDomain),
-      apiBaseUrl: existing?.apiBaseUrl ?? apiUrl(args.agentId, existing?.upstreamAgentId),
+      apiBaseUrl: apiUrl(args.agentId),
       updatedAt: now,
     };
     if (existing) {
@@ -373,6 +416,61 @@ export const provisionContext = internalQuery({
   },
 });
 
+export const gatewayContext = internalQuery({
+  args: {
+    agentId: v.string(),
+    token: v.optional(v.string()),
+    surface: gatewaySurfaceValidator,
+  },
+  handler: async (
+    ctx,
+    { agentId, token, surface }: GatewayContextArgs,
+  ): Promise<GatewayContextResult> => {
+    const normalizedAgentId = ctx.db.normalizeId("agents", agentId);
+    if (!normalizedAgentId) return denyGateway(404, "Agent not found");
+    const agent = await ctx.db.get(normalizedAgentId);
+    if (!agent) return denyGateway(404, "Agent not found");
+    const deployment = await deploymentForAgent(ctx, normalizedAgentId);
+    if (!deployment) return denyGateway(404, "Remote runtime not configured");
+
+    const caller = token ? await resolveRole(ctx, token) : null;
+    const isOwner = caller?.pubkey === agent.owner;
+    if (deployment.apiVisibility !== "public" && !isOwner) {
+      return denyGateway(token ? 403 : 401, "Private API access");
+    }
+    if (surface === "a2a" && !deployment.a2aEnabled) {
+      return denyGateway(403, "A2A endpoint disabled");
+    }
+    if (surface === "mcp" && !deployment.mcpEnabled) {
+      return denyGateway(403, "MCP endpoint disabled");
+    }
+    if (deployment.mode !== "remote_24_7") {
+      return denyGateway(409, "Remote runtime is not enabled");
+    }
+    if (!deployment.upstreamAgentId) {
+      return denyGateway(409, "Remote runtime has not been deployed");
+    }
+    if (deployment.status !== "running") {
+      return denyGateway(409, "Remote runtime is not running");
+    }
+
+    return {
+      allowed: true,
+      agent: {
+        id: agent._id,
+        name: agent.name,
+        description: agent.description ?? null,
+        model: agent.model,
+        plugins: agent.plugins ?? [],
+      },
+      deployment: {
+        ...serializeDeployment(normalizedAgentId, deployment),
+        upstreamAgentId: deployment.upstreamAgentId,
+      },
+    };
+  },
+});
+
 export const recordProvisionState = internalMutation({
   args: {
     token: v.string(),
@@ -382,6 +480,8 @@ export const recordProvisionState = internalMutation({
     upstreamJobId: v.optional(v.string()),
     webUiUrl: v.optional(v.string()),
     apiBaseUrl: v.optional(v.string()),
+    activeProvider: v.optional(providerValidator),
+    fallbackStatus: v.optional(fallbackStatusValidator),
     lastHeartbeatAt: v.optional(v.number()),
     lastError: v.optional(v.string()),
   },
@@ -392,6 +492,11 @@ export const recordProvisionState = internalMutation({
     const update = {
       owner: caller.pubkey,
       mode: existing?.mode ?? ("remote_24_7" as const),
+      providerStrategy: existing?.providerStrategy ?? PROVIDER_STRATEGY,
+      activeProvider:
+        args.activeProvider ?? existing?.activeProvider ?? ("elizacloud" as const),
+      fallbackStatus:
+        args.fallbackStatus ?? existing?.fallbackStatus ?? ("standby" as const),
       status: args.status,
       upstreamAgentId: args.upstreamAgentId ?? existing?.upstreamAgentId,
       upstreamJobId: args.upstreamJobId ?? existing?.upstreamJobId,
@@ -403,10 +508,7 @@ export const recordProvisionState = internalMutation({
       a2aEnabled: existing?.a2aEnabled ?? false,
       mcpEnabled: existing?.mcpEnabled ?? false,
       webUiUrl: args.webUiUrl ?? existing?.webUiUrl,
-      apiBaseUrl:
-        args.apiBaseUrl ??
-        existing?.apiBaseUrl ??
-        apiUrl(args.agentId, args.upstreamAgentId ?? existing?.upstreamAgentId),
+      apiBaseUrl: args.apiBaseUrl ?? apiUrl(args.agentId),
       lastHeartbeatAt: args.lastHeartbeatAt ?? existing?.lastHeartbeatAt,
       lastSyncedAt: now,
       lastError: args.lastError,
@@ -439,6 +541,8 @@ export const deploy = action({
       token,
       agentId,
       status: "creating",
+      activeProvider: "elizacloud",
+      fallbackStatus: "standby",
     });
     try {
       let upstreamAgentId = context.deployment.upstreamAgentId ?? undefined;
@@ -461,7 +565,9 @@ export const deploy = action({
           agentId,
           status: statusFromCloud(data ? stringProp(data, "status") : null),
           upstreamAgentId,
-          apiBaseUrl: apiUrl(agentId, upstreamAgentId),
+          apiBaseUrl: apiUrl(agentId),
+          activeProvider: "elizacloud",
+          fallbackStatus: "standby",
         });
       }
       const { status, payload } = await elizaFetch(
@@ -483,7 +589,9 @@ export const deploy = action({
         status: runtimeStatus,
         upstreamAgentId,
         upstreamJobId: jobId ?? undefined,
-        apiBaseUrl: bridgeUrl ?? apiUrl(agentId, upstreamAgentId),
+        apiBaseUrl: apiUrl(agentId),
+        activeProvider: "elizacloud",
+        fallbackStatus: "standby",
       });
       return { ok: true as const, status: runtimeStatus };
     } catch (error) {
@@ -492,6 +600,7 @@ export const deploy = action({
         token,
         agentId,
         status: "error",
+        fallbackStatus: "unavailable",
         lastError: message,
       });
       throw error;
@@ -518,7 +627,9 @@ export const sync = action({
       status: statusFromCloud(stringProp(data, "status")),
       upstreamAgentId,
       webUiUrl: admin ? stringProp(admin, "webUiUrl") ?? undefined : undefined,
-      apiBaseUrl: stringProp(data, "bridgeUrl") ?? undefined,
+      apiBaseUrl: apiUrl(agentId),
+      activeProvider: "elizacloud",
+      fallbackStatus: "standby",
       lastHeartbeatAt: dateMs(stringProp(data, "lastHeartbeatAt")),
       lastError: stringProp(data, "errorMessage") ?? undefined,
     });
@@ -544,6 +655,8 @@ export const openWebUi = action({
         status: "queued",
         upstreamAgentId,
         upstreamJobId: stringProp(data, "jobId") ?? undefined,
+        activeProvider: "elizacloud",
+        fallbackStatus: "standby",
       });
       return {
         ready: false as const,
@@ -561,6 +674,8 @@ export const openWebUi = action({
       status: "running",
       upstreamAgentId,
       webUiUrl: redirectUrl,
+      activeProvider: "elizacloud",
+      fallbackStatus: "standby",
     });
     return { ready: true as const, url: redirectUrl };
   },
@@ -584,6 +699,8 @@ export const suspend = action({
       status: "suspended",
       upstreamAgentId,
       upstreamJobId: jobId,
+      activeProvider: "elizacloud",
+      fallbackStatus: "standby",
     });
     return { ok: true as const, jobId: jobId ?? null };
   },

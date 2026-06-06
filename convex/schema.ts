@@ -118,6 +118,11 @@ export default defineSchema({
     agentId: v.id("agents"),
     owner: v.string(),
     mode: v.union(v.literal("on_demand"), v.literal("remote_24_7")),
+    providerStrategy: v.optional(v.literal("elizacloud_primary_detour_fallback")),
+    activeProvider: v.optional(v.union(v.literal("elizacloud"), v.literal("detour"))),
+    fallbackStatus: v.optional(
+      v.union(v.literal("standby"), v.literal("active"), v.literal("unavailable")),
+    ),
     status: v.union(
       v.literal("not_configured"),
       v.literal("configured"),

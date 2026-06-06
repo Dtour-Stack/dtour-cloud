@@ -12,6 +12,9 @@ export type RemoteRuntimeStatus =
 export type RemoteRuntimeAccess = "private" | "public";
 export type RemoteRuntimeDomainMode = "detour" | "custom";
 export type RemoteRuntimeMode = "on_demand" | "remote_24_7";
+export type RemoteRuntimeProvider = "elizacloud" | "detour";
+export type RemoteRuntimeProviderStrategy = "elizacloud_primary_detour_fallback";
+export type RemoteRuntimeFallbackStatus = "standby" | "active" | "unavailable";
 
 const STATUS_LABELS: Record<RemoteRuntimeStatus, string> = {
   not_configured: "on-demand",
@@ -25,8 +28,27 @@ const STATUS_LABELS: Record<RemoteRuntimeStatus, string> = {
   unknown: "unknown",
 };
 
+const PROVIDER_LABELS: Record<RemoteRuntimeProvider, string> = {
+  elizacloud: "ElizaCloud",
+  detour: "Detour fallback",
+};
+
+const FALLBACK_LABELS: Record<RemoteRuntimeFallbackStatus, string> = {
+  standby: "fallback standby",
+  active: "fallback active",
+  unavailable: "fallback unavailable",
+};
+
 export function remoteStatusLabel(status: RemoteRuntimeStatus): string {
   return STATUS_LABELS[status] ?? STATUS_LABELS.unknown;
+}
+
+export function remoteProviderLabel(provider: RemoteRuntimeProvider): string {
+  return PROVIDER_LABELS[provider];
+}
+
+export function remoteFallbackLabel(status: RemoteRuntimeFallbackStatus): string {
+  return FALLBACK_LABELS[status];
 }
 
 export function defaultDetourSubdomain(agentId: string): string {
@@ -43,6 +65,10 @@ export function remoteRuntimeUrl(
     return `https://${customDomain.trim().toLowerCase()}`;
   }
   return `https://${defaultDetourSubdomain(agentId)}`;
+}
+
+export function remoteApiBaseUrl(agentId: string): string {
+  return `https://api.detour.ninja/remote-agents/${encodeURIComponent(agentId)}`;
 }
 
 export function canLaunchRemote(status: RemoteRuntimeStatus): boolean {
