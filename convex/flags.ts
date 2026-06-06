@@ -23,6 +23,8 @@ const BETA_PRODUCTION_SURFACES = [
   "surface_earnings",
 ] as const;
 
+const BETA_PRODUCTION_DISABLED_SURFACES = ["surface_api_explorer"] as const;
+
 /** Effective flag map { key: enabled } — uses registry defaults + kill-switch semantics. */
 export const all = query({
   args: {},
@@ -148,6 +150,7 @@ export const enableBetaProductionSurfaces = internalMutation({
   args: {},
   handler: async (ctx) => {
     const enabled: string[] = [];
+    const disabled: string[] = [];
     for (const key of BETA_PRODUCTION_SURFACES) {
       const def = getFlagDef(key);
       if (!def) throw new Error(`Unknown flag: ${key}`);
@@ -173,6 +176,31 @@ export const enableBetaProductionSurfaces = internalMutation({
       }
       enabled.push(key);
     }
-    return { ok: true, enabled };
+    for (const key of BETA_PRODUCTION_DISABLED_SURFACES) {
+      const def = getFlagDef(key);
+      if (!def) throw new Error(`Unknown flag: ${key}`);
+      const existing = await ctx.db
+        .query("featureFlags")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      if (existing) {
+        if (existing.enabled || existing.description !== def.description) {
+          await ctx.db.patch(existing._id, {
+            enabled: false,
+            description: def.description,
+            updatedAt: Date.now(),
+          });
+        }
+      } else {
+        await ctx.db.insert("featureFlags", {
+          key,
+          enabled: false,
+          description: def.description,
+          updatedAt: Date.now(),
+        });
+      }
+      disabled.push(key);
+    }
+    return { ok: true, enabled, disabled };
   },
 });
