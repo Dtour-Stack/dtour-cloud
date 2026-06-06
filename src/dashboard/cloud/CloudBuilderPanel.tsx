@@ -13,21 +13,6 @@ import {
 	DESIGN_SURFACE,
 	projectFromSearchParam,
 } from "@/dashboard/design/designProject";
-import {
-	type RemoteRuntimeAccess,
-	type RemoteRuntimeDomainMode,
-	type RemoteRuntimeFallbackStatus,
-	type RemoteRuntimeMeshMode,
-	type RemoteRuntimeMode,
-	type RemoteRuntimeProvider,
-	type RemoteRuntimeProviderStrategy,
-	type RemoteRuntimeStatus,
-	remoteFallbackLabel,
-	remoteMeshLabel,
-	remoteProviderLabel,
-	remoteRuntimeUrl,
-	remoteStatusLabel,
-} from "@/lib/remoteRuntime";
 import { Badge, Button, cn, Icon } from "@/ui";
 
 type AgentOption = {
@@ -36,27 +21,6 @@ type AgentOption = {
 	model: string;
 	type: string;
 	plugins?: string[];
-};
-type DeploymentSummary = {
-	agentId: string;
-	mode: RemoteRuntimeMode;
-	providerStrategy: RemoteRuntimeProviderStrategy;
-	activeProvider: RemoteRuntimeProvider;
-	fallbackStatus: RemoteRuntimeFallbackStatus;
-	status: RemoteRuntimeStatus;
-	domainMode: RemoteRuntimeDomainMode;
-	customDomain: string | null;
-	webVisibility: RemoteRuntimeAccess;
-	apiVisibility: RemoteRuntimeAccess;
-	a2aEnabled: boolean;
-	mcpEnabled: boolean;
-	meshMode: RemoteRuntimeMeshMode;
-	tailnet: string | null;
-	headscaleUrl: string | null;
-	meshHostname: string;
-	webUiUrl: string;
-	apiBaseUrl: string;
-	lastError: string | null;
 };
 type ExternalConnectionSummary = {
 	id: string;
@@ -144,24 +108,24 @@ const DEFAULT_GRAPH: CloudGraph = {
 			id: "agent",
 			type: "agent",
 			title: "Agent runtime",
-			subtitle: "ElizaCloud primary",
+			subtitle: "user-selected provider",
 			x: 36,
 			y: 150,
 			status: "needs_config",
-			values: { agentId: "", provider: "elizacloud_primary" },
+			values: { agentId: "", provider: "elizacloud", runtimeMode: "managed" },
 		},
 		{
 			id: "container",
 			type: "container",
-			title: "24/7 container",
-			subtitle: "managed runtime",
+			title: "User container",
+			subtitle: "24/7 runtime target",
 			x: 252,
 			y: 150,
 			status: "planned",
 			values: {
-				image: "elizacloud/runtime",
+				image: "ghcr.io/owner/agent:latest",
 				size: "shared-cpu-1x",
-				fallback: "detour-standby",
+				fallback: "none",
 			},
 		},
 		{
@@ -182,7 +146,7 @@ const DEFAULT_GRAPH: CloudGraph = {
 			x: 252,
 			y: 30,
 			status: "planned",
-			values: { provider: "detour", bindings: "" },
+			values: { provider: "project", bindings: "" },
 		},
 		{
 			id: "network",
@@ -196,7 +160,7 @@ const DEFAULT_GRAPH: CloudGraph = {
 				mode: "tailscale",
 				tailnet: "",
 				headscaleUrl: "",
-				hostname: "detour-agent",
+				hostname: "agent-runtime",
 				access: "private-mesh",
 			},
 		},
@@ -227,8 +191,8 @@ const DEFAULT_GRAPH: CloudGraph = {
 		{
 			id: "domain",
 			type: "domain",
-			title: "detour.ninja domain",
-			subtitle: "default route",
+			title: "Default domain",
+			subtitle: "detour.ninja subdomain",
 			x: 900,
 			y: 150,
 			status: "ready",
@@ -319,17 +283,17 @@ const PALETTE: Array<{
 	{
 		type: "agent",
 		title: "Agent runtime",
-		subtitle: "ElizaCloud primary",
-		values: { agentId: "", provider: "elizacloud_primary" },
+		subtitle: "user-selected provider",
+		values: { agentId: "", provider: "elizacloud", runtimeMode: "managed" },
 	},
 	{
 		type: "container",
-		title: "24/7 container",
-		subtitle: "managed runtime",
+		title: "User container",
+		subtitle: "24/7 runtime target",
 		values: {
-			image: "elizacloud/runtime",
+			image: "ghcr.io/owner/agent:latest",
 			size: "shared-cpu-1x",
-			fallback: "detour-standby",
+			fallback: "none",
 		},
 	},
 	{
@@ -380,7 +344,7 @@ const PALETTE: Array<{
 			mode: "headscale",
 			tailnet: "",
 			headscaleUrl: "",
-			hostname: "detour-agent",
+			hostname: "agent-runtime",
 			access: "private-mesh",
 		},
 	},
@@ -410,7 +374,7 @@ const PALETTE: Array<{
 		type: "secret",
 		title: "Secrets vault",
 		subtitle: "plugin credentials",
-		values: { provider: "detour", bindings: "" },
+		values: { provider: "project", bindings: "" },
 	},
 	{
 		type: "observability",
@@ -575,7 +539,7 @@ function validateGraph(
 				nodeId: node.id,
 				severity: "warning",
 				message:
-					"Enter a custom domain or switch this node back to detour.ninja.",
+					"Enter a custom domain or use a detour.ninja subdomain for this user project.",
 			});
 		}
 		if (
@@ -598,7 +562,7 @@ function validateGraph(
 				nodeId: node.id,
 				severity: "warning",
 				message:
-					"Add the Headscale control-plane URL before provisioning Detour-owned mesh access.",
+					"Add the Headscale control-plane URL before provisioning this project's mesh access.",
 			});
 		}
 		if (
@@ -666,12 +630,10 @@ function iconFor(type: NodeType) {
 export function CloudBuilderPanel({
 	token,
 	agents,
-	deployments = [],
 	externalConnections = [],
 }: {
 	token: string | null;
 	agents: AgentOption[];
-	deployments?: DeploymentSummary[];
 	externalConnections?: ExternalConnectionSummary[];
 }) {
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -757,20 +719,10 @@ export function CloudBuilderPanel({
 	);
 	const selected = graph.nodes.find((node) => node.id === selectedId) ?? null;
 	const selectedIssues = selected ? nodeIssues(issues, selected.id) : [];
-	const deploymentByAgent = useMemo(
-		() =>
-			new Map(
-				deployments.map((deployment) => [deployment.agentId, deployment]),
-			),
-		[deployments],
-	);
 	const selectedAgentId =
 		selected?.type === "agent"
 			? selected.values.agentId
 			: graph.nodes.find((node) => node.type === "agent")?.values.agentId;
-	const selectedDeployment = selectedAgentId
-		? (deploymentByAgent.get(selectedAgentId) ?? null)
-		: null;
 	const selectedExternalConnections = selectedAgentId
 		? externalConnections.filter(
 				(connection) => connection.agentId === selectedAgentId,
@@ -1067,11 +1019,11 @@ export function CloudBuilderPanel({
 					</button>
 					<Link
 						to="/instances"
-						aria-label="Remote controls"
+						aria-label="User instances"
 						className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
 					>
 						<Icon.Activity size={14} />
-						<span className="hidden sm:inline">Remote controls</span>
+						<span className="hidden sm:inline">User instances</span>
 					</Link>
 					<Link
 						to="/coding/setup"
@@ -1299,9 +1251,9 @@ export function CloudBuilderPanel({
 					</div>
 
 					<div className="absolute bottom-4 right-4 z-20 max-w-sm rounded-xl border border-white/10 bg-[#0d0d0d]/90 px-3 py-2 text-[11px] leading-relaxed text-white/35 shadow-2xl backdrop-blur-xl">
-						Provisioning executes only for wired paths. Planned nodes stay
-						visible with validation until provider credentials or the runtime
-						bridge is configured.
+						Deployments apply only to this user's project topology. Planned
+						nodes stay visible with validation until provider credentials or the
+						runtime bridge is configured.
 					</div>
 				</div>
 
@@ -1314,7 +1266,6 @@ export function CloudBuilderPanel({
 							issues={selectedIssues}
 							onChange={(values) => updateNode(selected.id, { values })}
 							onStatusChange={(status) => updateNode(selected.id, { status })}
-							selectedDeployment={selectedDeployment}
 						/>
 					) : null}
 				</aside>
@@ -1417,7 +1368,6 @@ function NodeInspector({
 	issues,
 	onChange,
 	onStatusChange,
-	selectedDeployment,
 }: {
 	node: CloudNode;
 	agents: AgentOption[];
@@ -1425,7 +1375,6 @@ function NodeInspector({
 	issues: Issue[];
 	onChange: (values: Record<string, string>) => void;
 	onStatusChange: (status: NodeStatus) => void;
-	selectedDeployment: DeploymentSummary | null;
 }) {
 	const values = node.values;
 	const selectedExternalConnection =
@@ -1436,6 +1385,8 @@ function NodeInspector({
 	const fieldIds = {
 		status: `${fieldPrefix}-status`,
 		agent: `${fieldPrefix}-agent`,
+		provider: `${fieldPrefix}-provider`,
+		runtimeMode: `${fieldPrefix}-runtime-mode`,
 		runtimeImage: `${fieldPrefix}-runtime-image`,
 		size: `${fieldPrefix}-size`,
 		sizeGb: `${fieldPrefix}-size-gb`,
@@ -1530,51 +1481,34 @@ function NodeInspector({
 							))}
 						</select>
 					</Field>
-					{selectedDeployment ? (
-						<div className="grid gap-2">
-							<Readout
-								label="Runtime"
-								value={remoteStatusLabel(selectedDeployment.status)}
-								meta={
-									selectedDeployment.mode === "remote_24_7"
-										? "24/7"
-										: "on-demand"
-								}
-							/>
-							<Readout
-								label="Provider"
-								value={remoteProviderLabel(selectedDeployment.activeProvider)}
-								meta={remoteFallbackLabel(selectedDeployment.fallbackStatus)}
-							/>
-							<Readout
-								label="Network"
-								value={remoteMeshLabel(selectedDeployment.meshMode)}
-								meta={selectedDeployment.meshHostname}
-							/>
-							<Readout
-								label="Web UI"
-								value={
-									selectedDeployment.webUiUrl ??
-									remoteRuntimeUrl(
-										selectedDeployment.agentId,
-										selectedDeployment.domainMode,
-										selectedDeployment.customDomain,
-									)
-								}
-								meta={`${selectedDeployment.webVisibility} web`}
-							/>
-							<Readout
-								label="API base"
-								value={selectedDeployment.apiBaseUrl}
-								meta={`${selectedDeployment.apiVisibility} API`}
-							/>
-							{selectedDeployment.lastError ? (
-								<div className="rounded-lg border border-red-300/20 bg-red-400/5 px-3 py-2 text-[12px] leading-relaxed text-red-100/85">
-									{selectedDeployment.lastError}
-								</div>
-							) : null}
-						</div>
-					) : null}
+					<Field label="Runtime provider" htmlFor={fieldIds.provider}>
+						<select
+							id={fieldIds.provider}
+							value={values.provider ?? "elizacloud"}
+							onChange={(event) => onChange({ provider: event.target.value })}
+							className={fieldClass}
+						>
+							<option value="elizacloud">ElizaCloud</option>
+							<option value="external">External VPS / API</option>
+							<option value="selfhost">Self-host desktop</option>
+							<option value="custom">Custom provider</option>
+						</select>
+					</Field>
+					<Field label="Runtime mode" htmlFor={fieldIds.runtimeMode}>
+						<select
+							id={fieldIds.runtimeMode}
+							value={values.runtimeMode ?? "managed"}
+							onChange={(event) =>
+								onChange({ runtimeMode: event.target.value })
+							}
+							className={fieldClass}
+						>
+							<option value="managed">Managed 24/7</option>
+							<option value="ondemand">On-demand</option>
+							<option value="linked">Linked external runtime</option>
+							<option value="local">Local desktop runtime</option>
+						</select>
+					</Field>
 				</>
 			) : null}
 
@@ -1705,7 +1639,7 @@ function NodeInspector({
 							onChange={(event) => onChange({ mode: event.target.value })}
 							className={fieldClass}
 						>
-							<option value="detour">detour.ninja</option>
+							<option value="detour">detour.ninja subdomain</option>
 							<option value="custom">Custom</option>
 						</select>
 					</Field>
@@ -1772,7 +1706,7 @@ function NodeInspector({
 							}
 							className={fieldClass}
 						>
-							<option value="">Detour-hosted endpoint</option>
+							<option value="">Managed project endpoint</option>
 							{externalConnections.map((connection) => (
 								<option key={connection.id} value={connection.id}>
 									{connection.label} · {connection.provider}
@@ -1842,7 +1776,7 @@ function NodeInspector({
 							onChange={(event) =>
 								onChange({ headscaleUrl: event.target.value })
 							}
-							placeholder="https://mesh.detour.ninja"
+							placeholder="https://headscale.example.com"
 							className={fieldClass}
 							spellCheck={false}
 						/>
@@ -1854,7 +1788,7 @@ function NodeInspector({
 							autoComplete="off"
 							value={values.hostname ?? ""}
 							onChange={(event) => onChange({ hostname: event.target.value })}
-							placeholder="detour-agent"
+							placeholder="agent-runtime"
 							className={fieldClass}
 							spellCheck={false}
 						/>
@@ -1942,10 +1876,11 @@ function NodeInspector({
 					<Field label="Vault" htmlFor={fieldIds.vaultProvider}>
 						<select
 							id={fieldIds.vaultProvider}
-							value={values.provider ?? "detour"}
+							value={values.provider ?? "project"}
 							onChange={(event) => onChange({ provider: event.target.value })}
 							className={fieldClass}
 						>
+							<option value="project">Project managed</option>
 							<option value="detour">Detour managed</option>
 							<option value="external">External vault</option>
 						</select>
@@ -1995,7 +1930,7 @@ function NodeInspector({
 							onChange={(event) =>
 								onChange({ alertWebhook: event.target.value })
 							}
-							placeholder="https://hooks.example.com/detour"
+							placeholder="https://hooks.example.com/agent"
 							className={fieldClass}
 							spellCheck={false}
 						/>

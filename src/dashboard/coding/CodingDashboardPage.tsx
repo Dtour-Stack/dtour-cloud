@@ -57,6 +57,7 @@ type PairedDevice = {
 	createdAt: number;
 	lastSeenAt: number | null;
 };
+type RelayHealth = { ok: boolean; e2b: boolean; template: string } | null;
 
 function formatDeviceSeen(device: PairedDevice | null): string {
 	if (!device) return "No desktop selected";
@@ -127,11 +128,13 @@ function CodingTerminalView() {
 	const token = getDtourSessionToken();
 	const {
 		backend,
+		setBackend,
 		activeProvider,
 		selectedDeviceId,
 		setSelectedDeviceId,
 		onLaunchInTerminal,
 	} = useCodingSession();
+	const [relay, setRelay] = useState<RelayHealth>(null);
 	const credits = useQuery(
 		anyApi.coding.myCredits,
 		token ? { token } : "skip",
@@ -158,6 +161,14 @@ function CodingTerminalView() {
 			: null;
 	const effectiveDeviceId = selectedDevice?.id ?? null;
 	const loadingSelfhostDevice = backend === "selfhost" && devices === undefined;
+	const runnerUnavailable = backend === "runner" && relay?.e2b === false;
+
+	useEffect(() => {
+		fetch("/coding-health")
+			.then((r) => (r.ok ? r.json() : null))
+			.then((j) => setRelay(j as RelayHealth))
+			.catch(() => setRelay(null));
+	}, []);
 
 	useEffect(() => {
 		if (
@@ -254,7 +265,37 @@ function CodingTerminalView() {
 
 				<div className="min-h-0 flex-1 p-3" data-tour="coding-terminal">
 					<div className="h-full overflow-hidden rounded-xl border border-white/10 bg-black">
-						{loadingSelfhostDevice ? (
+						{runnerUnavailable ? (
+							<div className="flex h-full items-center justify-center p-6">
+								<div className="max-w-md rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5 text-sm text-amber-100/90">
+									<div className="mb-3 flex items-center gap-2 font-semibold text-amber-100">
+										<Icon.Zap size={15} />
+										Coding runner is not configured
+									</div>
+									<p className="leading-relaxed text-amber-100/75">
+										Set{" "}
+										<span className="font-mono text-amber-50">E2B_API_KEY</span>{" "}
+										on the server to use Detour Cloud microVMs. Browser Sandbox
+										and Self-hosted desktop sessions are still available.
+									</p>
+									<div className="mt-4 flex flex-wrap items-center gap-2">
+										<Button
+											size="sm"
+											variant="primary"
+											onClick={() => setBackend("sandbox")}
+										>
+											Use browser Sandbox
+										</Button>
+										<Link
+											to="/coding/setup"
+											className="rounded-full border border-amber-100/20 px-4 py-2 text-[12px] font-medium text-amber-100/75 transition hover:bg-amber-100/10 hover:text-amber-50"
+										>
+											Setup
+										</Link>
+									</div>
+								</div>
+							</div>
+						) : loadingSelfhostDevice ? (
 							<div className="flex h-full items-center justify-center text-sm text-white/45">
 								Loading paired desktops…
 							</div>
@@ -339,12 +380,8 @@ function CodingTerminal({ deviceId }: { deviceId: string | null }) {
 			const envScript = envExportScript(scoped);
 			const bash = shell.bash;
 			if (bash) {
-				await runSandboxBootstrap(
-					bash,
-					shell.cwd,
-					envScript,
-					activeProvider,
-					(chunk) => write(chunk),
+				await runSandboxBootstrap(bash, envScript, activeProvider, (chunk) =>
+					write(chunk),
 				);
 			}
 			write(

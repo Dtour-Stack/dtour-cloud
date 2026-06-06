@@ -79,6 +79,11 @@ test.describe("authenticated dashboard routes", () => {
 			page.getByRole("application", { name: "Cloud Builder canvas" }),
 		).toBeVisible();
 		await expect(page.getByRole("button", { name: "Add node" })).toBeVisible();
+		await expect(page.locator("body")).toContainText("user-selected provider");
+		await expect(page.locator("body")).toContainText("User container");
+		await expect(page.locator("body")).toContainText("User instances");
+		await expect(page.locator("body")).not.toContainText("ElizaCloud primary");
+		await expect(page.locator("body")).not.toContainText("detour-standby");
 		await expect(page.getByText("Tailscale / Headscale")).toBeVisible();
 		await expect(page.getByText("Mobile build")).toBeVisible();
 		await expect(
