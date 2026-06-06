@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { BETA_PRODUCTION_ENABLED_FLAGS } from "./betaProductionFlags";
 import { logEvent } from "./events";
 import {
   FLAG_CATEGORIES,
@@ -13,16 +14,6 @@ import { requireRole } from "./rbac";
 function rowsToMap(rows: { key: string; enabled: boolean }[]): Record<string, boolean> {
   return Object.fromEntries(rows.map((r) => [r.key, r.enabled]));
 }
-
-export const BETA_PRODUCTION_ENABLED_FLAGS = [
-  "chat_eliza_plugins",
-  "surface_api_keys",
-  "surface_mcps",
-  "surface_apps",
-  "surface_instances",
-  "surface_documents",
-  "surface_earnings",
-] as const;
 
 const BETA_PRODUCTION_DISABLED_SURFACES = ["surface_api_explorer"] as const;
 

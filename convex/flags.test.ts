@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { BETA_PRODUCTION_ENABLED_FLAGS } from "./betaProductionFlags";
 import { getFlagDef, resolveFlag } from "./flagRegistry";
-import { BETA_PRODUCTION_ENABLED_FLAGS } from "./flags";
 
 describe("beta production flags", () => {
 	it("keeps chat elizaOS plugins enabled in the production repair path", () => {
