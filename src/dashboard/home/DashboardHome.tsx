@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { anyApi } from "convex/server";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   DTOUR_TEST_SESSION_TOKEN,
@@ -31,7 +32,7 @@ import {
   StatCard,
 } from "@/ui";
 
-const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode }[] = [
+const LAUNCHER: { to: string; label: string; desc: string; icon: ReactNode }[] = [
   { to: "/coding", label: "Coding", desc: "Sandboxed coding agents", icon: <Icon.Zap size={16} /> },
   { to: "/design", label: "Design", desc: "Workflows & canvas", icon: <Icon.Palette size={16} /> },
   { to: "/gallery", label: "Gallery", desc: "Uploads & generated images", icon: <Icon.Image size={16} /> },
@@ -40,7 +41,7 @@ const LAUNCHER: { to: string; label: string; desc: string; icon: React.ReactNode
   { to: "/analytics", label: "Analytics", desc: "Usage & spend", icon: <Icon.Activity size={16} /> },
   { to: "/instances", label: "Instances", desc: "Running agents", icon: <Icon.LayoutGrid size={16} /> },
   { to: "/mcps", label: "MCPs", desc: "Saved tool servers", icon: <Icon.Zap size={16} /> },
-  { to: "/apps", label: "My Apps", desc: "Agent publishing", icon: <Icon.LayoutGrid size={16} /> },
+  { to: "/apps", label: "App Builder", desc: "Prompt apps + bind resources", icon: <Icon.LayoutGrid size={16} /> },
   { to: "/documents", label: "Documents", desc: "Agent knowledge", icon: <Icon.BookOpen size={16} /> },
   { to: "/earnings", label: "Earnings", desc: "Affiliate payouts", icon: <Icon.Coins size={16} /> },
   { to: "/api-explorer", label: "API explorer", desc: "Metering first", icon: <Icon.Plug size={16} /> },
@@ -105,6 +106,15 @@ type InstanceSummary = {
   deployment: DeploymentSummary;
 };
 
+type AppBuildSummary = {
+  id: string;
+  name: string;
+  status: "draft" | "needs_config" | "ready";
+  databaseProvider: string;
+  knowledgeMode: string;
+  mcpIds: string[];
+};
+
 const TEST_CREDITS: Exclude<Credits, null | undefined> = {
   balanceUsd: 0.25,
   balanceMicroUsd: 250_000,
@@ -150,9 +160,24 @@ export function DashboardHome() {
     anyApi.remoteAgentDeployments.list,
     token && !testUser ? { token } : "skip",
   ) as InstanceSummary[] | undefined;
+  const appBuildsQuery = useQuery(
+    anyApi.apps.list,
+    token && !testUser ? { token } : "skip",
+  ) as AppBuildSummary[] | undefined;
+  const connectedMcpsQuery = useQuery(
+    anyApi.mcps.connected,
+    token && !testUser ? { token } : "skip",
+  ) as string[] | undefined;
   const instanceRows = testUser ? [] : instanceRowsQuery;
+  const appBuilds = testUser ? [] : appBuildsQuery;
+  const connectedMcps = testUser ? [] : connectedMcpsQuery;
   const loadedRows = instanceRows ?? [];
+  const loadedBuilds = appBuilds ?? [];
+  const loadedMcps = connectedMcps ?? [];
   const agentCount = loadedRows.length;
+  const appCount = loadedBuilds.length;
+  const readyAppCount = loadedBuilds.filter((build) => build.status === "ready").length;
+  const webCrawlCount = loadedBuilds.filter((build) => build.knowledgeMode === "web_crawl").length;
 
   const loading = me === undefined;
   const creditsLoading = credits === undefined;
@@ -290,6 +315,53 @@ export function DashboardHome() {
         </Panel>
       )}
 
+      <Panel
+        className="fade-up mt-6 overflow-hidden p-0"
+        style={{ animationDelay: "110ms" }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Build your cloud</h2>
+            <p className="mt-0.5 text-xs text-white/45">
+              App blueprints, agents, infra, knowledge, MCPs, APIs, and databases.
+            </p>
+          </div>
+          <Link to="/apps" className={buttonClasses("primary", "sm")}>
+            Open App Builder <Icon.ArrowUpRight size={14} />
+          </Link>
+        </div>
+        <div className="grid gap-px bg-white/10 md:grid-cols-2 xl:grid-cols-4">
+          <CloudLink
+            to="/apps"
+            icon={<Icon.LayoutGrid size={15} />}
+            title="App Builder"
+            value={`${appCount} blueprint${appCount === 1 ? "" : "s"}`}
+            detail={`${readyAppCount} ready · v0-style app workspace`}
+          />
+          <CloudLink
+            to="/cloud-builder"
+            icon={<Icon.Bot size={15} />}
+            title="Agents + infra"
+            value={`${agentCount} runtime${agentCount === 1 ? "" : "s"}`}
+            detail="24/7 agents, A2A, API, mesh, domains"
+          />
+          <CloudLink
+            to="/documents"
+            icon={<Icon.BookOpen size={15} />}
+            title="Knowledge"
+            value={webCrawlCount ? `${webCrawlCount} web-crawl app${webCrawlCount === 1 ? "" : "s"}` : "RAG stores"}
+            detail="Documents, web pages, instructions"
+          />
+          <CloudLink
+            to="/mcps"
+            icon={<Icon.Plug size={15} />}
+            title="MCP + API"
+            value={`${loadedMcps.length} MCP${loadedMcps.length === 1 ? "" : "s"}`}
+            detail="Tool servers, API keys, endpoint access"
+          />
+        </div>
+      </Panel>
+
       {/* Two-column body */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel
@@ -422,5 +494,35 @@ export function DashboardHome() {
         <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3" />
       </div>
     </div>
+  );
+}
+
+function CloudLink({
+  detail,
+  icon,
+  title,
+  to,
+  value,
+}: {
+  detail: string;
+  icon: ReactNode;
+  title: string;
+  to: string;
+  value: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="group bg-[#0a0a0a] p-5 transition hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+    >
+      <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40">
+        <span className="rounded-md bg-white/5 p-1.5 text-white/55 group-hover:text-white/80">
+          {icon}
+        </span>
+        {title}
+      </span>
+      <span className="mt-3 block text-lg font-semibold text-white">{value}</span>
+      <span className="mt-1 block text-xs text-white/45">{detail}</span>
+    </Link>
   );
 }

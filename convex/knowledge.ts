@@ -7,6 +7,7 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { previewText } from "./agentTrace";
+import { htmlToKnowledgeText, webPageTitle } from "./knowledgeExtraction";
 import { Logger } from "./logger";
 import { agentNamespace, getRag, ragConfigured } from "./ragInstance";
 import { resolveRole } from "./rbac";
@@ -156,6 +157,79 @@ export const addDocument = action({
       text: trimmed,
     });
     return { ok: true, key };
+  },
+});
+
+export const addWebPage = action({
+  args: {
+    token: v.string(),
+    agentId: v.id("agents"),
+    url: v.string(),
+  },
+  handler: async (ctx, { token, agentId, url }) => {
+    if (!(await requireOwnedAgentId(ctx, token, agentId))) {
+      throw new Error("Not found");
+    }
+    const rag = getRag();
+    if (!rag) {
+      throw new Error("Knowledge search requires OPENROUTER_API_KEY or OPENAI_API_KEY on Convex");
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(url.trim());
+    } catch {
+      throw new Error("URL is invalid");
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("URL must use http or https");
+    }
+    let res: Response;
+    try {
+      res = await fetch(parsed.toString(), {
+        headers: {
+          accept: "text/html,text/plain,application/xhtml+xml",
+          "user-agent": "DetourCloudKnowledgeCrawler/1.0",
+        },
+      });
+    } catch (e) {
+      Logger.warn("[Knowledge] web page fetch failed", {
+        agentId: String(agentId),
+        url: parsed.toString(),
+        reason: e instanceof Error ? e.message : String(e),
+      });
+      throw new Error("Web page fetch failed");
+    }
+    if (!res.ok) {
+      Logger.warn("[Knowledge] web page fetch failed", {
+        agentId: String(agentId),
+        url: parsed.toString(),
+        status: res.status,
+      });
+      throw new Error(`Web page fetch failed with HTTP ${res.status}`);
+    }
+    const contentType = res.headers.get("content-type") ?? "";
+    if (
+      contentType &&
+      !contentType.includes("text/html") &&
+      !contentType.includes("text/plain") &&
+      !contentType.includes("application/xhtml")
+    ) {
+      throw new Error("URL must return text or HTML content");
+    }
+    const html = await res.text();
+    const text = htmlToKnowledgeText(html);
+    if (text.length < 80) {
+      throw new Error("Web page did not contain enough readable text to index");
+    }
+    const title = webPageTitle(html, parsed.toString());
+    const key = `web:${Date.now()}:${parsed.hostname}${parsed.pathname}`;
+    await rag.add(ctx, {
+      namespace: agentNamespace(agentId),
+      key,
+      title,
+      text,
+    });
+    return { ok: true, key, title, chars: text.length };
   },
 });
 

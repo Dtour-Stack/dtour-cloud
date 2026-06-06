@@ -153,8 +153,8 @@ export const ROUTE_SURFACE_META: Record<string, RouteSurfaceMeta> = {
     flag: "surface_apps",
     status: "beta",
     defaultEnabled: true,
-    title: "My Apps",
-    description: "Agent app publishing controls for owned agents.",
+    title: "App Builder",
+    description: "Prompt-to-app builder with agents, infra, APIs, MCPs, databases, designs, and knowledge.",
   },
   "/instances": {
     flag: "surface_instances",

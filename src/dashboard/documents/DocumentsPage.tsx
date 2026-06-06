@@ -23,6 +23,7 @@ type KnowledgeStatus = {
 };
 
 type SaveState = "idle" | "saving" | "saved";
+type CrawlState = "idle" | "crawling" | "indexed";
 
 const field =
   "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-purple-400/50";
@@ -39,6 +40,7 @@ export default function DocumentsPage() {
   const agents = testUser ? [] : agentsQuery;
   const status = useAction(anyApi.knowledge.status);
   const addDocument = useAction(anyApi.knowledge.addDocument);
+  const addWebPage = useAction(anyApi.knowledge.addWebPage);
   const reindexAgent = useAction(anyApi.knowledge.reindexAgent);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [knowledgeStatus, setKnowledgeStatus] = useState<KnowledgeStatus | null>(null);
@@ -46,6 +48,9 @@ export default function DocumentsPage() {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [crawlState, setCrawlState] = useState<CrawlState>("idle");
+  const [crawlResult, setCrawlResult] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [reindexing, setReindexing] = useState<string | null>(null);
 
@@ -96,6 +101,26 @@ export default function DocumentsPage() {
     } catch (error) {
       setFormError(error instanceof Error ? error.message : String(error));
       setSaveState("idle");
+    }
+  }
+
+  async function crawl() {
+    if (!token || !selectedAgent) return;
+    setCrawlState("crawling");
+    setCrawlResult(null);
+    setFormError(null);
+    try {
+      const result = (await addWebPage({
+        token,
+        agentId: selectedAgent.id,
+        url: sourceUrl,
+      })) as { title: string; chars: number };
+      setSourceUrl("");
+      setCrawlState("indexed");
+      setCrawlResult(`${result.title} · ${result.chars.toLocaleString()} chars indexed`);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : String(error));
+      setCrawlState("idle");
     }
   }
 
@@ -272,6 +297,43 @@ export default function DocumentsPage() {
                 >
                   <Icon.Plus size={14} />
                   {saveState === "saving" ? "Adding..." : "Add to knowledge"}
+                </Button>
+              </div>
+              <div className="mt-5 border-t border-white/10 pt-5">
+                <div className="flex items-center gap-2">
+                  <Icon.Plug size={15} />
+                  <h3 className="text-sm font-semibold text-white">Crawl web page</h3>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-white/45">
+                  Index a public docs page or product page into the same agent knowledge store.
+                </p>
+                <label className="mt-3 block">
+                  <span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+                    URL
+                  </span>
+                  <input
+                    value={sourceUrl}
+                    onChange={(event) => setSourceUrl(event.target.value)}
+                    placeholder="https://docs.example.com/product"
+                    className={field}
+                    type="url"
+                    autoComplete="url"
+                  />
+                </label>
+                {crawlResult && (
+                  <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2 text-xs text-emerald-200">
+                    {crawlResult}
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  className="mt-3 w-full"
+                  variant="secondary"
+                  disabled={!selectedAgent || !sourceUrl.trim() || crawlState === "crawling"}
+                  onClick={() => void crawl()}
+                >
+                  <Icon.Zap size={14} />
+                  {crawlState === "crawling" ? "Crawling..." : "Crawl and index"}
                 </Button>
               </div>
             </Panel>

@@ -277,6 +277,13 @@ test.describe("authenticated dashboard routes", () => {
 				.or(page.getByText("No agents yet")),
 		).toBeVisible();
 
+		await page.goto("/apps");
+		await expect(
+			page.getByRole("heading", { name: "App Builder" }),
+		).toBeVisible();
+		await expect(page.getByText("Prompt-to-app workspace")).toBeVisible();
+		await expect(page.getByText("Database and knowledge")).toBeVisible();
+
 		await page.goto("/developers");
 		await expect(
 			page.getByRole("button", { name: "Docs Open beta", exact: true }),

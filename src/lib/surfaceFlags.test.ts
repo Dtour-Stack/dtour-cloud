@@ -22,6 +22,7 @@ describe("surfaceFlags", () => {
     expect(surfaceLabelForRoute("/api-keys", DEFAULT_SURFACE_FLAGS)).toBeNull();
     expect(isRouteEnabled("/instances", DEFAULT_SURFACE_FLAGS)).toBe(true);
     expect(surfaceLabelForRoute("/instances", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
+    expect(surfaceMetaForRoute("/apps")?.title).toBe("App Builder");
     expect(surfaceMetaForRoute("/documents")?.title).toBe("Documents & memories");
     expect(surfaceLabelForRoute("/mcps/catalog", DEFAULT_SURFACE_FLAGS)).toBe("Open beta");
   });

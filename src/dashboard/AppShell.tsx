@@ -29,7 +29,7 @@ export type NavItem = {
 };
 
 // Lean nav: the few daily-driver surfaces. Everything else (Developers, Account,
-// Analytics, Instances, MCPs, My Apps, Earnings) lives on the Dashboard launcher
+// Analytics, Instances, MCPs, App Builder, Earnings) lives on the Dashboard launcher
 // grid; the dashboard "views" (Profile, Design, Coding, Admin) live in the
 // header context-switcher dropdown.
 export const USER_NAV: NavItem[] = [

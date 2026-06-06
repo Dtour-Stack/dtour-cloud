@@ -109,7 +109,7 @@ export default defineSchema({
     createdAt: v.number(),
     // Attached elizaOS plugin ids (e.g. "plugin-discord"). Optional/back-compat.
     plugins: v.optional(v.array(v.string())),
-    // "My Apps" monetization — publish an agent at a price.
+    // App publishing controls.
     published: v.optional(v.boolean()),
     priceUsd: v.optional(v.number()),
   }).index("by_owner", ["owner"]),
@@ -173,6 +173,33 @@ export default defineSchema({
     .index("by_agent", ["agentId"])
     .index("by_owner", ["owner"])
     .index("by_owner_agent", ["owner", "agentId"]),
+
+  appBuilds: defineTable({
+    owner: v.string(),
+    name: v.string(),
+    prompt: v.string(),
+    agentId: v.optional(v.id("agents")),
+    designProject: v.optional(v.string()),
+    infraMode: v.union(v.literal("detour_cloud"), v.literal("external"), v.literal("hybrid")),
+    databaseProvider: v.union(
+      v.literal("detour_convex"),
+      v.literal("digitalocean_postgres"),
+      v.literal("google_alloydb_turbovec"),
+      v.literal("external_postgres"),
+    ),
+    databaseConnection: v.optional(v.string()),
+    knowledgeMode: v.union(
+      v.literal("agent_rag"),
+      v.literal("web_crawl"),
+      v.literal("external_kb"),
+    ),
+    mcpIds: v.array(v.string()),
+    apiAccess: v.union(v.literal("private"), v.literal("public"), v.literal("keyed")),
+    status: v.union(v.literal("draft"), v.literal("needs_config"), v.literal("ready")),
+    sourceUrls: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_owner", ["owner"]),
 
   agentExternalConnections: defineTable({
     owner: v.string(),
