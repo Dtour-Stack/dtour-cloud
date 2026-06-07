@@ -13,7 +13,7 @@ test.describe("public Detour routes", () => {
     await expect(page.getByText("Real tool use")).toHaveCount(0);
     await expect(page.getByText("Full REST API per agent")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Everywhere You Need It" })).toBeVisible();
-    await expect(page.getByText("Discord")).toBeVisible();
+    await expect(page.getByText("Discord", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Embed anywhere")).toHaveCount(0);
   });
 
