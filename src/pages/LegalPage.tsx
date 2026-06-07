@@ -210,8 +210,8 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
         <div className="space-y-2">
           <p>
             Your data is stored on self-hosted Convex infrastructure (PostgreSQL
-            + document store) running on DigitalOcean droplets in the United
-            States. We use industry-standard encryption in transit (TLS) and at
+            + document store) running on DigitalOcean droplets in Ashburn,
+            Virginia, United States. We use industry-standard encryption in transit (TLS) and at
             rest. Passkey credentials are stored as public keys only — we never
             receive or store your biometric data.
           </p>
