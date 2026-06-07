@@ -71,8 +71,8 @@ export default function DtourTokenPage() {
           </span>
         </h1>
         <p className="mt-4 max-w-md text-base text-white/60 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
-          The Detour Cloud holder token. Public beta is open; large holders get
-          the live coding sandbox holder rate where billing supports it.
+          The Detour Cloud perks token. Hold $DTOUR to unlock discounted
+          coding sandbox rates and holder-tier benefits across the platform.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <a
@@ -118,38 +118,76 @@ export default function DtourTokenPage() {
       <section className="relative z-10 mx-auto mt-20 max-w-3xl px-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
-            What $DTOUR does
+            How $DTOUR works
           </h2>
-          <p className="mt-2 text-sm text-white/45">Simple utility while the beta rails come online.</p>
+          <p className="mt-2 text-sm text-white/45">Hold $DTOUR, unlock perks. It's that simple.</p>
         </div>
         <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-2">
           <div className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
-            <h3 className="text-sm font-semibold text-white">Access to the cloud</h3>
+            <h3 className="text-sm font-semibold text-white">Free tier — no token needed</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45">
-              Public beta accounts are open with a Solana wallet signature.
-              $DTOUR remains the holder-status token for Detour Cloud.
+              Anyone can sign up with a passkey and use the platform. Free tier
+              accounts get monthly compute credits for building and testing
+              agents. No crypto wallet required.
             </p>
           </div>
           <div className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
-            <h3 className="text-sm font-semibold text-white">Holder rate at 0.5%</h3>
+            <h3 className="text-sm font-semibold text-white">Holder perks — token optional</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45">
-              Hold <span className="text-white/70">0.5% of supply (5M $DTOUR)</span> or
-              more and get the live holder rate on supported billing paths, starting with
-              coding sandboxes.
+              1M+ $DTOUR unlocks Scout tier with discounted coding sandbox
+              rates. 5M+ unlocks Operator tier with deeper discounts on coding
+              and inference. Connect your wallet, verify your balance, done.
             </p>
           </div>
         </div>
-        <p className="mt-6 text-center text-[12px] leading-relaxed text-white/35">
-          That's it for now — no promised yields, no emissions, nothing we can't
-          back. $DTOUR's utility stays deliberately simple while we build, and
-          grows only as we can stand behind it.
-        </p>
+      </section>
+
+      {/* ─── Tier Comparison ─── */}
+      <section className="relative z-10 mx-auto mt-20 max-w-2xl px-6">
+        <div className="overflow-hidden rounded-2xl border border-white/10">
+          <div className="grid grid-cols-3 gap-px bg-white/10">
+            <div className="bg-black/50 p-4 text-center">
+              <div className="text-[10px] uppercase tracking-wider text-white/30">Free</div>
+              <div className="mt-1 text-sm font-bold text-white/60">$0</div>
+            </div>
+            <div className="bg-black/50 p-4 text-center">
+              <div className="text-[10px] uppercase tracking-wider text-purple-300">Scout</div>
+              <div className="mt-1 text-sm font-bold text-white">1M $DTOUR</div>
+            </div>
+            <div className="bg-black/50 p-4 text-center">
+              <div className="text-[10px] uppercase tracking-wider text-blue-300">Operator</div>
+              <div className="mt-1 text-sm font-bold text-white">5M $DTOUR</div>
+            </div>
+          </div>
+          <div className="divide-y divide-white/[0.06]">
+            {[
+              { label: "Passkey login", values: ["✓", "✓", "✓"] },
+              { label: "Monthly free credits", values: ["✓ capped", "✓ capped", "✓ capped"] },
+              { label: "Web dashboard", values: ["✓", "✓", "✓"] },
+              { label: "Swoosh (Mac + iPhone)", values: ["✓", "✓", "✓"] },
+              { label: "Coding sandbox discount", values: ["—", "Holder rate", "Best rate"] },
+              { label: "Inference discount", values: ["—", "—", "Best rate"] },
+            ].map((row) => (
+              <div key={row.label} className="grid grid-cols-3 gap-px">
+                <div className="bg-black/30 p-3.5 text-[12px] text-white/60">{row.label}</div>
+                {row.values.map((v, i) => (
+                  <div key={i} className={`bg-black/30 p-3.5 text-center text-[12px] ${
+                    v === "—" ? "text-white/20" :
+                    v === "Best rate" ? "font-semibold text-blue-300" :
+                    v === "Holder rate" ? "font-semibold text-purple-300" :
+                    "text-white/70"
+                  }`}>{v}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ─── CTA ─── */}
       <section className="relative z-10 mx-auto mt-20 max-w-md px-6 pb-24 text-center">
-        <h2 className="text-xl font-bold" style={{ textShadow: shadow }}>Get in</h2>
-        <p className="mt-2 text-sm text-white/45">Join the beta. Track your holder status.</p>
+        <h2 className="text-xl font-bold" style={{ textShadow: shadow }}>Hold $DTOUR?</h2>
+        <p className="mt-2 text-sm text-white/45">Connect your wallet and your perks activate instantly.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <a
             href={`https://pump.fun/coin/${DTOUR_MINT}`}
@@ -160,7 +198,7 @@ export default function DtourTokenPage() {
             Buy $DTOUR
           </a>
           <Link to="/login" className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10 active:scale-[0.97]">
-            Open Detour Cloud
+            Sign in free
           </Link>
         </div>
       </section>

@@ -31,12 +31,14 @@ function ScrollSection({
 }
 
 const FAQ_DATA = [
-  { q: "What is Detour Cloud?", a: "A white-label cloud platform for building, deploying, and running autonomous AI agents powered by elizaOS. Custom dashboard with passkey login (Face ID, Touch ID) and optional Solana wallet for $DTOUR holder perks." },
-  { q: "Do I need $DTOUR to use it?", a: "No. A free tier with capped monthly compute credits is available. $DTOUR is optional — holding 1M+ unlocks Scout tier perks like discounted coding sandboxes." },
-  { q: "How does auth work?", a: "Primary: WebAuthn passkeys (Face ID, Touch ID, device PIN). Secondary: Solana wallet SIWS for $DTOUR holders. No crypto wallet needed for the free tier." },
-  { q: "What can I build?", a: "Autonomous AI agents for chat, design, and coding workflows — with the full elizaOS ecosystem: plugins, MCP tools, skills, and containerized deployments." },
-  { q: "Where is my data stored?", a: "Self-hosted Convex (PostgreSQL) on DigitalOcean in Ashburn, Virginia, USA. Encrypted in transit and at rest." },
-  { q: "Is there a desktop app?", a: "Yes — Swoosh, the native macOS runtime with a menu bar agent, iPhone companion, and local MLX inference on Apple Silicon." },
+  { q: "What is Detour Cloud?", a: "A cross-platform AI agent runtime. Build autonomous agents on the open elizaOS framework, deploy them to web, macOS (Swoosh), and iPhone, and access them from anywhere. No infrastructure to manage." },
+  { q: "What kind of agents can I build?", a: "Chat and support agents, coding and dev assistants, design and creative agents, workflow automation pipelines, blockchain and social media bots, and custom toolchains via MCP plugins. Anything you can compose with the elizaOS ecosystem of 100+ plugins." },
+  { q: "Do I need $DTOUR to use it?", a: "No. A free tier with monthly compute credits is available — no crypto wallet required. $DTOUR is optional: holding 1M+ unlocks Scout tier perks like discounted coding sandbox rates." },
+  { q: "How does authentication work?", a: "Primary: WebAuthn passkeys (Face ID, Touch ID, device PIN). Secondary: Solana wallet SIWS for $DTOUR holders. No passwords to remember, no crypto needed for the free tier." },
+  { q: "Where is my data stored?", a: "Self-hosted Convex (PostgreSQL) on DigitalOcean in Ashburn, Virginia, USA. Encrypted in transit (TLS) and at rest. We never train on or share your agent data." },
+  { q: "What platforms are supported?", a: "Web dashboard (any browser), macOS native app (Swoosh — menu bar agent + local MLX inference), iPhone companion app, self-hosted pairing mode, and programmatic access via REST API. Discord, Telegram, and Twitter/X connectors." },
+  { q: "Is there a desktop app?", a: "Yes — Swoosh, the native macOS runtime. Always-on AI in your menu bar, full agent chat and control, plus local MLX inference on Apple Silicon for private, zero-cost on-device inference." },
+  { q: "How does pricing work?", a: "Free tier with monthly capped compute credits — no credit card needed. $DTOUR holders get discounted rates on coding sandboxes and inference. Billing is usage-based via a credit system. No surprise bills." },
 ];
 
 export default function DtourLandingPage() {
@@ -103,8 +105,11 @@ export default function DtourLandingPage() {
 
       {/* ─── Hero ─── */}
       <section className="relative z-10 flex min-h-[82vh] flex-col items-center justify-center px-6 text-center">
+        <div className="rounded-full border border-purple-500/30 bg-purple-500/10 px-4 py-1 text-[11px] font-medium uppercase tracking-widest text-purple-300 backdrop-blur-sm">
+          Agent platform · Powered by elizaOS
+        </div>
         <h1
-          className="text-5xl font-bold leading-[1.08] tracking-[-0.02em] md:text-7xl lg:text-8xl"
+          className="mt-6 text-5xl font-bold leading-[1.08] tracking-[-0.02em] md:text-7xl lg:text-8xl"
           style={{ textShadow: shadow }}
         >
           Your AI Agents.
@@ -113,9 +118,10 @@ export default function DtourLandingPage() {
             Everywhere.
           </span>
         </h1>
-        <p className="mt-5 max-w-lg text-base leading-relaxed text-white/70 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
-          Deploy production AI agents from your browser, Mac, or iPhone. No
-          infrastructure to manage. Passkey-secured. Token-gated perks.
+        <p className="mt-5 max-w-xl text-base leading-relaxed text-white/70 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
+          Detour Cloud is the cross-platform agent runtime. Build autonomous AI
+          agents on the open elizaOS framework, deploy them to any surface, and
+          access them from anywhere — no infrastructure to manage.
         </p>
         <div className="mt-8 flex gap-3">
           <Link to="/login" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 active:scale-[0.97]">
@@ -143,16 +149,16 @@ export default function DtourLandingPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             What You Can Build
           </h2>
-          <p className="mt-2 text-sm text-white/50">Full elizaOS ecosystem. Plugins, MCP, and containerized runtimes.</p>
+          <p className="mt-2 text-sm text-white/50">Autonomous agents for every workflow — deploy once, run anywhere.</p>
         </div>
         <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-3">
           {[
-            { title: "Autonomous Agents", desc: "Create and deploy agents for chat, design, and coding workflows. Full elizaOS runtime with memory, plugins, and tool execution." },
-            { title: "Plugins & MCP", desc: "Extend agents with 100+ plugins — blockchain, social, media, data. Model Context Protocol support for custom toolchains." },
-            { title: "Skills & Workflows", desc: "Build multi-step automations with branching, state, and conditionals. Compose agents into production pipelines." },
-            { title: "Multi-Platform", desc: "Web dashboard, macOS menu bar (Swoosh), iPhone companion. Same agent, same memory, everywhere." },
-            { title: "API Keys & Webhooks", desc: "Programmatic access to agent runtimes. Webhook triggers, REST endpoints, and event-driven execution flows." },
-            { title: "Containerized Deploy", desc: "Package agents as containers with auto-scaling, health checks, and monitoring. Deploy to ElizaCloud infrastructure." },
+            { title: "Chat & Support Agents", desc: "Build conversational AI agents for customer support, community moderation, and personal assistance. Multi-platform, full memory, 100+ plugins." },
+            { title: "Coding & Dev Agents", desc: "Deploy agents that write code, review PRs, run tests, debug issues, and automate CI/CD tasks. Integrated with git repos and cloud sandboxes." },
+            { title: "Design & Creative Agents", desc: "Generate images, analyze visual content, create design assets, and automate creative pipelines. Agent-powered multimedia workflows." },
+            { title: "Cross-Platform Runtime", desc: "The same agent runs on the web dashboard, macOS menu bar (Swoosh), and iPhone companion. Consistent memory, context, and tools across devices." },
+            { title: "Workflow Automation", desc: "Compose agents into multi-step pipelines with branching, state management, conditionals, error handling, and human-in-the-loop checks." },
+            { title: "Plugins & Custom MCP", desc: "100+ built-in plugins for blockchain, social media, data analysis, media generation, and code execution. Add custom tools via Model Context Protocol." },
           ].map((f) => (
             <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
               <h3 className="text-sm font-semibold text-white">{f.title}</h3>
@@ -206,6 +212,31 @@ export default function DtourLandingPage() {
             { title: "Menu Bar Agent", desc: "Always-on AI in your Mac menu bar. Chat, query, automate — never leave your workflow." },
             { title: "iPhone Companion", desc: "Same brain, same memory. Thin HTTP client to your Mac. Full chat + settings on the go." },
             { title: "Local MLX Inference", desc: "Run models on Apple Silicon. Private, fast, zero API costs for local inference." },
+          ].map((f) => (
+            <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
+              <h3 className="text-sm font-semibold text-white">{f.title}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-white/45">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      </ScrollSection>
+
+      {/* ─── Why Detour ─── */}
+      <ScrollSection delay={100}>
+      <section className="relative z-10 mx-auto max-w-5xl px-6 pb-20">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
+            Why Detour Cloud
+          </h2>
+          <p className="mt-2 text-sm text-white/50">Built differently so you can build freely.</p>
+        </div>
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-4">
+          {[
+            { title: "Passkey-First Auth", desc: "Sign in with Face ID, Touch ID, or device PIN. No passwords. No crypto wallet required for the free tier." },
+            { title: "Free to Start", desc: "Free tier with monthly compute credits. No credit card. Upgrade when you're ready, or stay free forever." },
+            { title: "Open Ecosystem", desc: "Built on elizaOS — the leading open-source agent framework. 100+ plugins. MCP toolchains. No lock-in." },
+            { title: "Your Data Stays Yours", desc: "Self-hosted infrastructure on DigitalOcean in Ashburn, VA. Encrypted at rest and in transit. Never trained on." },
           ].map((f) => (
             <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
               <h3 className="text-sm font-semibold text-white">{f.title}</h3>

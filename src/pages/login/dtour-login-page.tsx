@@ -65,7 +65,7 @@ export default function DtourLoginPage() {
                   Detour Cloud
                 </h1>
                 <p className="text-sm text-white/60">
-                  Deploy agents. Build. Ship.
+                  Build autonomous agents on the open elizaOS framework. No infrastructure to manage.
                 </p>
               </div>
 
