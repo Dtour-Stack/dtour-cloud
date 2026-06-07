@@ -27,7 +27,7 @@ export default function DtourTokenPage() {
       {/* ─── Nav ─── */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/brand/dtour/logo.svg" alt="Detour" className="h-9 w-9 drop-shadow-lg" />
+          <img src="/brand/dtour/logo.svg" alt="Detour" className="logo-cloud h-9 w-9 drop-shadow-lg" />
           <span className="text-base font-semibold tracking-tight drop-shadow-lg">Detour</span>
         </Link>
         <div className="flex items-center gap-4">

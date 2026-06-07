@@ -265,7 +265,7 @@ export function AgentsHome() {
       ) : agents.length === 0 ? (
         <Panel className="fade-up">
           <EmptyState
-            icon={<Icon.Bot size={20} />}
+            squirrel
             title="No agents yet"
             description="Create your first agent — give it a name, a personality, and a model."
             action={

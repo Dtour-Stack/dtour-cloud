@@ -5,6 +5,8 @@ import { RequireSession } from "@/dashboard/RequireSession";
 import { SurfaceGate } from "@/dashboard/SurfaceGate";
 import DtourLandingPage from "@/pages/dtour-landing-page";
 import DtourTokenPage from "@/pages/dtour-token-page";
+import NotFoundPage from "@/pages/NotFoundPage";
+import { SplashScreen } from "@/ui/SplashScreen";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 
 // Login + dashboard are lazy: their wallet/Convex deps stay out of the
@@ -13,6 +15,7 @@ const DtourLoginPage = lazy(() => import("@/pages/login/dtour-login-page"));
 const DtourOnboardingPage = lazy(
   () => import("@/pages/onboarding/dtour-onboarding-page"),
 );
+const NinjaPage = lazy(() => import("@/pages/NinjaPage"));
 const DtourDashboardPage = lazy(
   () => import("@/dashboard/dtour-dashboard-page"),
 );
@@ -55,12 +58,13 @@ const CustomDashboardPage = lazy(() => import("@/dashboard/custom/CustomDashboar
 
 export default function App() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SplashScreen />}>
       <Routes>
         <Route path="/" element={<DtourLandingPage />} />
         <Route path="/token" element={<DtourTokenPage />} />
         <Route path="/login" element={<DtourLoginPage />} />
         <Route path="/onboarding" element={<DtourOnboardingPage />} />
+        <Route path="/ninja" element={<NinjaPage />} />
         <Route
           path="/dashboard/custom/:dashboardId"
           element={
@@ -391,6 +395,7 @@ export default function App() {
             </RequireSession>
           }
         />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );

@@ -1,22 +1,20 @@
-/**
- * Detour Cloud — Login page override.
- *
- * Replaces the Eliza Cloud login page with Detour branding, tier info,
- * and $DTOUR-specific onboarding copy. Same auth flow (SIWS/SIWE via
- * Steward), just different skin.
- *
- * To use: set CLOUD_TENANT=dtour and alias this over the default login page
- * in App.tsx routing, or use the brand context to conditionally render.
- */
-
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { trackKonamiCode, trackSquirrelClick } from "@/lib/easter-eggs";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 import { DtourGate } from "./dtour-gate";
 import { PasskeySection } from "./PasskeySection";
 
 export default function DtourLoginPage() {
   const [method, setMethod] = useState<"pick" | "passkey" | "wallet">("pick");
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      trackKonamiCode(e.key);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <SolanaWalletProvider>
@@ -43,7 +41,7 @@ export default function DtourLoginPage() {
                 <img
                   src="/brand/dtour/logo.svg"
                   alt="Dtour"
-                  className="mx-auto h-16 w-16"
+                  className="logo-cloud mx-auto h-16 w-16"
                 />
                 <h1 className="font-poppins text-2xl font-semibold text-white">
                   Detour Cloud
@@ -103,7 +101,8 @@ export default function DtourLoginPage() {
                 <img
                   src="/brand/dtour/ninja-squirrel.png"
                   alt="Detour Ninja"
-                  className="h-28 w-28 object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.3)]"
+                  onClick={trackSquirrelClick}
+                  className="h-28 w-28 cursor-pointer object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-transform hover:scale-105 hover:drop-shadow-[0_0_25px_rgba(168,85,247,0.5)] active:scale-95"
                 />
               </div>
 

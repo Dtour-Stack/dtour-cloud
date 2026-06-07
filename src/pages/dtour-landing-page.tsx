@@ -34,7 +34,7 @@ export default function DtourLandingPage() {
       {/* ─── Nav ─── */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
         <div className="flex items-center gap-3">
-          <img src="/brand/dtour/logo.svg" alt="Dtour" className="h-9 w-9 drop-shadow-lg" />
+          <img src="/brand/dtour/logo.svg" alt="Dtour" className="logo-cloud h-9 w-9 drop-shadow-lg" />
           <span className="text-base font-semibold tracking-tight drop-shadow-lg">
             Detour Cloud
           </span>

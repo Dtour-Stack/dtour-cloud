@@ -108,6 +108,12 @@ export function AppShell({
   ) as number | undefined;
   const cfg = usePublicConfig();
   const flags = useFlags();
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning,";
+    if (h < 17) return "Good afternoon,";
+    return "Good evening,";
+  };
   const visibleNav = nav;
   const banner = cfg.maintenance_mode
     ? "⚠️ Detour Cloud is in maintenance mode — some features may be unavailable."
@@ -179,8 +185,8 @@ export function AppShell({
           navOpen ? "md:w-60" : "md:w-16",
         )}
       >
-        <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
-          <img src="/brand/dtour/logo.svg" alt="Dtour" className="h-7 w-7 shrink-0" />
+          <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
+          <img src="/brand/dtour/logo.svg" alt="Dtour" className="logo-cloud h-7 w-7 shrink-0" />
           <span className={cn("truncate text-sm font-semibold tracking-tight", !navOpen && "md:hidden")}>
             Detour Cloud
           </span>
@@ -292,7 +298,7 @@ export function AppShell({
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-white/60 sm:inline">
-              {me?.username ? `@${me.username}` : ""}
+              {greeting()}{me?.username ? ` @${me.username}` : ""}
             </span>
             <div className="relative">
               <IconButton

@@ -8,6 +8,8 @@ import { BrowserRouter } from "react-router-dom";
 import App from "@/App";
 import { convex } from "@/lib/convex";
 import { StewardProvider } from "@/providers/StewardProvider";
+import "@/lib/easter-eggs";
+import { trackKonamiCode } from "@/lib/easter-eggs";
 
 // Capture an affiliate referral code (detour.ninja/?ref=CODE) at first load;
 // AppShell attributes it once the user has a session.
@@ -17,6 +19,9 @@ try {
 } catch {
   /* ignore */
 }
+
+// Global konami code listener works on every page
+window.addEventListener("keydown", (e) => trackKonamiCode(e.key));
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("#root element not found");

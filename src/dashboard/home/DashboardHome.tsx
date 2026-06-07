@@ -19,11 +19,13 @@ import {
 } from "@/lib/remoteRuntime";
 import { getDtourSessionToken } from "@/lib/session";
 import { surfaceLabelForRoute } from "@/lib/surfaceFlags";
+import { useCountUp } from "@/lib/useCountUp";
 import { useFlags } from "@/lib/useFlags";
 import {
   Badge,
   buttonClasses,
   cn,
+  ConfettiButton,
   EmptyState,
   Icon,
   Panel,
@@ -183,6 +185,8 @@ export function DashboardHome() {
   const agentsLoading = instanceRows === undefined;
   const name = me?.username ? `@${me.username}` : me ? truncate(me.pubkey) : "";
   const balance = me?.balance ?? 0;
+  const countBalance = useCountUp(balance, 1000, !loading && balance > 0);
+  const countAgents = useCountUp(agentCount, 800, !agentsLoading && agentCount > 0);
   const lifetime = me?.plan === "lifetime";
   const creditBalance = credits?.balanceUsd ?? 0;
   const starterUsd = credits?.starterUsd ?? 0.25;
@@ -251,7 +255,11 @@ export function DashboardHome() {
         <StatCard
           label="$DTOUR Balance"
           loading={loading}
-          value={balance.toLocaleString()}
+          value={
+            balance > 0
+              ? <span className="count-glow">{countBalance.toLocaleString()}</span>
+              : "0"
+          }
           sub={balance > 0 ? "Holder perks active" : "Connect wallet to verify $DTOUR"}
           icon={<Icon.Coins size={16} />}
         />
@@ -265,7 +273,7 @@ export function DashboardHome() {
         <StatCard
           label="Agents"
           loading={agentsLoading}
-          value={agentCount.toLocaleString()}
+          value={agentCount > 0 ? countAgents.toLocaleString() : "0"}
           sub={agentCount ? "Ready for cloud buildout" : "None deployed yet"}
           icon={<Icon.Bot size={16} />}
         />
@@ -383,7 +391,7 @@ export function DashboardHome() {
             </div>
           ) : loadedRows.length === 0 ? (
             <EmptyState
-              icon={<Icon.Bot size={20} />}
+              squirrel
               title="No agents yet"
               description="Create an agent, then open Agent Cloud to deploy 24/7, expose API/MCP/A2A, and bind workflow subgraphs."
               action={
@@ -431,7 +439,7 @@ export function DashboardHome() {
         >
           <SectionHeading title="Activity" description="Recent account events." />
           <EmptyState
-            icon={<Icon.Activity size={20} />}
+            squirrel
             title="Nothing yet"
             description="Sign-ins, deploys, and credit changes will show up here."
           />

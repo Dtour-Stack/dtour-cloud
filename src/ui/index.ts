@@ -6,4 +6,6 @@ export { Skeleton } from "./Skeleton";
 export { SectionHeading } from "./SectionHeading";
 export { StatCard } from "./StatCard";
 export { EmptyState } from "./EmptyState";
+export { SplashScreen } from "./SplashScreen";
+export { ConfettiButton } from "./ConfettiTrigger";
 export * as Icon from "./icons";

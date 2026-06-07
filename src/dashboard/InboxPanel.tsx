@@ -93,7 +93,7 @@ export function InboxPanel() {
         </div>
       ) : visibleMessages.length === 0 ? (
         <EmptyState
-          icon={<Icon.Activity size={20} />}
+          squirrel
           title="No messages"
           description="Notifications from the team show up here."
         />
