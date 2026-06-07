@@ -96,13 +96,13 @@ export function ChatSidebar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter agents…"
-          className="mt-2 w-full rounded-lg border border-white/12 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none"
+          className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--btn-glass-bg)] px-3 py-2 text-[13px] text-[var(--text)] placeholder:text-[var(--text-faint)] focus:border-purple-400/50 focus:outline-none"
         />
       )}
 
       {agentId && (
         <>
-          <div className="mb-1 mt-4 px-2 text-[10px] uppercase tracking-widest text-white/35">
+          <div className="mb-1 mt-4 px-2 text-[10px] uppercase tracking-widest text-[var(--text-faint)]">
             Chats
           </div>
           <div className="space-y-0.5">
@@ -112,9 +112,9 @@ export function ChatSidebar({
               onClick={() => void startNewChat()}
             />
             {chats === undefined ? (
-              <div className="mx-1 h-8 animate-pulse rounded-md bg-white/[0.04]" />
+              <div className="mx-1 h-8 animate-pulse rounded-md bg-[var(--bg-elevated)]" />
             ) : chats.length === 0 ? (
-              <p className="px-2 py-2 text-[12px] text-white/35">No chats yet.</p>
+              <p className="px-2 py-2 text-[12px] text-[var(--text-faint)]">No chats yet.</p>
             ) : (
               chats.map((c) => (
                 <NavLink
@@ -124,8 +124,8 @@ export function ChatSidebar({
                   className={cn(
                     "flex items-center gap-2 rounded-md px-2.5 py-2 text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
                     c.id === activeChatId
-                      ? "bg-white/10 text-white"
-                      : "text-white/65 hover:bg-white/5 hover:text-white",
+                      ? "bg-[var(--btn-glass-bg)] text-[var(--text)]"
+                      : "text-[var(--text-dim)] hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)]",
                   )}
                 >
                   <Icon.List size={14} className="shrink-0 opacity-60" />
@@ -137,7 +137,7 @@ export function ChatSidebar({
         </>
       )}
 
-      <div className="mb-1 mt-4 px-2 text-[10px] uppercase tracking-widest text-white/35">
+      <div className="mb-1 mt-4 px-2 text-[10px] uppercase tracking-widest text-[var(--text-faint)]">
         Recents
       </div>
 
@@ -145,11 +145,11 @@ export function ChatSidebar({
         {agents === undefined ? (
           <div className="space-y-1.5 px-1 py-1">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-8 w-full animate-pulse rounded-md bg-white/[0.04]" />
+              <div key={i} className="h-8 w-full animate-pulse rounded-md bg-[var(--bg-elevated)]" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <p className="px-2 py-3 text-[12px] leading-relaxed text-white/35">
+          <p className="px-2 py-3 text-[12px] leading-relaxed text-[var(--text-faint)]">
             {agents.length === 0
               ? "No agents yet. Create one to start chatting."
               : "No agents match your search."}
@@ -163,15 +163,15 @@ export function ChatSidebar({
               className={cn(
                 "flex items-start gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
                 a.id === agentId
-                  ? "bg-white/10 text-white"
-                  : "text-white/65 hover:bg-white/5 hover:text-white",
+                  ? "bg-[var(--btn-glass-bg)] text-[var(--text)]"
+                  : "text-[var(--text-dim)] hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)]",
               )}
             >
               <Icon.Bot size={15} className="mt-0.5 shrink-0" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{a.name}</span>
                 {a.lastPreview ? (
-                  <span className="mt-0.5 block truncate text-[11px] text-white/35">
+                  <span className="mt-0.5 block truncate text-[11px] text-[var(--text-faint)]">
                     {a.lastPreview}
                   </span>
                 ) : null}
@@ -202,8 +202,8 @@ function Row({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
         active
-          ? "bg-white/10 text-white"
-          : "text-white/70 hover:bg-white/5 hover:text-white",
+          ? "bg-[var(--btn-glass-bg)] text-[var(--text)]"
+          : "text-[var(--text-dim)] hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)]",
       )}
     >
       {icon}
@@ -227,7 +227,7 @@ function RailIcon({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-md text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+      className="flex h-10 w-10 items-center justify-center rounded-md text-[var(--text-dim)] transition hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
     >
       {children}
     </button>

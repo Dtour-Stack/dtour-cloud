@@ -10,7 +10,7 @@ export default function NinjaPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-black px-6 text-center">
+      <div className="public-page flex min-h-screen flex-col items-center justify-center bg-black px-6 text-center">
       <div
         className="fixed inset-0 -z-10"
         style={{
@@ -41,10 +41,10 @@ export default function NinjaPage() {
           alt="Ninja squirrel mascot — Detour Cloud"
           className="mx-auto h-28 w-28 object-contain drop-shadow-[0_0_25px_rgba(168,85,247,0.35)]" />
       </div>
-      <h1 className="mt-8 text-3xl font-bold tracking-tight text-white">
+      <h1 className="mt-8 text-3xl font-bold tracking-tight text-[var(--text)]">
         You found the squirrel!
       </h1>
-      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/50">
+      <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--text-muted)]">
         Deep in the Detour Cloud canopy, a lone squirrel ninja watches over the
         infrastructure. Nobody knows how it got there. Some say it was the first
         deploy.
@@ -58,7 +58,7 @@ export default function NinjaPage() {
       </div>
       <Link
         to="/"
-        className="mt-8 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10"
+        className="mt-8 rounded-full bg-[var(--btn-primary-bg)] px-6 py-3 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:shadow-xl hover:shadow-[var(--shadow)]"
       >
         Back to the cloud
       </Link>

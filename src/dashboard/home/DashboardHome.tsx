@@ -205,10 +205,10 @@ export function DashboardHome() {
               <img
                 src={me.avatarUrl}
                 alt=""
-                className="h-11 w-11 shrink-0 rounded-full border border-white/10 object-cover"
+                className="h-11 w-11 shrink-0 rounded-full border border-[var(--border)] object-cover"
               />
             ) : (
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-semibold text-white/40">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--text-muted)]">
                 {me?.username?.[0]?.toUpperCase() ?? <Icon.Wallet size={16} />}
               </div>
             ))}
@@ -219,11 +219,11 @@ export function DashboardHome() {
               ) : (
                 <>
                   Welcome back
-                  {name && <span className="text-white/50">, {name}</span>}
+                  {name && <span className="text-[var(--text-muted)]">, {name}</span>}
                 </>
               )}
             </h1>
-            <p className="mt-1 flex items-center gap-2 text-[13px] text-white/45">
+            <p className="mt-1 flex items-center gap-2 text-[13px] text-[var(--text-muted)]">
               {loading ? (
                 <Skeleton className="h-4 w-44" />
               ) : (
@@ -326,10 +326,10 @@ export function DashboardHome() {
         className="fade-up mt-6 overflow-hidden p-0"
         style={{ animationDelay: "110ms" }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-white">Build your cloud</h2>
-            <p className="mt-0.5 text-xs text-white/45">
+            <h2 className="text-sm font-semibold text-[var(--text)]">Build your cloud</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
               App blueprints, agents, infra, knowledge, MCPs, APIs, and databases.
             </p>
           </div>
@@ -337,7 +337,7 @@ export function DashboardHome() {
             Open App Builder <Icon.ArrowUpRight size={14} />
           </Link>
         </div>
-        <div className="grid gap-px bg-white/10 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-px bg-[var(--btn-glass-bg)] md:grid-cols-2 xl:grid-cols-4">
           <CloudLink
             to="/apps"
             icon={<Icon.LayoutGrid size={15} />}
@@ -406,17 +406,17 @@ export function DashboardHome() {
                 <Link
                   key={agent.id}
                   to={`/agents/${agent.id}`}
-                  className="group flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition hover:border-white/20 hover:bg-white/[0.04]"
+                  className="group flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-3 transition hover:border-[var(--border-bold)] hover:bg-[var(--bg-elevated)]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="rounded-lg bg-white/5 p-2 text-white/55 group-hover:text-white/80">
+                    <span className="rounded-lg bg-[var(--btn-glass-bg)] p-2 text-[var(--text-dim)] group-hover:text-[var(--text)]">
                       <Icon.Bot size={15} />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-white/85">
+                      <span className="block truncate text-sm font-medium text-[var(--text)]">
                         {agent.name}
                       </span>
-                      <span className="block truncate text-[11px] text-white/40">
+                      <span className="block truncate text-[11px] text-[var(--text-muted)]">
                         {agent.type} · {agent.model}
                       </span>
                     </span>
@@ -460,16 +460,16 @@ export function DashboardHome() {
                 key={l.to}
                 to={l.to}
                 className={cn(
-                  "group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.04]",
-                  surfaceLabel === "Coming soon" && "border-white/[0.07] bg-white/[0.01]",
+                  "group flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 transition hover:border-[var(--border-bold)] hover:bg-[var(--bg-elevated)]",
+                  surfaceLabel === "Coming soon" && "border-[var(--border)] bg-[var(--bg-elevated)]",
                 )}
               >
-                <span className="rounded-lg bg-white/5 p-2 text-white/70 group-hover:text-white">
+                <span className="rounded-lg bg-[var(--btn-glass-bg)] p-2 text-[var(--text-dim)] group-hover:text-[var(--text)]">
                   {l.icon}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-white">{l.label}</span>
+                    <span className="truncate text-sm font-medium text-[var(--text)]">{l.label}</span>
                     {surfaceLabel && (
                       <Badge
                         tone={surfaceLabel === "Coming soon" ? "warning" : "accent"}
@@ -479,7 +479,7 @@ export function DashboardHome() {
                       </Badge>
                     )}
                   </div>
-                  <div className="truncate text-xs text-white/45">{l.desc}</div>
+                  <div className="truncate text-xs text-[var(--text-muted)]">{l.desc}</div>
                 </div>
               </Link>
             );
@@ -492,12 +492,12 @@ export function DashboardHome() {
         className="fade-up mt-10 flex items-center justify-center gap-2 opacity-50"
         style={{ animationDelay: "240ms" }}
       >
-        <span className="text-[11px] uppercase tracking-widest text-white/40">
+        <span className="text-[11px] uppercase tracking-widest text-[var(--text-muted)]">
           Powered by
         </span>
         <img src="/brand/dtour/elizaos-face.png" alt="ElizaOS" className="h-4 w-4 rounded-[3px]" />
         <img src="/brand/dtour/elizaos-text.svg" alt="ElizaOS" className="h-3" />
-        <span className="text-white/30">+</span>
+        <span className="text-[var(--text-faint)]">+</span>
         <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3" />
       </div>
     </div>
@@ -520,16 +520,16 @@ function CloudLink({
   return (
     <Link
       to={to}
-      className="group bg-[#0a0a0a] p-5 transition hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+      className="group bg-[var(--bg)] p-5 transition hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
     >
-      <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40">
-        <span className="rounded-md bg-white/5 p-1.5 text-white/55 group-hover:text-white/80">
+      <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-[var(--text-muted)]">
+        <span className="rounded-md bg-[var(--btn-glass-bg)] p-1.5 text-[var(--text-dim)] group-hover:text-[var(--text)]">
           {icon}
         </span>
         {title}
       </span>
-      <span className="mt-3 block text-lg font-semibold text-white">{value}</span>
-      <span className="mt-1 block text-xs text-white/45">{detail}</span>
+      <span className="mt-3 block text-lg font-semibold text-[var(--text)]">{value}</span>
+      <span className="mt-1 block text-xs text-[var(--text-muted)]">{detail}</span>
     </Link>
   );
 }

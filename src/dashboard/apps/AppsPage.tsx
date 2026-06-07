@@ -101,7 +101,7 @@ const EMPTY_FORM: AppForm = {
 };
 
 const FIELD =
-	"min-h-10 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-purple-400/50 focus-visible:ring-2 focus-visible:ring-purple-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
+	"min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--btn-glass-bg)] px-3 py-2 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-purple-400/50 focus-visible:ring-2 focus-visible:ring-purple-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
 const DATABASES: Array<{
 	id: AppBuild["databaseProvider"];
@@ -418,22 +418,22 @@ export default function AppsPage() {
 
 	return (
 		<AppShell title="App Builder">
-			<div className="min-h-full bg-[#0a0a0a]">
+			<div className="min-h-full bg-[var(--bg)]">
 				<div className="mx-auto max-w-[1480px] px-6 py-6 md:px-8">
 					<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="min-w-0">
 							<div className="flex flex-wrap items-center gap-3">
-								<span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/70">
+								<span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-dim)]">
 									<Icon.LayoutGrid size={16} />
 								</span>
-								<h1 className="text-2xl font-semibold tracking-tight text-white">
+								<h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
 									App Builder
 								</h1>
 								<Badge tone={statusTone(currentStatus)}>
 									{currentStatus.replace("_", " ")}
 								</Badge>
 							</div>
-							<p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/55">
+							<p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--text-dim)]">
 								Build apps that reuse your agents, infra, MCPs, databases,
 								designs, and knowledge sources.
 							</p>
@@ -459,13 +459,13 @@ export default function AppsPage() {
 					<div className="mt-5 grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px] 2xl:grid-cols-[300px_minmax(0,1fr)_360px]">
 						<aside className="space-y-4">
 							<Panel className="overflow-hidden p-0 xl:sticky xl:top-6">
-								<div className="border-b border-white/10 px-4 py-3">
+								<div className="border-b border-[var(--border)] px-4 py-3">
 									<div className="flex items-center justify-between gap-3">
 										<div>
-											<h2 className="text-sm font-semibold text-white">
+											<h2 className="text-sm font-semibold text-[var(--text)]">
 												Blueprints
 											</h2>
-											<p className="mt-0.5 text-xs text-white/40">
+											<p className="mt-0.5 text-xs text-[var(--text-muted)]">
 												Saved app builds
 											</p>
 										</div>
@@ -478,7 +478,7 @@ export default function AppsPage() {
 											{[0, 1, 2].map((item) => (
 												<div
 													key={item}
-													className="h-24 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]"
+													className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]"
 												/>
 											))}
 										</div>
@@ -499,18 +499,18 @@ export default function AppsPage() {
 														"w-full rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
 														form.id === build.id
 															? "border-purple-400/45 bg-purple-400/[0.08]"
-															: "border-white/10 bg-white/[0.02] hover:bg-white/[0.045]",
+															: "border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)]",
 													)}
 												>
 													<span className="flex items-center justify-between gap-2">
-														<span className="truncate text-sm font-medium text-white">
+														<span className="truncate text-sm font-medium text-[var(--text)]">
 															{build.name}
 														</span>
 														<Badge tone={statusTone(build.status)}>
 															{build.status.replace("_", " ")}
 														</Badge>
 													</span>
-													<span className="mt-2 block line-clamp-2 text-[12px] leading-relaxed text-white/45">
+													<span className="mt-2 block line-clamp-2 text-[12px] leading-relaxed text-[var(--text-muted)]">
 														{build.prompt}
 													</span>
 												</button>
@@ -523,12 +523,12 @@ export default function AppsPage() {
 
 						<main className="space-y-4">
 							<Panel className="overflow-hidden p-0">
-								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
 									<div>
-										<h2 className="text-sm font-semibold text-white">
+										<h2 className="text-sm font-semibold text-[var(--text)]">
 											Prompt-to-app workspace
 										</h2>
-										<p className="mt-0.5 text-xs text-white/45">
+										<p className="mt-0.5 text-xs text-[var(--text-muted)]">
 											Describe the product, then bind the runtime pieces it can
 											use.
 										</p>
@@ -537,17 +537,17 @@ export default function AppsPage() {
 										{selectedAgent ? "agent attached" : "needs agent"}
 									</Badge>
 								</div>
-								<div className="grid gap-px bg-white/10 2xl:grid-cols-[minmax(0,1fr)_340px]">
+								<div className="grid gap-px bg-[var(--btn-glass-bg)] 2xl:grid-cols-[minmax(0,1fr)_340px]">
 									<form
 										onSubmit={(event) => {
 											event.preventDefault();
 											void save();
 										}}
-										className="bg-[#0d0d0d] p-5"
+										className="bg-[var(--bg-elevated)] p-5"
 									>
 										<div className="grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
 											<label className="block">
-												<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+												<span className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 													App name
 												</span>
 												<input
@@ -561,7 +561,7 @@ export default function AppsPage() {
 												/>
 											</label>
 											<label className="block">
-												<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+												<span className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 													Agent
 												</span>
 												<select
@@ -581,7 +581,7 @@ export default function AppsPage() {
 											</label>
 										</div>
 										<label className="mt-4 block">
-											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+											<span className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 												Prompt
 											</span>
 											<textarea
@@ -595,7 +595,7 @@ export default function AppsPage() {
 										</label>
 										<div className="mt-4 grid gap-4 md:grid-cols-2">
 											<label className="block">
-												<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+												<span className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 													Design project
 												</span>
 												<select
@@ -614,7 +614,7 @@ export default function AppsPage() {
 												</select>
 											</label>
 											<fieldset>
-												<legend className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+												<legend className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 													API access
 												</legend>
 												<div className="grid gap-2 sm:grid-cols-3">
@@ -628,8 +628,8 @@ export default function AppsPage() {
 																className={cn(
 																	"min-h-10 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
 																	form.apiAccess === mode
-																		? "border-purple-400/45 bg-purple-400/[0.08] text-white"
-																		: "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.045]",
+																		? "border-purple-400/45 bg-purple-400/[0.08] text-[var(--text)]"
+																		: "border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-dim)] hover:bg-[var(--bg-elevated)]",
 																)}
 															>
 																{mode}
@@ -639,7 +639,7 @@ export default function AppsPage() {
 												</div>
 											</fieldset>
 										</div>
-										<div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+										<div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4">
 											<Button
 												type="submit"
 												size="sm"
@@ -648,25 +648,25 @@ export default function AppsPage() {
 												<Icon.Zap size={14} />
 												{saving ? "Saving..." : "Save blueprint"}
 											</Button>
-											<span className="text-[12px] text-white/40">
+											<span className="text-[12px] text-[var(--text-muted)]">
 												Saves the prompt, resource bindings, and launch checks.
 											</span>
 										</div>
 									</form>
 									<div className="bg-black p-5">
-										<div className="overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a]">
-											<div className="flex h-10 items-center justify-between border-b border-white/10 px-3">
+										<div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)]">
+											<div className="flex h-10 items-center justify-between border-b border-[var(--border)] px-3">
 												<div className="flex items-center gap-1.5">
-													<span className="h-2 w-2 rounded-full bg-white/25" />
-													<span className="h-2 w-2 rounded-full bg-white/15" />
-													<span className="h-2 w-2 rounded-full bg-white/10" />
+													<span className="h-2 w-2 rounded-full bg-[var(--btn-glass-bg)]" />
+													<span className="h-2 w-2 rounded-full bg-[var(--btn-glass-bg)]" />
+													<span className="h-2 w-2 rounded-full bg-[var(--btn-glass-bg)]" />
 												</div>
-												<span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-white/40">
+												<span className="rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[10px] text-[var(--text-muted)]">
 													blueprint.preview
 												</span>
 											</div>
 											<div className="p-4">
-												<h3 className="text-xs uppercase tracking-widest text-white/40">
+												<h3 className="text-xs uppercase tracking-widest text-[var(--text-muted)]">
 													Generated blueprint
 												</h3>
 												<div className="mt-3 space-y-2">
@@ -685,19 +685,19 @@ export default function AppsPage() {
 							</Panel>
 
 							<Panel className="overflow-hidden p-0">
-								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
 									<div>
-										<h2 className="text-sm font-semibold text-white">
+										<h2 className="text-sm font-semibold text-[var(--text)]">
 											Database and knowledge
 										</h2>
-										<p className="mt-0.5 text-xs text-white/45">
+										<p className="mt-0.5 text-xs text-[var(--text-muted)]">
 											Choose where app state and retrieval live.
 										</p>
 									</div>
 									<Badge tone="accent">RAG-ready</Badge>
 								</div>
-								<div className="grid gap-px bg-white/10 2xl:grid-cols-[1.1fr_0.9fr]">
-									<div className="bg-[#0d0d0d] p-5">
+								<div className="grid gap-px bg-[var(--btn-glass-bg)] 2xl:grid-cols-[1.1fr_0.9fr]">
+									<div className="bg-[var(--bg-elevated)] p-5">
 										<div className="grid gap-2 md:grid-cols-2">
 											{DATABASES.map((database) => (
 												<button
@@ -711,20 +711,20 @@ export default function AppsPage() {
 														"rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
 														form.databaseProvider === database.id
 															? "border-purple-400/45 bg-purple-400/[0.08]"
-															: "border-white/10 bg-white/[0.02] hover:bg-white/[0.045]",
+															: "border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)]",
 													)}
 												>
-													<span className="text-sm font-medium text-white">
+													<span className="text-sm font-medium text-[var(--text)]">
 														{database.label}
 													</span>
-													<span className="mt-1 block text-[12px] leading-relaxed text-white/45">
+													<span className="mt-1 block text-[12px] leading-relaxed text-[var(--text-muted)]">
 														{database.desc}
 													</span>
 												</button>
 											))}
 										</div>
 										<label className="mt-4 block">
-											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+											<span className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 												Database connection
 											</span>
 											<input
@@ -737,7 +737,7 @@ export default function AppsPage() {
 												autoComplete="off"
 												spellCheck={false}
 											/>
-											<span className="mt-1 block text-xs text-white/35">
+											<span className="mt-1 block text-xs text-[var(--text-faint)]">
 												Use a resource name or secret alias, not raw
 												credentials.
 											</span>
@@ -755,20 +755,20 @@ export default function AppsPage() {
 														"rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
 														form.knowledgeMode === mode.id
 															? "border-purple-400/45 bg-purple-400/[0.08]"
-															: "border-white/10 bg-white/[0.02] hover:bg-white/[0.045]",
+															: "border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)]",
 													)}
 												>
-													<span className="text-sm font-medium text-white">
+													<span className="text-sm font-medium text-[var(--text)]">
 														{mode.label}
 													</span>
-													<span className="mt-1 block text-xs text-white/45">
+													<span className="mt-1 block text-xs text-[var(--text-muted)]">
 														{mode.desc}
 													</span>
 												</button>
 											))}
 										</div>
 										<label className="mt-4 block">
-											<span className="mb-1.5 block text-xs uppercase tracking-widest text-white/45">
+											<span className="mb-1.5 block text-xs uppercase tracking-widest text-[var(--text-muted)]">
 												Source URLs
 											</span>
 											<textarea
@@ -786,12 +786,12 @@ export default function AppsPage() {
 							</Panel>
 
 							<Panel className="overflow-hidden p-0">
-								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+								<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
 									<div>
-										<h2 className="text-sm font-semibold text-white">
+										<h2 className="text-sm font-semibold text-[var(--text)]">
 											MCP tools
 										</h2>
-										<p className="mt-0.5 text-xs text-white/45">
+										<p className="mt-0.5 text-xs text-[var(--text-muted)]">
 											Attach saved servers to this app blueprint.
 										</p>
 									</div>
@@ -799,7 +799,7 @@ export default function AppsPage() {
 										{attachedMcpCount} attached
 									</Badge>
 								</div>
-								<div className="grid gap-px bg-white/10 md:grid-cols-2">
+								<div className="grid gap-px bg-[var(--btn-glass-bg)] md:grid-cols-2">
 									{MCP_CATALOG.slice(0, 8).map((mcp) => {
 										const saved = loadedMcps.includes(mcp.id);
 										const active = form.mcpIds.includes(mcp.id);
@@ -811,15 +811,15 @@ export default function AppsPage() {
 												aria-pressed={active}
 												onClick={() => toggleMcp(mcp.id)}
 												className={cn(
-													"flex min-h-16 items-center justify-between gap-3 bg-[#0d0d0d] px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 disabled:cursor-not-allowed disabled:opacity-45",
-													active ? "bg-purple-400/[0.08]" : "hover:bg-white/[0.045]",
+													"flex min-h-16 items-center justify-between gap-3 bg-[var(--bg-elevated)] px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 disabled:cursor-not-allowed disabled:opacity-45",
+													active ? "bg-purple-400/[0.08]" : "hover:bg-[var(--bg-elevated)]",
 												)}
 											>
 												<span className="min-w-0">
-													<span className="block truncate text-sm text-white">
+													<span className="block truncate text-sm text-[var(--text)]">
 														{mcp.name}
 													</span>
-													<span className="block truncate text-xs text-white/40">
+													<span className="block truncate text-xs text-[var(--text-muted)]">
 														{mcp.category}
 													</span>
 												</span>
@@ -841,14 +841,14 @@ export default function AppsPage() {
 							<Panel className="p-5 xl:sticky xl:top-6">
 								<div className="flex items-baseline justify-between gap-3">
 									<div>
-										<h2 className="text-sm font-semibold text-white">
+										<h2 className="text-sm font-semibold text-[var(--text)]">
 											Readiness
 										</h2>
-										<p className="mt-0.5 text-xs text-white/45">
+										<p className="mt-0.5 text-xs text-[var(--text-muted)]">
 											Live launch requirements
 										</p>
 									</div>
-									<div className="text-2xl font-semibold tabular-nums text-white">
+									<div className="text-2xl font-semibold tabular-nums text-[var(--text)]">
 										{readyChecks}/{configChecks.length}
 									</div>
 								</div>
@@ -865,7 +865,7 @@ export default function AppsPage() {
 							</Panel>
 
 							<Panel className="p-5">
-								<h2 className="text-sm font-semibold text-white">
+								<h2 className="text-sm font-semibold text-[var(--text)]">
 									Connected resources
 								</h2>
 								<div className="mt-4 space-y-2">
@@ -901,7 +901,7 @@ export default function AppsPage() {
 							</Panel>
 
 							<Panel className="p-5">
-								<h2 className="text-sm font-semibold text-white">Infra mode</h2>
+								<h2 className="text-sm font-semibold text-[var(--text)]">Infra mode</h2>
 								<div className="mt-3 grid gap-2">
 									{(["hybrid", "detour_cloud", "external"] as const).map(
 										(mode) => (
@@ -913,8 +913,8 @@ export default function AppsPage() {
 												className={cn(
 													"min-h-10 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
 													form.infraMode === mode
-														? "border-purple-400/45 bg-purple-400/[0.08] text-white"
-														: "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.045]",
+														? "border-purple-400/45 bg-purple-400/[0.08] text-[var(--text)]"
+														: "border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-dim)] hover:bg-[var(--bg-elevated)]",
 												)}
 											>
 												{mode.replace("_", " ")}
@@ -955,11 +955,11 @@ export default function AppsPage() {
 
 function HeaderSignal({ label, value }: { label: string; value: ReactNode }) {
 	return (
-		<div className="min-w-20 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2">
-			<div className="text-[10px] uppercase tracking-widest text-white/35">
+		<div className="min-w-20 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2">
+			<div className="text-[10px] uppercase tracking-widest text-[var(--text-faint)]">
 				{label}
 			</div>
-			<div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+			<div className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--text)]">
 				{value}
 			</div>
 		</div>
@@ -968,11 +968,11 @@ function HeaderSignal({ label, value }: { label: string; value: ReactNode }) {
 
 function BlueprintRow({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2">
-			<div className="text-[10px] uppercase tracking-widest text-white/35">
+		<div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2">
+			<div className="text-[10px] uppercase tracking-widest text-[var(--text-faint)]">
 				{label}
 			</div>
-			<div className="mt-1 text-[12px] leading-relaxed text-white/70">
+			<div className="mt-1 text-[12px] leading-relaxed text-[var(--text-dim)]">
 				{value}
 			</div>
 		</div>
@@ -990,12 +990,12 @@ function CheckRow({
 }) {
 	return (
 		<div
-			className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2"
+			className="flex items-start justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2"
 			title={detail}
 		>
 			<span className="min-w-0">
-				<span className="block text-sm text-white/75">{label}</span>
-				<span className="block truncate text-xs text-white/40">{detail}</span>
+				<span className="block text-sm text-[var(--text)]">{label}</span>
+				<span className="block truncate text-xs text-[var(--text-muted)]">{detail}</span>
 			</span>
 			<Badge tone={ok ? "success" : "warning"}>{ok ? "ready" : "needs"}</Badge>
 		</div>
@@ -1012,12 +1012,12 @@ function ResourceRow({
 	value: string;
 }) {
 	return (
-		<div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-			<span className="flex min-w-0 items-center gap-2 text-sm text-white/75">
-				<span className="text-white/45">{icon}</span>
+		<div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2">
+			<span className="flex min-w-0 items-center gap-2 text-sm text-[var(--text)]">
+				<span className="text-[var(--text-muted)]">{icon}</span>
 				<span>{label}</span>
 			</span>
-			<span className="truncate text-xs text-white/40">{value}</span>
+			<span className="truncate text-xs text-[var(--text-muted)]">{value}</span>
 		</div>
 	);
 }

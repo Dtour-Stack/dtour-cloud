@@ -70,7 +70,7 @@ export default function DtourLandingPage() {
   const shadow = "0 2px 16px rgba(0,0,0,0.6)";
 
   return (
-    <div className="min-h-screen text-white" style={{ fontFamily: font }}>
+    <div className="landing-page min-h-screen text-[var(--text)]" style={{ fontFamily: font }}>
       {/* Video bg */}
       <div ref={bgRef} className="fixed inset-0 -z-10 overflow-hidden">
         <video autoPlay loop muted playsInline className="h-full w-full object-cover">
@@ -88,15 +88,15 @@ export default function DtourLandingPage() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <Link to="/token" className="text-sm text-white/60 hover:text-white transition-colors hidden md:block">
+          <Link to="/token" className="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition-colors hidden md:block">
             $DTOUR
           </Link>
-          <a href="https://docs.detour.ninja" target="_blank" rel="noopener noreferrer" className="text-sm text-white/60 hover:text-white transition-colors hidden md:block">
+          <a href="https://docs.detour.ninja" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition-colors hidden md:block">
             Docs
           </a>
           <Link
             to="/login"
-            className="rounded-full bg-white/10 px-5 py-2 text-sm font-medium border border-white/15 backdrop-blur-sm transition-all hover:bg-white/20"
+            className="rounded-full bg-[var(--btn-glass-bg)] px-5 py-2 text-sm font-medium border border-[var(--border)] backdrop-blur-sm transition-all hover:bg-[var(--btn-glass-bg)]"
           >
             Launch App
           </Link>
@@ -105,7 +105,7 @@ export default function DtourLandingPage() {
 
       {/* ─── Hero ─── */}
       <section className="relative z-10 flex min-h-[82vh] flex-col items-center justify-center px-6 text-center">
-        <div className="rounded-full border border-purple-500/30 bg-purple-500/10 px-4 py-1 text-[11px] font-medium uppercase tracking-widest text-purple-300 backdrop-blur-sm">
+        <div className="rounded-full border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-1 text-[11px] font-medium uppercase tracking-widest text-[var(--accent)] backdrop-blur-sm">
           Agent platform · Powered by elizaOS
         </div>
         <h1
@@ -118,26 +118,26 @@ export default function DtourLandingPage() {
             Everywhere.
           </span>
         </h1>
-        <p className="mt-5 max-w-xl text-base leading-relaxed text-white/70 md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--text)] md:text-lg" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
           Detour Cloud is the cross-platform agent runtime. Build autonomous AI
           agents on the open elizaOS framework, deploy them to any surface, and
           access them from anywhere — no infrastructure to manage.
         </p>
         <div className="mt-8 flex gap-3">
-          <Link to="/login" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 active:scale-[0.97]">
+          <Link to="/login" className="rounded-full bg-[var(--btn-primary-bg)] px-7 py-3 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:shadow-xl hover:shadow-[var(--shadow)] active:scale-[0.97]">
             Get Started
           </Link>
-          <Link to="/token" className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10 active:scale-[0.97]">
+          <Link to="/token" className="rounded-full border-[var(--border-bold)] bg-[var(--btn-glass-bg)] px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-[var(--btn-glass-bg)] active:scale-[0.97]">
             $DTOUR Token
           </Link>
         </div>
 
         {/* Powered by — real SVGs */}
         <div className="mt-10 flex items-center gap-3 opacity-60">
-          <span className="text-[11px] uppercase tracking-widest text-white/50">Powered by</span>
+          <span className="text-[11px] uppercase tracking-widest text-[var(--text-muted)]">Powered by</span>
           <img src="/brand/dtour/elizaos-face.png" alt="ElizaOS" className="h-5 w-5 rounded-[4px]" />
           <img src="/brand/dtour/elizaos-text.svg" alt="ElizaOS" className="h-3.5" />
-          <span className="text-white/30 mx-1">+</span>
+          <span className="text-[var(--text-faint)] mx-1">+</span>
           <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3.5" />
         </div>
       </section>
@@ -149,9 +149,9 @@ export default function DtourLandingPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             What You Can Build
           </h2>
-          <p className="mt-2 text-sm text-white/50">Autonomous agents for every workflow — deploy once, run anywhere.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Autonomous agents for every workflow — deploy once, run anywhere.</p>
         </div>
-        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-3">
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-[var(--border)] md:grid-cols-3">
           {[
             { title: "Chat & Support Agents", desc: "Build conversational AI agents for customer support, community moderation, and personal assistance. Multi-platform, full memory, 100+ plugins." },
             { title: "Coding & Dev Agents", desc: "Deploy agents that write code, review PRs, run tests, debug issues, and automate CI/CD tasks. Integrated with git repos and cloud sandboxes." },
@@ -160,9 +160,9 @@ export default function DtourLandingPage() {
             { title: "Workflow Automation", desc: "Compose agents into multi-step pipelines with branching, state management, conditionals, error handling, and human-in-the-loop checks." },
             { title: "Plugins & Custom MCP", desc: "100+ built-in plugins for blockchain, social media, data analysis, media generation, and code execution. Add custom tools via Model Context Protocol." },
           ].map((f) => (
-            <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
-              <h3 className="text-sm font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/45">{f.desc}</p>
+            <div key={f.title} className="bg-[var(--bg-glass)] p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--bg-glass)]">
+              <h3 className="text-sm font-semibold text-[var(--text)]">{f.title}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-muted)]">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -176,9 +176,9 @@ export default function DtourLandingPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             Everywhere You Need It
           </h2>
-          <p className="mt-2 text-sm text-white/50">Web, desktop, mobile, and API — one agent runtime across surfaces.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Web, desktop, mobile, and API — one agent runtime across surfaces.</p>
         </div>
-        <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-4">
+        <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--border)] md:grid-cols-4">
           {[
             { label: "Detour Cloud", sub: "Web dashboard" },
             { label: "macOS", sub: "Swoosh native app" },
@@ -189,9 +189,9 @@ export default function DtourLandingPage() {
             { label: "Twitter / X", sub: "Social connector" },
             { label: "REST API", sub: "Programmatic access" },
           ].map((d) => (
-            <div key={d.label} className="bg-black/30 p-5 text-center backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
-              <div className="text-sm font-semibold text-white">{d.label}</div>
-              <div className="mt-1 text-[11px] text-white/40">{d.sub}</div>
+            <div key={d.label} className="bg-[var(--bg-glass)] p-5 text-center backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--bg-glass)]">
+              <div className="text-sm font-semibold text-[var(--text)]">{d.label}</div>
+              <div className="mt-1 text-[11px] text-[var(--text-muted)]">{d.sub}</div>
             </div>
           ))}
         </div>
@@ -205,17 +205,17 @@ export default function DtourLandingPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             Swoosh — The Native Runtime
           </h2>
-          <p className="mt-2 text-sm text-white/50">Mac is the hub. iPhone is the remote. One agent, everywhere.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Mac is the hub. iPhone is the remote. One agent, everywhere.</p>
         </div>
-        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-3">
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-[var(--border)] md:grid-cols-3">
           {[
             { title: "Menu Bar Agent", desc: "Always-on AI in your Mac menu bar. Chat, query, automate — never leave your workflow." },
             { title: "iPhone Companion", desc: "Same brain, same memory. Thin HTTP client to your Mac. Full chat + settings on the go." },
             { title: "Local MLX Inference", desc: "Run models on Apple Silicon. Private, fast, zero API costs for local inference." },
           ].map((f) => (
-            <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
-              <h3 className="text-sm font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/45">{f.desc}</p>
+            <div key={f.title} className="bg-[var(--bg-glass)] p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--bg-glass)]">
+              <h3 className="text-sm font-semibold text-[var(--text)]">{f.title}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-muted)]">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -229,18 +229,18 @@ export default function DtourLandingPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             Why Detour Cloud
           </h2>
-          <p className="mt-2 text-sm text-white/50">Built differently so you can build freely.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Built differently so you can build freely.</p>
         </div>
-        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-4">
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-[var(--border)] md:grid-cols-4">
           {[
             { title: "Passkey-First Auth", desc: "Sign in with Face ID, Touch ID, or device PIN. No passwords. No crypto wallet required for the free tier." },
             { title: "Free to Start", desc: "Free tier with monthly compute credits. No credit card. Upgrade when you're ready, or stay free forever." },
             { title: "Open Ecosystem", desc: "Built on elizaOS — the leading open-source agent framework. 100+ plugins. MCP toolchains. No lock-in." },
             { title: "Your Data Stays Yours", desc: "Self-hosted infrastructure on DigitalOcean in Ashburn, VA. Encrypted at rest and in transit. Never trained on." },
           ].map((f) => (
-            <div key={f.title} className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
-              <h3 className="text-sm font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/45">{f.desc}</p>
+            <div key={f.title} className="bg-[var(--bg-glass)] p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--bg-glass)]">
+              <h3 className="text-sm font-semibold text-[var(--text)]">{f.title}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-muted)]">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -254,18 +254,18 @@ export default function DtourLandingPage() {
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ textShadow: shadow }}>
             Frequently Asked Questions
           </h2>
-          <p className="mt-2 text-sm text-white/50">Everything you need to know about Detour Cloud.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Everything you need to know about Detour Cloud.</p>
         </div>
-        <div className="mt-10 space-y-px overflow-hidden rounded-2xl border border-white/10">
+        <div className="mt-10 space-y-px overflow-hidden rounded-2xl border border-[var(--border)]">
           {FAQ_DATA.map((faq) => (
-            <details key={faq.q} className="group bg-black/30 backdrop-blur-md transition-all hover:bg-black/40">
-              <summary className="flex cursor-pointer items-center justify-between px-6 py-4 text-sm font-semibold text-white transition-colors hover:text-purple-300 [&::-webkit-details-marker]:hidden">
+            <details key={faq.q} className="group bg-[var(--bg-glass)] backdrop-blur-md transition-all hover:bg-[var(--bg-glass)]">
+              <summary className="flex cursor-pointer items-center justify-between px-6 py-4 text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--accent)] [&::-webkit-details-marker]:hidden">
                 {faq.q}
-                <svg className="ml-2 h-4 w-4 shrink-0 text-white/40 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="ml-2 h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </summary>
-              <div className="border-t border-white/[0.06] px-6 py-4 text-[13px] leading-relaxed text-white/50">
+              <div className="border-t border-[var(--border)] px-6 py-4 text-[13px] leading-relaxed text-[var(--text-muted)]">
                 {faq.a}
               </div>
             </details>
@@ -278,31 +278,31 @@ export default function DtourLandingPage() {
       <ScrollSection delay={100}>
       <section className="relative z-10 mx-auto max-w-md px-6 pb-24 text-center">
         <h2 className="text-xl font-bold" style={{ textShadow: shadow }}>Ready?</h2>
-        <p className="mt-2 text-sm text-white/50">Sign up and launch your first agent in minutes.</p>
-        <Link to="/login" className="mt-5 inline-block rounded-full bg-white px-8 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 active:scale-[0.97]">
+        <p className="mt-2 text-sm text-[var(--text-muted)]">Sign up and launch your first agent in minutes.</p>
+        <Link to="/login" className="mt-5 inline-block rounded-full bg-[var(--btn-primary-bg)] px-8 py-3 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:shadow-xl hover:shadow-[var(--shadow)] active:scale-[0.97]">
           Launch App →
         </Link>
       </section>
       </ScrollSection>
 
       {/* ─── Footer ─── */}
-      <footer className="relative z-10 border-t border-white/[0.08] bg-black/40 px-6 py-6 backdrop-blur-sm">
+      <footer className="relative z-10 border-t border-[var(--border)] bg-[var(--bg-alt)] px-6 py-6 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 md:flex-row md:justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/brand/dtour/logo.svg" alt="Detour Cloud" className="logo-cloud h-5 w-5 opacity-50" />
-            <span className="text-xs text-white/40">detour.ninja</span>
+            <span className="text-xs text-[var(--text-muted)]">detour.ninja</span>
           </div>
           <div className="flex items-center gap-2.5">
-            <span className="text-[10px] uppercase tracking-widest text-white/30">Powered by</span>
+            <span className="text-[10px] uppercase tracking-widest text-[var(--text-faint)]">Powered by</span>
             <img src="/brand/dtour/elizaos-face.png" alt="" className="h-4 w-4 rounded-[3px] opacity-60" />
             <img src="/brand/dtour/elizaos-text.svg" alt="ElizaOS" className="h-3 opacity-50" />
-            <span className="text-white/20">·</span>
+            <span className="text-[var(--text-faint)]">·</span>
             <img src="/brand/dtour/elizacloud-text.svg" alt="ElizaCloud" className="h-3 opacity-50" />
           </div>
-          <div className="flex gap-4 text-[11px] text-white/35">
-            <Link to="/token" className="hover:text-white/60 transition-colors">$DTOUR</Link>
-            <Link to="/terms-of-service" className="hover:text-white/60 transition-colors">Terms</Link>
-            <Link to="/privacy-policy" className="hover:text-white/60 transition-colors">Privacy</Link>
+          <div className="flex gap-4 text-[11px] text-[var(--text-faint)]">
+            <Link to="/token" className="hover:text-[var(--text-dim)] transition-colors">$DTOUR</Link>
+            <Link to="/terms-of-service" className="hover:text-[var(--text-dim)] transition-colors">Terms</Link>
+            <Link to="/privacy-policy" className="hover:text-[var(--text-dim)] transition-colors">Privacy</Link>
           </div>
         </div>
       </footer>

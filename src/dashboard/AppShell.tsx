@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "@/providers/ThemeProvider";
 import {
   DTOUR_TEST_SESSION_TOKEN,
   readDtourPlaywrightUser,
@@ -62,6 +63,7 @@ export function AppShell({
   sidebar?: (o: { collapsed: boolean; closeMobile: () => void }) => ReactNode;
 }) {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const testUser = readDtourPlaywrightUser();
   const token = testUser ? DTOUR_TEST_SESSION_TOKEN : getDtourSessionToken();
   const meQuery = useQuery(anyApi.users.me, token && !testUser ? { token } : "skip") as Me;
@@ -152,8 +154,8 @@ export function AppShell({
     cn(
       "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
       isActive
-        ? "bg-white/10 text-white"
-        : "text-white/60 hover:bg-white/5 hover:text-white",
+        ? "bg-[var(--btn-glass-bg)] text-[var(--text)]"
+        : "text-[var(--text-dim)] hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)]",
     );
   const label = (text: string) => (
     <span className={cn(!navOpen && "md:hidden")}>{text}</span>
@@ -161,10 +163,10 @@ export function AppShell({
   const closeMobile = () => setMobileNavOpen(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
       <a
         href="#main"
-        className="sr-only z-50 rounded-md bg-white px-4 py-2 text-sm font-medium text-black focus:not-sr-only focus:absolute focus:left-4 focus:top-3"
+        className="sr-only z-50 rounded-md bg-[var(--btn-primary-bg)] px-4 py-2 text-sm font-medium text-[var(--btn-primary-text)] focus:not-sr-only focus:absolute focus:left-4 focus:top-3"
       >
         Skip to content
       </a>
@@ -174,19 +176,19 @@ export function AppShell({
           type="button"
           aria-label="Close navigation"
           onClick={closeMobile}
-          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[1px] md:hidden"
+          className="fixed inset-0 z-30 bg-[var(--bg-overlay)] backdrop-blur-[1px] md:hidden"
         />
       )}
 
       <aside
         className={cn(
-          "flex shrink-0 flex-col border-r border-white/10 bg-black/40 transition-all duration-200",
+          "flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-alt)] transition-all duration-200",
           "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-60",
           mobileNavOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
           navOpen ? "md:w-60" : "md:w-16",
         )}
       >
-          <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
+          <div className="flex h-14 items-center gap-2 border-b border-[var(--border)] px-3">
           <img src="/brand/dtour/logo.svg" alt="Dtour" className="logo-cloud h-7 w-7 shrink-0" />
           <span className={cn("truncate text-sm font-semibold tracking-tight", !navOpen && "md:hidden")}>
             Detour Cloud
@@ -260,7 +262,7 @@ export function AppShell({
                     <div key={g} className="pt-2">
                       <p
                         className={cn(
-                          "px-2.5 pb-1 text-[11px] uppercase tracking-wider text-white/40",
+                          "px-2.5 pb-1 text-[11px] uppercase tracking-wider text-[var(--text-muted)]",
                           !navOpen && "md:hidden",
                         )}
                       >
@@ -277,11 +279,11 @@ export function AppShell({
           </nav>
         )}
 
-        <div className="border-t border-white/10 p-2">
+        <div className="border-t border-[var(--border)] p-2">
           <button
             type="button"
             onClick={signOut}
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-[var(--text-dim)] transition hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
           >
             <Icon.LogOut />
             {label("Sign out")}
@@ -290,7 +292,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4 md:px-5">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-4 md:px-5">
           <div className="flex items-center gap-2">
             <IconButton label="Open navigation" onClick={() => setMobileNavOpen(true)} className="md:hidden">
               <Icon.PanelLeft />
@@ -298,9 +300,25 @@ export function AppShell({
             <ContextSwitcher context={context} role={me?.role} flags={flags} />
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-white/60 sm:inline">
+            <span className="hidden text-sm text-[var(--text-dim)] sm:inline">
               {greeting()}{me?.username ? ` @${me.username}` : ""}
             </span>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-dim)] transition hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              {theme === "dark" ? (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
             <div className="relative">
               <IconButton
                 ref={panelTriggerRef}
@@ -311,7 +329,7 @@ export function AppShell({
                 <Icon.PanelRight />
               </IconButton>
               {!!unread && unread > 0 && (
-                <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-purple-500 px-1 text-[10px] font-semibold leading-none text-white">
+                <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-purple-500 px-1 text-[10px] font-semibold leading-none text-[var(--text)]">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
@@ -341,19 +359,19 @@ export function AppShell({
           type="button"
           aria-label="Close panel"
           onClick={() => setPanelOpen(false)}
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px]"
+          className="fixed inset-0 z-30 bg-[var(--bg-alt)] backdrop-blur-[1px]"
         />
       )}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-40 flex h-full w-80 max-w-[88vw] flex-col border-l border-white/10 bg-[#0d0d0d] shadow-2xl transition-transform duration-200",
+          "fixed right-0 top-0 z-40 flex h-full w-80 max-w-[88vw] flex-col border-l border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl transition-transform duration-200",
           panelOpen ? "translate-x-0" : "translate-x-full",
         )}
         aria-hidden={!panelOpen}
         aria-label="Detail panel"
       >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
-          <span className="text-sm font-medium text-white/80">Inbox</span>
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
+          <span className="text-sm font-medium text-[var(--text)]">Inbox</span>
           <IconButton ref={panelCloseRef} label="Close panel" onClick={() => setPanelOpen(false)}>
             <Icon.X />
           </IconButton>
@@ -443,7 +461,7 @@ function ContextSwitcher({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] text-white/85 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+        className="flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--btn-glass-bg)] px-3 py-1.5 text-[13px] text-[var(--text)] transition hover:bg-[var(--btn-glass-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
       >
         {current.icon}
         <span>{current.label}</span>
@@ -460,7 +478,7 @@ function ContextSwitcher({
       {open && (
         <div
           role="menu"
-          className="absolute left-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#111] p-1 shadow-2xl"
+          className="absolute left-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-2xl"
         >
           {items.map((i) => (
             <button
@@ -474,8 +492,8 @@ function ContextSwitcher({
               className={cn(
                 "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition",
                 i.key === current.key
-                  ? "bg-white/10 text-white"
-                  : "text-white/70 hover:bg-white/5 hover:text-white",
+        ? "bg-[var(--btn-glass-bg)] text-[var(--text)]"
+                  : "text-[var(--text-dim)] hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)]",
               )}
             >
               {i.icon}

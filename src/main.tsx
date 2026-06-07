@@ -8,6 +8,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "@/App";
 import { convex } from "@/lib/convex";
 import { StewardProvider } from "@/providers/StewardProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 import "@/lib/easter-eggs";
 import { trackKonamiCode, trackScenicChord } from "@/lib/easter-eggs";
 
@@ -31,12 +32,14 @@ if (!rootEl) throw new Error("#root element not found");
 
 createRoot(rootEl).render(
   <StrictMode>
-    <ConvexProvider client={convex}>
-      <BrowserRouter>
-        <StewardProvider>
-          <App />
-        </StewardProvider>
-      </BrowserRouter>
-    </ConvexProvider>
+    <ThemeProvider>
+      <ConvexProvider client={convex}>
+        <BrowserRouter>
+          <StewardProvider>
+            <App />
+          </StewardProvider>
+        </BrowserRouter>
+      </ConvexProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

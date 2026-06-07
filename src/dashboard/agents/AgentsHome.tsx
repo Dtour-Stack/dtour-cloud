@@ -27,7 +27,7 @@ type Agent = {
 };
 
 const field =
-  "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-purple-400/50 focus:outline-none";
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--btn-glass-bg)] px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-faint)] focus:border-purple-400/50 focus:outline-none";
 
 export function AgentsHome() {
   const navigate = useNavigate();
@@ -126,7 +126,7 @@ export function AgentsHome() {
       <header className="fade-up flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
-          <p className="mt-1 text-[13px] text-white/45">
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">
             Lightweight agents run on-demand while you're online — no container needed.
           </p>
         </div>
@@ -148,7 +148,7 @@ export function AgentsHome() {
             description="A persona + model. Chat runs through ElizaCloud while you're online."
           />
           <div className="mt-4 rounded-xl border border-violet-400/20 bg-violet-400/[0.04] p-3">
-            <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-white/70">
+            <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-dim)]">
               <Icon.Sparkles size={13} /> Generate with AI
             </span>
             <div className="flex gap-2">
@@ -169,7 +169,7 @@ export function AgentsHome() {
               </Button>
             </div>
             {genError && <p className="mt-1.5 text-[11px] text-red-400/90">{genError}</p>}
-            <p className="mt-1.5 text-[11px] text-white/35">
+            <p className="mt-1.5 text-[11px] text-[var(--text-faint)]">
               Fills the fields below — review and edit before creating.
             </p>
           </div>
@@ -184,7 +184,7 @@ export function AgentsHome() {
               className={field}
             />
             <div>
-              <label htmlFor="agent-model" className="mb-1.5 block text-[12px] font-medium text-white/55">
+              <label htmlFor="agent-model" className="mb-1.5 block text-[12px] font-medium text-[var(--text-dim)]">
                 Model
               </label>
               <select id="agent-model" value={model} onChange={(e) => setModel(e.target.value)} className={field}>
@@ -207,7 +207,7 @@ export function AgentsHome() {
                   </optgroup>
                 )}
               </select>
-              <p className="mt-1.5 text-[11px] text-white/35">
+              <p className="mt-1.5 text-[11px] text-[var(--text-faint)]">
                 {model === "freetour" ? (
                   <>
                     Routes to free models — no credits used, but rate-limited, so replies may be slower or
@@ -220,8 +220,8 @@ export function AgentsHome() {
               </p>
             </div>
             <div>
-              <div className="mb-1.5 text-[12px] font-medium text-white/55">
-                Plugins {plugins.length > 0 && <span className="text-white/35">· {plugins.length} attached</span>}
+              <div className="mb-1.5 text-[12px] font-medium text-[var(--text-dim)]">
+                Plugins {plugins.length > 0 && <span className="text-[var(--text-faint)]">· {plugins.length} attached</span>}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {ELIZA_PLUGINS.map((p) => {
@@ -233,8 +233,8 @@ export function AgentsHome() {
                       onClick={() => togglePlugin(p)}
                       className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
                         on
-                          ? "border-violet-400/50 bg-violet-400/10 text-white"
-                          : "border-white/10 text-white/55 hover:bg-white/5 hover:text-white"
+                          ? "border-violet-400/50 bg-violet-400/10 text-[var(--text)]"
+                          : "border-[var(--border)] text-[var(--text-dim)] hover:bg-[var(--btn-glass-bg)] hover:text-[var(--text)]"
                       }`}
                     >
                       {p.replace(/^plugin-/, "")}
@@ -242,7 +242,7 @@ export function AgentsHome() {
                   );
                 })}
               </div>
-              <p className="mt-1.5 text-[11px] text-white/35">
+              <p className="mt-1.5 text-[11px] text-[var(--text-faint)]">
                 Attach capabilities — connectors (Discord, X, Telegram), tools (web search, browser),
                 media, chains. Wire several together.
               </p>
@@ -282,14 +282,14 @@ export function AgentsHome() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <Icon.Bot size={16} />
-                  <span className="truncate font-medium text-white">{a.name}</span>
+                  <span className="truncate font-medium text-[var(--text)]">{a.name}</span>
                 </div>
                 <IconButton label={`Delete ${a.name}`} onClick={() => token && removeAgent({ token, id: a.id })}>
                   <Icon.Trash size={14} />
                 </IconButton>
               </div>
               {a.description && (
-                <p className="mt-1 line-clamp-2 text-[13px] text-white/45">{a.description}</p>
+                <p className="mt-1 line-clamp-2 text-[13px] text-[var(--text-muted)]">{a.description}</p>
               )}
               <div className="mt-4 flex items-center justify-between">
                 <Badge tone="neutral">{a.model === "auto" ? "Auto" : a.model === "freetour" ? "Free" : a.model}</Badge>
@@ -369,14 +369,14 @@ function ConnectCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+      className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-left transition hover:border-[var(--border-bold)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
     >
-      <div className="flex items-center gap-2 text-white/45">
+      <div className="flex items-center gap-2 text-[var(--text-muted)]">
         {icon}
         <span className="text-[10px] uppercase tracking-widest">{label}</span>
       </div>
-      <p className="mt-2 text-sm font-medium text-white/80">{title}</p>
-      <p className="mt-1 text-[12px] text-white/40">{desc}</p>
+      <p className="mt-2 text-sm font-medium text-[var(--text)]">{title}</p>
+      <p className="mt-1 text-[12px] text-[var(--text-muted)]">{desc}</p>
       <span className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-purple-200">
         {actionLabel} <Icon.ArrowUpRight size={13} />
       </span>

@@ -70,7 +70,7 @@ export function InboxPanel() {
           <button
             type="button"
             onClick={() => Notification.requestPermission().then(setPerm)}
-            className="text-xs text-white/50 underline-offset-2 hover:text-white hover:underline"
+            className="text-xs text-[var(--text-muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
           >
             Enable notifications
           </button>
@@ -79,7 +79,7 @@ export function InboxPanel() {
           <button
             type="button"
             onClick={() => markAllRead({ token })}
-            className="text-xs text-white/50 hover:text-white"
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
           >
             Mark all read
           </button>
@@ -107,22 +107,22 @@ export function InboxPanel() {
                 className={cn(
                   "w-full rounded-lg border p-3 text-left transition",
                   m.read
-                    ? "border-white/[0.08] bg-transparent"
+                    ? "border-[var(--border)] bg-transparent"
                     : "border-purple-400/20 bg-purple-400/5 hover:bg-purple-400/10",
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-white/90">
+                  <span className="text-sm font-medium text-[var(--text)]">
                     {m.subject ?? "Message"}
                   </span>
                   {!m.read && (
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400" />
                   )}
                 </div>
-                <p className="mt-1 text-[13px] leading-relaxed text-white/55">
+                <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-dim)]">
                   {m.body}
                 </p>
-                <span className="mt-1 block text-[10px] text-white/30">
+                <span className="mt-1 block text-[10px] text-[var(--text-faint)]">
                   {new Date(m.at).toLocaleString()}
                 </span>
               </button>

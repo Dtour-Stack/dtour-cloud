@@ -75,7 +75,7 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
       content: (
         <div className="space-y-2">
           <p>You agree not to:</p>
-          <ul className="list-inside list-disc space-y-1 text-sm text-white/50">
+          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--text-muted)]">
             <li>Use the platform for any illegal activity</li>
             <li>Attempt to bypass rate limits, authentication, or billing</li>
             <li>Deploy agents that violate applicable laws</li>
@@ -174,7 +174,7 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
       content: (
         <div className="space-y-2">
           <p>We collect information you provide directly:</p>
-          <ul className="list-inside list-disc space-y-1 text-sm text-white/50">
+          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--text-muted)]">
             <li>Email address (for account recovery and updates)</li>
             <li>Username (displayed publicly within the platform)</li>
             <li>Solana wallet address (for $DTOUR verification, optional)</li>
@@ -193,7 +193,7 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
       content: (
         <div className="space-y-2">
           <p>We use your information to:</p>
-          <ul className="list-inside list-disc space-y-1 text-sm text-white/50">
+          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--text-muted)]">
             <li>Operate and maintain the platform</li>
             <li>Authenticate your identity</li>
             <li>Process billing and determine tier access</li>
@@ -228,7 +228,7 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
       content: (
         <div className="space-y-2">
           <p>We do not sell your personal data. We share data only with:</p>
-          <ul className="list-inside list-disc space-y-1 text-sm text-white/50">
+          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--text-muted)]">
             <li>ElizaCloud (agent execution infrastructure — necessary for service operation)</li>
             <li>E2B (coding sandbox provider)</li>
             <li>DigitalOcean (hosting infrastructure)</li>
@@ -253,7 +253,7 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
       content: (
         <div className="space-y-2">
           <p>Depending on your jurisdiction, you may have the right to:</p>
-          <ul className="list-inside list-disc space-y-1 text-sm text-white/50">
+          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--text-muted)]">
             <li>Access the personal data we hold about you</li>
             <li>Request correction or deletion</li>
             <li>Object to or restrict processing</li>
@@ -305,7 +305,7 @@ export default function LegalPage() {
       : "Last updated: June 7, 2026";
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="public-page min-h-screen bg-black text-[var(--text)]">
       <div
         className="fixed inset-0 -z-10"
         style={{
@@ -322,7 +322,7 @@ export default function LegalPage() {
         </Link>
         <Link
           to="/"
-          className="rounded-full border border-white/20 bg-white/5 px-4 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/10"
+          className="rounded-full border border-[var(--border-bold)] bg-[var(--btn-glass-bg)] px-4 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-[var(--btn-glass-bg)]"
         >
           Back
         </Link>
@@ -330,8 +330,8 @@ export default function LegalPage() {
 
       <main className="relative z-10 mx-auto max-w-3xl px-6 py-10 md:py-16">
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        <p className="mt-1 text-sm text-white/40">{subtitle}</p>
-        <p className="mt-2 text-sm text-white/50">
+        <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           {page === "terms"
             ? "These terms govern your use of Detour Cloud. By signing in, you agree to them."
             : "How we collect, use, and protect your data when you use Detour Cloud."}
@@ -340,16 +340,16 @@ export default function LegalPage() {
         <div className="mt-10 space-y-8">
           {sections.map((s) => (
             <section key={s.title}>
-              <h2 className="text-base font-semibold text-white">{s.title}</h2>
-              <div className="mt-2 text-sm leading-relaxed text-white/50">
+              <h2 className="text-base font-semibold text-[var(--text)]">{s.title}</h2>
+              <div className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
                 {s.content}
               </div>
             </section>
           ))}
         </div>
 
-        <div className="mt-12 border-t border-white/10 pt-6 text-center">
-          <p className="text-xs text-white/30">
+        <div className="mt-12 border-t border-[var(--border)] pt-6 text-center">
+          <p className="text-xs text-[var(--text-faint)]">
             Questions?{" "}
             <a href="mailto:support@detour.ninja" className="text-purple-300 hover:text-purple-200 underline">
               support@detour.ninja
