@@ -149,8 +149,9 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
       title: "11. Governing Law",
       content: (
         <p>
-          These terms are governed by the laws of Singapore. Any disputes
-          shall be resolved in the courts of Singapore.
+          These terms are governed by the laws of the State of Delaware,
+          United States. Any disputes shall be resolved in the courts of
+          Delaware.
         </p>
       ),
     },
@@ -209,9 +210,9 @@ const SECTIONS: Record<string, { title: string; content: ReactNode }[]> = {
         <div className="space-y-2">
           <p>
             Your data is stored on self-hosted Convex infrastructure (PostgreSQL
-            + document store) running on DigitalOcean droplets in Singapore.
-            We use industry-standard encryption in transit (TLS) and at rest.
-            Passkey credentials are stored as public keys only — we never
+            + document store) running on DigitalOcean droplets in the United
+            States. We use industry-standard encryption in transit (TLS) and at
+            rest. Passkey credentials are stored as public keys only — we never
             receive or store your biometric data.
           </p>
           <p>
@@ -300,8 +301,8 @@ export default function LegalPage() {
   const title = page === "terms" ? "Terms of Service" : "Privacy Policy";
   const subtitle =
     page === "terms"
-      ? "Last updated: June 2026"
-      : "Last updated: June 2026";
+      ? "Last updated: June 7, 2026"
+      : "Last updated: June 7, 2026";
 
   return (
     <div className="min-h-screen bg-black text-white">
