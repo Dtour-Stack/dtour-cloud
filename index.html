@@ -18,8 +18,13 @@
       content="Build, deploy, and run autonomous AI agents from your browser, Mac, or iPhone. Detour Cloud is the white-label dashboard for ElizaOS Cloud — passkey login, $DTOUR holder tiers, and zero infrastructure management."
     />
     <link rel="canonical" href="https://detour.ninja/" />
-    <meta name="robots" content="index, follow" />
-    <meta name="keywords" content="AI agents, elizaOS, autonomous agents, agent cloud, Solana, $DTOUR, AI deployment, agent hosting, ElizaCloud" />
+    <link rel="author" href="/humans.txt" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="keywords" content="AI agents, elizaOS, autonomous agents, agent cloud, Solana, $DTOUR, AI deployment, agent hosting, ElizaCloud, WebAuthn passkey, AI agent platform, agent infrastructure, decentralized AI" />
+    <meta name="application-name" content="Detour Cloud" />
+    <meta name="apple-mobile-web-app-title" content="Detour" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -51,24 +56,126 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Detour Cloud",
-      "applicationCategory": "DeveloperApplication",
-      "operatingSystem": "Web, macOS, iOS",
-      "description": "Build, deploy, and run autonomous AI agents powered by elizaOS. White-label dashboard with passkey auth and $DTOUR holder tiers.",
-      "url": "https://detour.ninja",
-      "sameAs": [
-        "https://x.com/detour_squirrel"
-      ],
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "author": {
-        "@type": "Organization",
-        "name": "Detour Cloud"
-      }
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://detour.ninja/#website",
+          "url": "https://detour.ninja",
+          "name": "Detour Cloud",
+          "description": "Build, deploy, and run autonomous AI agents powered by elizaOS. Passkey login, $DTOUR holder tiers, zero infrastructure.",
+          "publisher": { "@id": "https://detour.ninja/#organization" },
+          "inLanguage": "en-US",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://detour.ninja/?s={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://detour.ninja/#organization",
+          "name": "Detour Cloud",
+          "url": "https://detour.ninja",
+          "logo": "https://detour.ninja/brand/dtour/logo.svg",
+          "sameAs": ["https://x.com/detour_squirrel"],
+          "foundingDate": "2025",
+          "legalName": "Detour Cloud",
+          "slogan": "Your AI Agents. Everywhere."
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://detour.ninja/#softwareapplication",
+          "name": "Detour Cloud",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "Web, macOS, iOS",
+          "description": "Build, deploy, and run autonomous AI agents powered by elizaOS. White-label dashboard with passkey auth and $DTOUR holder tiers.",
+          "url": "https://detour.ninja",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "priceValidUntil": "2027-06-07"
+          },
+          "author": { "@id": "https://detour.ninja/#organization" }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "@id": "https://detour.ninja/#breadcrumb",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://detour.ninja/" }
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://detour.ninja/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Detour Cloud?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Detour Cloud is a white-label cloud platform for building, deploying, and running autonomous AI agents powered by elizaOS. It provides a custom dashboard with passkey authentication (Face ID, Touch ID) and optional Solana wallet login for $DTOUR token holder perks."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do I need $DTOUR to use Detour Cloud?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. A free tier is available with capped monthly compute credits. $DTOUR is optional and unlocks holder tier perks like discounted coding sandboxes and inference rates."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does authentication work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Detour Cloud uses WebAuthn passkeys (Face ID, Touch ID, device PIN) as the primary sign-in method. Solana wallet SIWS (Sign In With Solana) is available as an optional secondary method for $DTOUR holders."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Where is my data stored?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Your data is stored on self-hosted Convex infrastructure (PostgreSQL + document store) running on DigitalOcean droplets in Ashburn, Virginia, United States. Data is encrypted in transit (TLS) and at rest."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is the $DTOUR token?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "$DTOUR (mint: DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy) is a Solana SPL holder token for Detour Cloud. It has a supply of 1 billion and launched on Pump.fun. Holding 1M+ $DTOUR unlocks Scout tier and 5M+ unlocks Operator tier with discounted rates."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What can I build with Detour Cloud?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You can build autonomous AI agents for chat, design, and coding workflows with the full elizaOS ecosystem — plugins, tools, skills, MCP support, and containerized deployments."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is there a native desktop app?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Swoosh is the native macOS runtime with a menu bar agent, iPhone companion app, and local MLX inference on Apple Silicon for private, fast, zero-cost on-device AI."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How is Detour Cloud priced?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Detour Cloud uses a flat 20% markup over ElizaCloud's base infrastructure pricing. A free tier with capped monthly compute credits is available. $DTOUR holders get discounted rates on coding sandboxes and inference."
+              }
+            }
+          ]
+        }
+      ]
     }
     </script>
   </head>

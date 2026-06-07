@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { spawnAmbientParticles } from "@/lib/ambient-particles";
 import { useCountUp } from "@/lib/useCountUp";
+import { setPageMeta } from "@/lib/pageMeta";
 
 const DTOUR_MINT = "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy";
 
@@ -10,6 +11,15 @@ export default function DtourTokenPage() {
   const shadow = "0 2px 16px rgba(0,0,0,0.6)";
   const supplyCount = useCountUp(1_000_000_000, 1500);
   const bgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPageMeta({
+      title: "$DTOUR Token — Detour Cloud Holder Token on Solana",
+      description: "$DTOUR (DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy) is the Detour Cloud Solana SPL holder token. 1B supply, Pump.fun launch. Hold 1M+ for Scout tier perks and discounted coding sandbox rates.",
+      ogTitle: "$DTOUR — Solana SPL Holder Token for Detour Cloud",
+      ogDescription: "The $DTOUR token unlocks holder tier perks on Detour Cloud. Solana SPL, 1B supply, Scout at 1M, Operator at 5M.",
+    });
+  }, []);
 
   useEffect(() => {
     const el = bgRef.current;
@@ -31,7 +41,7 @@ export default function DtourTokenPage() {
       {/* ─── Nav ─── */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/brand/dtour/logo.svg" alt="Detour" className="logo-cloud h-9 w-9 drop-shadow-lg" />
+          <img src="/brand/dtour/logo.svg" alt="Detour Cloud logo" className="logo-cloud h-9 w-9 drop-shadow-lg" />
           <span className="text-base font-semibold tracking-tight drop-shadow-lg">Detour</span>
         </Link>
         <div className="flex items-center gap-4">

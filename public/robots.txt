@@ -1,3 +1,22 @@
+# Allow all well-behaved crawlers
 User-agent: *
 Allow: /
+Disallow: /api/
 Sitemap: https://detour.ninja/sitemap.xml
+
+# Respect LLM crawler rate limits
+User-agent: GPTBot
+Allow: /
+Crawl-delay: 10
+
+User-agent: Google-Extended
+Allow: /
+Crawl-delay: 5
+
+User-agent: Claude-Web
+Allow: /
+Crawl-delay: 5
+
+User-agent: PerplexityBot
+Allow: /
+Crawl-delay: 5

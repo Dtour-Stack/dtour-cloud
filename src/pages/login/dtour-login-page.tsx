@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { spawnAmbientParticles } from "@/lib/ambient-particles";
 import { trackKonamiCode, trackSquirrelClick } from "@/lib/easter-eggs";
+import { setPageMeta } from "@/lib/pageMeta";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 import { DtourGate } from "./dtour-gate";
 import { PasskeySection } from "./PasskeySection";
@@ -9,6 +10,13 @@ import { PasskeySection } from "./PasskeySection";
 export default function DtourLoginPage() {
   const [method, setMethod] = useState<"pick" | "passkey" | "wallet">("pick");
   const bgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPageMeta({
+      title: "Sign In — Detour Cloud",
+      description: "Sign in to Detour Cloud with your passkey (Face ID, Touch ID) or connect your Solana wallet. Free tier available — no cryptocurrency required.",
+    });
+  }, []);
 
   useEffect(() => {
     const el = bgRef.current;
@@ -50,7 +58,7 @@ export default function DtourLoginPage() {
               <div className="space-y-3 text-center">
                 <img
                   src="/brand/dtour/logo.svg"
-                  alt="Dtour"
+                  alt="Detour Cloud logo"
                   className="logo-cloud mx-auto h-16 w-16"
                 />
                 <h1 className="font-poppins text-2xl font-semibold text-white">

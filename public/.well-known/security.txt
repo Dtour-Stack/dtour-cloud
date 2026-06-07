@@ -1,0 +1,4 @@
+Contact: mailto:support@detour.ninja
+Expires: 2027-06-07T00:00:00Z
+Preferred-Languages: en
+Canonical: https://detour.ninja/.well-known/security.txt

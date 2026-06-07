@@ -1,0 +1,20 @@
+/* TEAM */
+Detour Cloud
+Built with autonomy, caffeine, and misplaced acorns.
+
+/* SITE */
+Domain: detour.ninja
+Stack: Vite 8 · React 19 · Tailwind v4 · Convex · elizaOS
+Infrastructure: DigitalOcean — Ashburn, Virginia
+Design: Dark glass · Violet gradients · Ninja squirrel
+Voice: Taking the scenic route
+
+/* THANKS */
+elizaOS — https://elizaos.ai
+ElizaCloud — https://elizacloud.ai
+Convex — https://convex.dev
+Solana — https://solana.com
+DigitalOcean — https://digitalocean.com
+
+/* COLOPHON */
+First deploy: unknown. The squirrel was already there.

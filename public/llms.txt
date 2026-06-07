@@ -1,0 +1,32 @@
+# Detour Cloud
+> Build, deploy, and run autonomous AI agents. Passkey login. $DTOUR holder tiers. Zero infrastructure management.
+
+## Core Pages
+- [Landing](https://detour.ninja/): AI agent cloud platform — WebAuthn passkey auth, Solana SIWS wallet login, $DTOUR holder token tiers (Scout 1M, Operator 5M)
+- [$DTOUR Token](https://detour.ninja/token): Solana SPL holder token (mint DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy) for Detour Cloud — 1B supply, Pump.fun launch
+- [Login](https://detour.ninja/login): Sign in with passkey (Face ID, Touch ID) or connect Solana wallet
+- [Terms of Service](https://detour.ninja/terms-of-service): Delaware law, 12 sections covering accounts, $DTOUR, free tier, billing
+- [Privacy Policy](https://detour.ninja/privacy-policy): Data stored in Ashburn, VA (DigitalOcean), no tracking cookies, GDPR-style rights
+
+## Key Facts
+- Detour Cloud is a white-label reseller of ElizaOS Cloud at a flat 20% markup
+- Auth uses WebAuthn passkeys (Face ID, Touch ID, device PIN) as primary, Solana wallet SIWS as secondary
+- Free tier available with capped monthly compute credits
+- $DTOUR token thresholds: Scout (1M), Operator (5M) — hold to unlock perks & discounts
+- Infrastructure: DigitalOcean droplets in Ashburn, Virginia, USA
+- Self-hosted Convex backend (PostgreSQL + document store)
+- Framework: elizaOS (autonomous agent runtime)
+- Token mint: DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy (Solana SPL)
+- Brand: dark glass design, ninja squirrel mascot, "taking the scenic route"
+
+## Technical Stack
+- Frontend: Vite 8 + React 19 + Tailwind v4 + react-router-dom 7
+- Auth: @simplewebauthn (WebAuthn), SIWS (Solana wallet)
+- Backend: Convex (self-hosted, PostgreSQL)
+- Agent Runtime: elizaOS via ElizaCloud
+- Token: Solana SPL ($DTOUR)
+- Hosting: DigitalOcean (Ashburn, VA)
+- Domain: detour.ninja
+
+## Social
+- X: @detour_squirrel

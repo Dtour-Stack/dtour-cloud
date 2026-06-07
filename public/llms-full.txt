@@ -1,0 +1,74 @@
+# Detour Cloud — Full Documentation for LLMs
+
+## Overview
+Detour Cloud is a white-label reseller of ElizaOS Cloud infrastructure. We provide a completely custom dashboard/frontend for building, deploying, and running autonomous AI agents. The backend "plumbing" is vendored from the elizaOS monorepo and proxied to ElizaCloud's deployed infra (agent execution, gateways, containers). Our own data and auth live in self-hosted Convex (PostgreSQL) on DigitalOcean in Ashburn, Virginia.
+
+**Domain:** https://detour.ninja
+**Brand voice:** "taking the scenic route"
+**Mascot:** Ninja squirrel
+**Design system:** Dark glass, violet-to-indigo-to-blue accent gradients, white-pill actions, Inter font
+**Token:** $DTOUR (Solana SPL — DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy)
+
+## Pricing Model
+- Flat 20% markup over ElizaCloud's base infrastructure pricing
+- Free tier: capped monthly compute credits
+- Holder rate: $DTOUR holders get discounted rates on coding sandboxes and inference
+
+## Authentication
+### Primary: WebAuthn Passkeys
+- Face ID, Touch ID, device PIN
+- No crypto wallet required for free tier
+- RP ID: detour.ninja
+- RP Origin: https://detour.ninja
+
+### Secondary: Solana Wallet (SIWS)
+- Optional — for $DTOUR holders to verify on-chain balance
+- Sign In With Solana protocol
+
+## Token ($DTOUR)
+- **Mint:** DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy
+- **Chain:** Solana (SPL)
+- **Supply:** 1,000,000,000
+- **Launch:** Pump.fun
+- **Tiers:**
+  - Free: no $DTOUR required
+  - Holder (Scout): 1M $DTOUR
+  - Holder (Operator): 5M $DTOUR
+
+## Pages
+1. **Landing** (https://detour.ninja/): Hero with "Your AI Agents. Everywhere." — capabilities grid (Autonomous Agents, Plugins & MCP, Skills & Workflows, Multi-Platform Chat, API Keys & Webhooks, Containerized Deploy) — rollout targets (Detour Cloud, macOS, iPhone, Self-Hosted, Discord, Telegram, Twitter/X, REST API) — Swoosh native runtime section (Menu Bar Agent, iPhone Companion, Local MLX Inference) — CTA to sign up
+2. **$DTOUR Token** (https://detour.ninja/token): Token info, supply 1B, Solana chain, Pump.fun launch — holder utility (cloud access, 0.5% holder rate at 5M)
+3. **Login** (https://detour.ninja/login): Dual-path sign in — passkey (primary) or connect wallet (secondary) — ninja squirrel mascot — free tier + holder callout
+4. **Terms of Service** (https://detour.ninja/terms-of-service): 12 sections — governed by Delaware law
+5. **Privacy Policy** (https://detour.ninja/privacy-policy): 8 sections — data in Ashburn, VA — no tracking cookies
+6. **Ninja** (https://detour.ninja/ninja): Hidden squirrel facts page — easter egg
+
+## Architecture
+- **Frontend:** Vite 8 + React 19 + react-router-dom 7 + Tailwind v4
+- **Auth:** @simplewebauthn/server + @simplewebauthn/browser (WebAuthn), SIWS (Solana)
+- **Backend:** Self-hosted Convex (PostgreSQL + document store) — sessions, user profiles, nonce management, passkey credentials
+- **Agent Runtime:** elizaOS (vendored packages: cloud-api, cloud-shared, cloud-sdk, cloud-routing) — proxied to ElizaCloud infrastructure
+- **Token Gate:** Convex actions that verify on-chain $DTOUR balance via SOLANA_RPC_URL (non-blocking — records tier for perks, doesn't block access)
+- **Hosting:** DigitalOcean droplets + Caddy reverse proxy — Docker Compose orchestration
+- **Deploy:** bash deploy/deploy.sh — builds frontend, brings up Convex + Caddy, runs convex deploy
+
+## SEO & Metadata
+- Structured data: JSON-LD (SoftwareApplication, WebSite, Organization, BreadcrumbList, FAQ)
+- Open Graph: title, description, image (1200x630), locale en_US
+- Twitter: summary_large_image card, @detour_squirrel
+- Canonical: https://detour.ninja/
+- Manifest: PWA with screenshots, categories developer-tools/artificial-intelligence/productivity
+- Robots: Allow all, sitemap at /sitemap.xml
+
+## Legal
+- Governing law: Delaware, United States
+- Data storage: Ashburn, Virginia (DigitalOcean)
+- 14-day notice for material changes to terms/pricing
+- 90-day data retention after account termination
+- GDPR-style user rights (access, correction, deletion, portability)
+
+## Easter Eggs
+- Konami code (↑↑↓↓←→←→BA): squirrel parade + confetti on any page
+- "scenic" or "scenicroute" keyboard chord: same parade + confetti
+- 5× squirrel click: confetti burst
+- Console.log: branded message + squirrel ASCII art + detour_bounty() / detour_design() commands

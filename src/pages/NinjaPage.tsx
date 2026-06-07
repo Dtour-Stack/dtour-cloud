@@ -38,9 +38,8 @@ export default function NinjaPage() {
         ))}
         <img
           src="/brand/dtour/ninja-squirrel.png"
-          alt="Ninja Squirrel"
-          className="mx-auto h-28 w-28 object-contain drop-shadow-[0_0_25px_rgba(168,85,247,0.35)]"
-        />
+          alt="Ninja squirrel mascot — Detour Cloud"
+          className="mx-auto h-28 w-28 object-contain drop-shadow-[0_0_25px_rgba(168,85,247,0.35)]" />
       </div>
       <h1 className="mt-8 text-3xl font-bold tracking-tight text-white">
         You found the squirrel!
