@@ -211,6 +211,34 @@ a:not(:disabled):active {
   animation: splash-pulse 1.5s ease-in-out infinite;
 }
 
+/* Ambient particle drift */
+@keyframes ambient-drift {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0);
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-110vh) translateX(var(--drift));
+  }
+}
+
+/* Sleepy squirrel */
+@keyframes sleepy-blink {
+  0%, 40%, 60%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.05);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-up,
   .squirrel-bounce,
@@ -218,7 +246,8 @@ a:not(:disabled):active {
   .copy-pop,
   .confetti-particle,
   .count-glow,
-  .splash-pulse {
+  .splash-pulse,
+  .ambient-particle {
     animation: none;
   }
 

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { spawnAmbientParticles } from "@/lib/ambient-particles";
 import { trackKonamiCode, trackSquirrelClick } from "@/lib/easter-eggs";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 import { DtourGate } from "./dtour-gate";
@@ -7,6 +8,14 @@ import { PasskeySection } from "./PasskeySection";
 
 export default function DtourLoginPage() {
   const [method, setMethod] = useState<"pick" | "passkey" | "wallet">("pick");
+  const bgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = bgRef.current;
+    if (!el) return;
+    const cleanup = spawnAmbientParticles(el, 25);
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -21,6 +30,7 @@ export default function DtourLoginPage() {
     <div className="theme-cloud min-h-screen bg-black text-white">
       {/* Mesh gradient background */}
       <div
+        ref={bgRef}
         className="fixed inset-0 -z-10"
         style={{
           background: `

@@ -7,6 +7,7 @@ import {
   readDtourPlaywrightUser,
 } from "@/lib/playwright-dtour-auth";
 import { getDtourSessionToken } from "@/lib/session";
+import { SplashScreen } from "@/ui";
 
 /**
  * Route guard for the app. Requires:
@@ -27,17 +28,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (!token || me === null) return <Navigate to="/login" replace />;
 
   // Resolving the session.
-  if (me === undefined) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#0a0a0a]">
-        <span
-          className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white/70 motion-safe:animate-spin"
-          role="status"
-          aria-label="Loading"
-        />
-      </div>
-    );
-  }
+  if (me === undefined) return <SplashScreen />;
 
   // Authenticated but no profile yet → must finish onboarding first.
   if (!me.username) return <Navigate to="/onboarding" replace />;

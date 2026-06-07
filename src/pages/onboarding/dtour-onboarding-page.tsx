@@ -4,11 +4,6 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDtourSessionToken } from "@/lib/session";
 
-/**
- * Post-login onboarding — runs once after the $DTOUR gate passes. The user
- * picks a username and links an email; both are saved to Convex against the
- * gated wallet's session.
- */
 export default function DtourOnboardingPage() {
   const navigate = useNavigate();
   const token = getDtourSessionToken();
@@ -63,7 +58,7 @@ export default function DtourOnboardingPage() {
             <img
               src="/brand/dtour/logo.svg"
               alt="Dtour"
-              className="mx-auto h-12 w-12"
+              className="logo-cloud mx-auto h-12 w-12"
             />
             <h1 className="text-2xl font-semibold">Set up your profile</h1>
             <p className="text-sm text-white/60">
@@ -118,6 +113,14 @@ export default function DtourOnboardingPage() {
               {saving ? "Saving…" : "Continue →"}
             </button>
           </form>
+
+          <div className="mt-6 flex justify-center">
+            <img
+              src="/brand/dtour/ninja-squirrel.png"
+              alt=""
+              className="h-20 w-20 object-contain opacity-40 drop-shadow-[0_0_12px_rgba(168,85,247,0.15)]"
+            />
+          </div>
         </div>
       </div>
     </div>

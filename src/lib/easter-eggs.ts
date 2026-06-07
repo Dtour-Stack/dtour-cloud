@@ -148,3 +148,27 @@ export function confettiBurst(origin?: HTMLElement) {
     setTimeout(() => particle.remove(), 2000);
   }
 }
+
+// ── "scenic route" keyboard chord ──
+
+let scenicBuffer = "";
+
+export function trackScenicChord(key: string) {
+  if (key.length === 1) {
+    scenicBuffer = (scenicBuffer + key.toLowerCase()).slice(-15);
+    if (scenicBuffer.includes("scenicroute") || scenicBuffer.includes("scenic")) {
+      scenicBuffer = "";
+      triggerSquirrelParade();
+      confettiBurst();
+    }
+  } else {
+    scenicBuffer = "";
+  }
+}
+
+// ── Sleepy squirrel check ──
+
+export function isLateNight(): boolean {
+  const h = new Date().getHours();
+  return h >= 2 && h < 5;
+}

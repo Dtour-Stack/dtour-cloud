@@ -110,6 +110,7 @@ export function AppShell({
   const flags = useFlags();
   const greeting = () => {
     const h = new Date().getHours();
+    if (h >= 2 && h < 5) return "Late night, huh?"; // sleepy squirrel hours
     if (h < 12) return "Good morning,";
     if (h < 17) return "Good afternoon,";
     return "Good evening,";

@@ -1,23 +1,27 @@
-/**
- * $DTOUR Token — public-facing token page.
- *
- * Settled utility only: Detour Cloud holder status and supported holder-rate
- * billing paths. No staking/yield/burn/revenue-split promises.
- * Same visual language as the landing page: dark glass, grid panels, Inter.
- */
-
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { spawnAmbientParticles } from "@/lib/ambient-particles";
+import { useCountUp } from "@/lib/useCountUp";
 
 const DTOUR_MINT = "DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy";
 
 export default function DtourTokenPage() {
   const font = "'Inter', system-ui, sans-serif";
   const shadow = "0 2px 16px rgba(0,0,0,0.6)";
+  const supplyCount = useCountUp(1_000_000_000, 1500);
+  const bgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = bgRef.current;
+    if (!el) return;
+    const cleanup = spawnAmbientParticles(el, 20);
+    return cleanup;
+  }, []);
 
   return (
     <div className="min-h-screen text-white" style={{ fontFamily: font }}>
       {/* Video bg */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
+      <div ref={bgRef} className="fixed inset-0 -z-10 overflow-hidden">
         <video autoPlay loop muted playsInline className="h-full w-full object-cover">
           <source src="/brand/dtour/background.mp4" type="video/mp4" />
         </video>
@@ -52,7 +56,7 @@ export default function DtourTokenPage() {
           className="mt-6 text-5xl font-bold tracking-[-0.02em] md:text-7xl"
           style={{ textShadow: shadow }}
         >
-          <span className="bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 bg-clip-text text-transparent" style={{ filter: "drop-shadow(0 2px 8px rgba(139,92,246,0.35))" }}>
+          <span className="bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 bg-clip-text text-transparent count-glow" style={{ filter: "drop-shadow(0 2px 8px rgba(139,92,246,0.35))" }}>
             $DTOUR
           </span>
         </h1>
@@ -65,7 +69,7 @@ export default function DtourTokenPage() {
             href={`https://pump.fun/coin/${DTOUR_MINT}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10"
+            className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 active:scale-[0.97]"
           >
             Buy on Pump.fun
           </a>
@@ -73,7 +77,7 @@ export default function DtourTokenPage() {
             href={`https://solscan.io/token/${DTOUR_MINT}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10"
+            className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10 active:scale-[0.97]"
           >
             View on Solscan
           </a>
@@ -88,11 +92,11 @@ export default function DtourTokenPage() {
         <div className="grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-white/10">
           {[
             { label: "Chain", value: "Solana" },
-            { label: "Supply", value: "1B" },
+            { label: "Supply", value: supplyCount.toLocaleString() },
             { label: "Launch", value: "Pump.fun" },
             { label: "Type", value: "SPL" },
           ].map((s) => (
-            <div key={s.label} className="bg-black/30 p-4 text-center backdrop-blur-md">
+            <div key={s.label} className="bg-black/30 p-4 text-center backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
               <div className="text-[10px] uppercase tracking-wider text-white/35">{s.label}</div>
               <div className="mt-1 text-base font-bold">{s.value}</div>
             </div>
@@ -109,14 +113,14 @@ export default function DtourTokenPage() {
           <p className="mt-2 text-sm text-white/45">Simple utility while the beta rails come online.</p>
         </div>
         <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 md:grid-cols-2">
-          <div className="bg-black/30 p-6 backdrop-blur-md">
+          <div className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
             <h3 className="text-sm font-semibold text-white">Access to the cloud</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45">
               Public beta accounts are open with a Solana wallet signature.
               $DTOUR remains the holder-status token for Detour Cloud.
             </p>
           </div>
-          <div className="bg-black/30 p-6 backdrop-blur-md">
+          <div className="bg-black/30 p-6 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/40">
             <h3 className="text-sm font-semibold text-white">Holder rate at 0.5%</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/45">
               Hold <span className="text-white/70">0.5% of supply (5M $DTOUR)</span> or
@@ -141,11 +145,11 @@ export default function DtourTokenPage() {
             href={`https://pump.fun/coin/${DTOUR_MINT}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10"
+            className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 active:scale-[0.97]"
           >
             Buy $DTOUR
           </a>
-          <Link to="/login" className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10">
+          <Link to="/login" className="rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-white/10 active:scale-[0.97]">
             Open Detour Cloud
           </Link>
         </div>
@@ -155,7 +159,7 @@ export default function DtourTokenPage() {
       <footer className="relative z-10 border-t border-white/[0.08] bg-black/40 px-6 py-6 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 md:flex-row md:justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/brand/dtour/logo.svg" alt="" className="h-5 w-5 opacity-50" />
+            <img src="/brand/dtour/logo.svg" alt="" className="logo-cloud h-5 w-5 opacity-50" />
             <span className="text-xs text-white/40">Detour · detour.ninja</span>
           </div>
           <div className="flex items-center gap-2.5">
