@@ -5,6 +5,7 @@ import { RequireSession } from "@/dashboard/RequireSession";
 import { SurfaceGate } from "@/dashboard/SurfaceGate";
 import DtourLandingPage from "@/pages/dtour-landing-page";
 import DtourTokenPage from "@/pages/dtour-token-page";
+import LegalPage from "@/pages/LegalPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import { SplashScreen } from "@/ui/SplashScreen";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
@@ -65,6 +66,8 @@ export default function App() {
         <Route path="/login" element={<DtourLoginPage />} />
         <Route path="/onboarding" element={<DtourOnboardingPage />} />
         <Route path="/ninja" element={<NinjaPage />} />
+        <Route path="/terms-of-service" element={<LegalPage />} />
+        <Route path="/privacy-policy" element={<LegalPage />} />
         <Route
           path="/dashboard/custom/:dashboardId"
           element={
