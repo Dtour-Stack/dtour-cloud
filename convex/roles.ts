@@ -1,6 +1,6 @@
 // Shared role logic (plain TS, imported by Convex functions).
 
-export type Role = "user" | "dev_tester" | "pro_user" | "super_user" | "admin" | "super_admin";
+export type Role = "free" | "user" | "dev_tester" | "pro_user" | "super_user" | "admin" | "super_admin";
 export type AdminRole = "admin" | "super_admin";
 
 // User-tier thresholds (denominator #1 = $DTOUR held). More denominators can
@@ -16,10 +16,12 @@ export function tierFromBalance(
   const sup = thresholds?.super ?? SUPER_USER_MIN;
   if (balance >= sup) return "super_user";
   if (balance >= pro) return "pro_user";
-  return "user";
+  if (balance > 0) return "user";
+  return "free";
 }
 
 const RANK: Record<Role, number> = {
+  free: 0,
   user: 0,
   dev_tester: 1,
   pro_user: 1,
@@ -33,10 +35,11 @@ export function atLeast(role: Role, min: Role): boolean {
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
-  user: "User",
+  free: "Free",
+  user: "Holder",
   dev_tester: "Dev / Tester",
-  pro_user: "Pro",
-  super_user: "Super User",
+  pro_user: "Scout",
+  super_user: "Operator",
   admin: "Admin",
   super_admin: "Super Admin",
 };
@@ -52,10 +55,12 @@ export function baseSwerveTag(role: Role): string {
     case "dev_tester":
       return "Builder";
     case "super_user":
-      return "Super";
+      return "Operator";
     case "pro_user":
-      return "Pro";
+      return "Scout";
+    case "user":
+      return "Holder";
     default:
-      return "Member";
+      return "Explorer";
   }
 }

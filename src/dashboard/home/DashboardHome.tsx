@@ -124,14 +124,13 @@ const TEST_CREDITS: Exclude<Credits, null | undefined> = {
 };
 
 const TIERS = [
-  { name: "VIP", min: 10_000_000 },
-  { name: "Operator", min: 5_000_000 },
+  { name: "Operator", min: 10_000_000 },
   { name: "Scout", min: 1_000_000 },
   { name: "Holder", min: 1 },
 ] as const;
 
 function tierFor(balance: number): string {
-  return TIERS.find((t) => balance >= t.min)?.name ?? "None";
+  return TIERS.find((t) => balance >= t.min)?.name ?? "Free";
 }
 
 function truncate(addr: string): string {
@@ -250,17 +249,17 @@ export function DashboardHome() {
         style={{ animationDelay: "60ms" }}
       >
         <StatCard
-          label="$DTOUR Held"
+          label="$DTOUR Balance"
           loading={loading}
           value={balance.toLocaleString()}
-          sub="Verified on-chain at sign-in"
+          sub={balance > 0 ? "Holder perks active" : "Connect wallet to verify $DTOUR"}
           icon={<Icon.Coins size={16} />}
         />
         <StatCard
           label="Access Tier"
           loading={loading}
           value={tierFor(balance)}
-          sub="Based on $DTOUR balance"
+          sub={balance > 0 ? "Based on $DTOUR balance" : "Free tier — all surfaces available"}
           icon={<Icon.Zap size={16} />}
         />
         <StatCard

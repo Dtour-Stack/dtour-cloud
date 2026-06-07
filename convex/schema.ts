@@ -9,7 +9,8 @@ export default defineSchema({
     used: v.boolean(),
   }).index("by_nonce", ["nonce"]),
 
-  // Wallet identities that signed in through the Solana wallet gate.
+  // User identities. pubkey is a Solana wallet address for wallet users, or a
+  // UUID for passkey users. balance tracks on-chain $DTOUR (0 for passkey users).
   users: defineTable({
     pubkey: v.string(),
     balance: v.number(),
@@ -25,6 +26,28 @@ export default defineSchema({
     pubkey: v.string(),
     expiresAt: v.number(),
   }).index("by_token", ["token"]),
+
+  // WebAuthn passkey credentials — one per device per user.
+  passkeyCredentials: defineTable({
+    userId: v.string(),       // users.pubkey (UUID for passkey users)
+    credentialId: v.string(), // base64url-encoded credential ID
+    publicKey: v.string(),    // base64url-encoded COSE public key
+    counter: v.number(),      // for replay-attack detection
+    transports: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+    lastUsedAt: v.number(),
+  })
+    .index("by_credential_id", ["credentialId"])
+    .index("by_user", ["userId"]),
+
+  // Short-lived challenges for WebAuthn ceremonies.
+  passkeyChallenges: defineTable({
+    challenge: v.string(), // base64url-encoded challenge
+    type: v.string(),      // "registration" | "authentication"
+    userId: v.optional(v.string()), // set for authentication (pre-registered user)
+    expiresAt: v.number(),
+    used: v.boolean(),
+  }).index("by_challenge", ["challenge"]),
 
   // Prospective users and tester applicants; deduped by email.
   waitlist: defineTable({

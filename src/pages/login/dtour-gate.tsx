@@ -92,12 +92,12 @@ export function DtourGate() {
         <WalletMultiButton />
       </div>
 
-      <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-center">
-        <p className="text-sm text-emerald-200/90">
-          Open beta — connect a Solana wallet to create your account.
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
+        <p className="text-sm text-white/80">
+          Connect a Solana wallet to verify $DTOUR and unlock holder tier perks.
         </p>
         <p className="mt-1 text-xs text-white/45">
-          Dev/tester status and creator rewards are still admin-reviewed.
+          No $DTOUR? Your account works the same — just without the holder discount.
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export function DtourGate() {
           disabled={submitting}
           className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10 disabled:opacity-50"
         >
-          {submitting ? "Verifying…" : "Create beta account"}
+          {submitting ? "Verifying…" : "Sign in with wallet"}
         </button>
       )}
 
@@ -172,7 +172,7 @@ export function DtourGate() {
 
       {!connected && (
         <p className="text-center text-xs text-white/40">
-          Public beta is open. A wallet signature proves account ownership.
+          Wallet is optional — $DTOUR holders get tier perks and discounts.
         </p>
       )}
 

@@ -11,6 +11,9 @@ infra (agent execution, gateways, containers — we don't run our own). dtour's
 own data + auth live in **self-hosted Convex**. Token: **$DTOUR** (Solana SPL
 `DijmsEDeTXsWCkCLkhYJNTutKaHf541xZshVrCUbcozy`), domain detour.ninja.
 
+**This file is the single source of truth.** `CLAUDE.md` at the repo root is a
+redundant copy — update this one, not both.
+
 ## UI work → read DESIGN.md first
 
 Any frontend/UI task MUST follow `DESIGN.md` at the repo root — it is the source
@@ -34,8 +37,14 @@ bunx convex run auth:getNonce            # invoke a deployed function
 bunx convex env set SOLANA_RPC_URL <url> # set a deployment env var
 ```
 
-There is no test runner wired up yet. Vendored packages carry upstream tests but
-aren't run here.
+```bash
+bun run test               # vitest (unit: src/**/*.test.ts convex/**/*.test.ts services/**/*.test.ts)
+bun run test:e2e           # Playwright (tests/e2e/*.spec.ts — builds first)
+bun run test:e2e:ui        # same, with Playwright UI mode
+VITE_PLAYWRIGHT_TEST_AUTH=true bun run test:e2e   # E2E requires this env var
+
+bunx biome check --write <path>   # lint/format (biome dep exists, no npm script wrapper)
+```
 
 ## Architecture — four layers
 
@@ -43,8 +52,9 @@ aren't run here.
    `cloud-routing`, `security`): copied byte-identical from the elizaOS monorepo
    so fixes can be PR'd back upstream. cloud-api is a Hono app on Cloudflare
    Workers; routes are **file-based** (`<dir>/route.ts` → `/api/<dir>`) and
-   compiled into `src/_router.generated.ts` by `node src/_generate-router.mjs`
-   (`bun run codegen`). Run codegen after adding/removing a route.
+   compiled into `src/_router.generated.ts` by
+   `node packages/cloud-api/src/_generate-router.mjs`.
+   Run codegen after adding/removing a route.
 2. **Linked elizaOS runtime** (`@elizaos/core`, `shared`, `ui`, `plugin-*`): NOT
    vendored. Resolved via symlinks (`packages/{core,shared,ui,contracts}`,
    `plugins/`) into a local elizaOS checkout at
@@ -55,6 +65,7 @@ aren't run here.
 3. **Self-hosted Convex** (`convex/`): dtour's own backend — the $DTOUR token
    gate (nonce + SIWS verify + on-chain balance, `gate.ts` is a `"use node"`
    action), sessions, and user profiles. See "Auth" below.
+   **Data model:** `convex/schema.ts` (724 lines) — read this before adding tables.
 4. **Custom frontend** (`src/`, `index.html`, `vite.config.ts`): Vite 8 + React
    19 + react-router-dom 7 + Tailwind v4. The dashboard shell
    (`src/dashboard/dtour-dashboard-page.tsx`) is the central hub; features get
@@ -90,6 +101,12 @@ the dashboard. ElizaCloud's Steward OAuth/wallet login is deliberately replaced;
   imported first in `main.tsx`) + `define: { global: "globalThis" }`.
 - **Tailwind v4** is scoped with `@import "tailwindcss" source(none)` + `@source`
   in `src/globals.css` so it doesn't scan the symlinked monorepo.
+- **TypeScript 6** is used with `--ignoreDeprecations 6.0` on all typecheck scripts.
+  Do not remove that flag — TS 6 ships breaking changes gated behind it.
+- **Deployment** lives in `deploy/` — single DigitalOcean droplet (Docker + Caddy).
+  `deploy/deploy.sh` builds the frontend in `oven/bun`, brings up Convex + Caddy,
+  runs `bunx convex codegen && bunx convex deploy`. See `docs/DEPLOY.md`.
+  `VITE_CONVEX_URL` is baked at **build time** — change it ⇒ rebuild.
 - Machine-specific symlinks (`/plugins`, `/packages/{core,shared,ui,contracts}`),
   `node_modules`, `convex/_generated`, `docker-compose.yml`, and `.env.local`
   are gitignored. Vendored `cloud-*` packages ARE tracked.

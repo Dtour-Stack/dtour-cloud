@@ -97,6 +97,8 @@ const DEFAULTS: Array<{
   { key: "tier_super_min", value: "10000000", type: "number", category: "Access", description: "$DTOUR for Super tier", public: false },
   { key: "default_chat_model", value: '""', type: "string", category: "Inference", description: "Routed model when an agent is set to Auto (empty = ElizaCloud default)", public: false },
   { key: "elizacloud_base_url", value: '"https://www.elizacloud.ai/api/v1"', type: "string", category: "Inference", description: "ElizaCloud OpenAI-compatible base URL", public: false },
+  { key: "rp_id", value: '"localhost"', type: "string", category: "Auth", description: "WebAuthn relying party ID", public: true },
+  { key: "rp_origin", value: '"http://localhost:5174"', type: "string", category: "Auth", description: "WebAuthn relying party origin", public: true },
 ];
 
 // Keys removed from DEFAULTS that should be cleaned out of existing deployments.

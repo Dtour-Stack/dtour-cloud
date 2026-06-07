@@ -9,11 +9,15 @@
  * in App.tsx routing, or use the brand context to conditionally render.
  */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { SolanaWalletProvider } from "@/providers/SolanaWalletProvider";
 import { DtourGate } from "./dtour-gate";
+import { PasskeySection } from "./PasskeySection";
 
 export default function DtourLoginPage() {
+  const [method, setMethod] = useState<"pick" | "passkey" | "wallet">("pick");
+
   return (
     <SolanaWalletProvider>
     <div className="theme-cloud min-h-screen bg-black text-white">
@@ -49,7 +53,50 @@ export default function DtourLoginPage() {
                 </p>
               </div>
 
-              <DtourGate />
+              {method === "pick" && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setMethod("passkey")}
+                    className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:shadow-xl hover:shadow-white/10"
+                  >
+                    Sign in with passkey
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMethod("wallet")}
+                    className="w-full rounded-full border border-white/25 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Connect wallet
+                  </button>
+                </div>
+              )}
+
+              {method === "passkey" && (
+                <div>
+                  <PasskeySection />
+                  <button
+                    type="button"
+                    onClick={() => setMethod("pick")}
+                    className="mt-3 w-full text-center text-xs text-white/40 transition hover:text-white/60"
+                  >
+                    Other sign-in options
+                  </button>
+                </div>
+              )}
+
+              {method === "wallet" && (
+                <div>
+                  <DtourGate />
+                  <button
+                    type="button"
+                    onClick={() => setMethod("pick")}
+                    className="mt-3 w-full text-center text-xs text-white/40 transition hover:text-white/60"
+                  >
+                    Other sign-in options
+                  </button>
+                </div>
+              )}
 
               {/* Mascot */}
               <div className="flex justify-center">
@@ -63,10 +110,10 @@ export default function DtourLoginPage() {
               {/* Holder callout */}
               <div className="border-t border-white/10 pt-4 text-center">
                 <p className="text-xs text-white/50">
-                  Public beta is open; $DTOUR tracks holder tiers
+                  Free tier available. $DTOUR holders unlock tier perks.
                 </p>
                 <p className="mt-1 text-[10px] text-white/30">
-                  0.5%+ holders get the coding sandbox holder rate
+                  Scout at 1M · Operator at 5M · discounted coding & inference
                 </p>
               </div>
 
